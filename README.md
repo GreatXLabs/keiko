@@ -27,7 +27,7 @@ keiko/
 ├── keiko-sim/                <- Simulación Robótica 3D en Webots
 │   ├── worlds/               <- Mundos 3D (.wbt) de la Bahía de Caza
 │   ├── controllers/          <- Controladores en Python (live_visualizer, robot_client, dataset_collector)
-│   ├── data/                 <- Datasets sintéticos y modelo neuronal .nnet
+│   ├── data/                 <- Datasets (datasets/) y redes neuronales .nnet (models/)
 │   ├── docs/                 <- Circuito electrónico, BOM y pinout de conexión
 │   ├── scripts/              <- Scripts de ejecución (run_gui.sh, run_distributed.sh, etc.)
 │   └── README.md             <- Guía del entorno de simulación

@@ -53,7 +53,7 @@ Tras 14 campañas experimentales exhaustivas ejecutadas sobre el cluster distrib
 ### 4. Modelo Neuronal de Producción Calibrado
 - **Topología Final:** `6 -> 24 -> 5` (Capa de entrada de 6 sensores, capa oculta de 24 neuronas con regularización, y salida de 5 clases con activación Sigmoide).
 - **Métricas Finales Validadas en Cluster:** Accuracy: 77.6% - 83.3% sobre conjunto de prueba no visto con 250 épocas reales por tarea, RMSE < 0.28, F1-Score: 0.89.
-- **Modelo Guardado:** `keiko-sim/data/orquitas_production_champion.nnet` (listo para ser cargado por el Servidor Java de Producción).
+- **Modelo Guardado:** `keiko-sim/data/models/orquitas_production_champion.nnet` (listo para ser cargado por el Servidor Java de Producción).
 
 ---
 

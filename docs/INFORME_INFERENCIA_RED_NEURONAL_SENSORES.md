@@ -282,8 +282,8 @@ La implementacion en **Neuroph 2.98** utiliza una red neuronal Perceptron Multic
 ## 5. Muestras Reales de los Datasets de Entrenamiento
 
 A continuacion se presentan muestras reales extraidas directamente de los datasets calibrados del proyecto:
-- `keiko-sim/data/orquitas_dataset_4_sensores.csv`
-- `keiko-sim/data/orquitas_dataset_6_sensores.csv`
+- `keiko-sim/data/datasets/orquitas_dataset_4_sensores.csv`
+- `keiko-sim/data/datasets/orquitas_dataset_6_sensores.csv`
 
 Ambos datasets cuentan con 2000 muestras reales balanceadas (400 muestras por cada una de las 5 clases).
 
