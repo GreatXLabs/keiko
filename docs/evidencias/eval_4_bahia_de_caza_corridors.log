@@ -1,0 +1,429 @@
+=== LOG DE SIMULACION EN VIVO (KEIKO 4WD) ===
+
+==============================================================================
+  ORQUITAS (KEIKO) - CONTROLADOR AUTÓNOMO 3D & CAPTURA AUTOMÁTICA
+  Paso: 32 ms | HUD Display 2D: Activo | Mapeador: Occupancy Grid
+  Modo: Captura Automática Frontal Instantánea | Meta: 3 Canicas y Escape
+==============================================================================
+[HARDWARE] Configuración sensorial activa: DUAL_PLANE_8 (8 transductores).
+  [HUD] Dispositivo Display 'sensor_hud' (340x340 px) vinculado exitosamente.
+[HARDWARE] Salida detectada: NORTH @ (0.00, 1.20) | yaw=1.57
+[INICIALIZACION] Captura automática frontal lista. Caza a la presa más cercana.
+
+[000.0s] CAPTURA VERIFICADA: #1
+[000.0s | CAPTURA AUTOMÁTICA] ★ Canica LOBITO_2 asegurada y retirada del mapa (1/3).
+[000.5s | BUSQUEDA    ] Pos=[-0.00,-0.28] | Target=[0.00,-0.80] | Mapeo= 2.1% | Canicas=1/3 | Low=[213.2,212.0] | Acción=PASILLO_CENTRADO_RETROCESO
+[001.0s | BUSQUEDA    ] Pos=[-0.00,-0.37] | Target=[0.00,-0.80] | Mapeo= 2.6% | Canicas=1/3 | Low=[221.7,221.7] | Acción=PASILLO_CENTRADO_RETROCESO
+[001.4s | BUSQUEDA    ] Pos=[-0.00,-0.46] | Target=[0.00,-0.80] | Mapeo= 3.1% | Canicas=1/3 | Low=[230.9,231.7] | Acción=PASILLO_CENTRADO_RETROCESO
+[001.9s | BUSQUEDA    ] Pos=[-0.00,-0.56] | Target=[0.00,-0.80] | Mapeo= 3.6% | Canicas=1/3 | Low=[237.0,239.5] | Acción=PASILLO_CENTRADO_RETROCESO
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=001.9s | FSM=BUSQUEDA | Canicas=1/3
+ Configuración: DUAL_PLANE_8 | Cobertura= 3.6% | ΔL=+11.6cm | ΔR=+11.6cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto: 248.6cm                  FR-Alto: 251.1cm
+          FL-Bajo: 237.0cm                    FR-Bajo: 239.5cm  
+                     \                          /
+  Flanco-Izq:   8.5cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   8.5cm
+                     /                          \
+          RL-Tras:  50.5cm                  RR-Tras:  51.4cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     | 237.0 cm  |  +11.6 cm | [================>] | ESPACIO LIBRE
+ us_high_left    | 248.6 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_low_right    | 239.5 cm  |  +11.6 cm | [================>] | ESPACIO LIBRE
+ us_high_right   | 251.1 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_side_left    |   8.5 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   8.5 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    |  50.5 cm  |    ---    | [====>            ] | TRANSITABLE
+ us_rear_right   |  51.4 cm  |    ---    | [====>            ] | TRANSITABLE
+==============================================================================
+[002.4s | BUSQUEDA    ] Pos=[-0.00,-0.65] | Target=[0.00,-0.80] | Mapeo= 4.2% | Canicas=1/3 | Low=[248.4,246.3] | Acción=PASILLO_CENTRADO_RETROCESO
+[002.9s | BUSQUEDA    ] Pos=[-0.00,-0.74] | Target=[0.00,-0.80] | Mapeo= 4.7% | Canicas=1/3 | Low=[245.0,252.9] | Acción=PASILLO_CENTRADO_RETROCESO
+[002.9s] CAPTURA VERIFICADA: #2
+[002.9s | CAPTURA AUTOMÁTICA] ★ Canica LOBITO_3 asegurada y retirada del mapa (2/3).
+[003.4s | BUSQUEDA    ] Pos=[-0.00,-0.68] | Target=[0.00,0.60] | Mapeo= 4.7% | Canicas=2/3 | Low=[249.6,253.9] | Acción=PASILLO_CENTRADO_AVANCE
+[003.8s | DESENGANCHE] Maniobra anti-atasco activa (2.9 cm).
+[003.8s | BUSQUEDA    ] Pos=[0.00,-0.59] | Target=[0.00,0.60] | Mapeo= 5.4% | Canicas=2/3 | Low=[246.7,249.2] | Acción=PASILLO_CENTRADO_AVANCE
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=003.8s | FSM=BUSQUEDA | Canicas=2/3
+ Configuración: DUAL_PLANE_8 | Cobertura= 5.4% | ΔL= +3.9cm | ΔR= +0.7cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto: 250.6cm                  FR-Alto: 249.9cm
+          FL-Bajo: 246.7cm                    FR-Bajo: 249.2cm  
+                     \                          /
+  Flanco-Izq:   8.3cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   8.5cm
+                     /                          \
+          RL-Tras:  47.4cm                  RR-Tras:  46.7cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     | 246.7 cm  |   +3.9 cm | [================>] | ESPACIO LIBRE
+ us_high_left    | 250.6 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_low_right    | 249.2 cm  |   +0.7 cm | [================>] | ESPACIO LIBRE
+ us_high_right   | 249.9 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_side_left    |   8.3 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   8.5 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    |  47.4 cm  |    ---    | [===>             ] | TRANSITABLE
+ us_rear_right   |  46.7 cm  |    ---    | [===>             ] | TRANSITABLE
+==============================================================================
+
+--- [MAPA DE OCUPACIÓN 2D - LA BAHÍA] ---
++------------------------+
+|           E            |
+|                        |
+|                        |
+|                        |
+|                        |
+|           T            |
+|                        |
+|                        |
+|                        |
+|                        |
+|                        |
+|                        |
+|                        |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ..^.          |
+|          ....          |
+|          ....          |
+|          ...           |
+|                        |
+|                        |
+|                        |
++------------------------+
+Leyenda: [^ v < >] Robot | [T] Destino | [.] Rastro | [·] Libre | [#] Obstáculo | [E] Salida
+---------------------------------------------
+
+[004.3s | BUSQUEDA    ] Pos=[0.00,-0.49] | Target=[0.00,0.60] | Mapeo= 5.4% | Canicas=2/3 | Low=[232.8,236.2] | Acción=PASILLO_CENTRADO_AVANCE
+[004.8s | BUSQUEDA    ] Pos=[0.00,-0.40] | Target=[0.00,0.60] | Mapeo= 5.4% | Canicas=2/3 | Low=[224.5,226.4] | Acción=PASILLO_CENTRADO_AVANCE
+[005.3s | BUSQUEDA    ] Pos=[0.00,-0.31] | Target=[0.00,0.60] | Mapeo= 5.4% | Canicas=2/3 | Low=[213.1,216.3] | Acción=PASILLO_CENTRADO_AVANCE
+[005.8s | BUSQUEDA    ] Pos=[0.00,-0.21] | Target=[0.00,0.60] | Mapeo= 5.4% | Canicas=2/3 | Low=[209.6,203.9] | Acción=PASILLO_CENTRADO_AVANCE
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=005.8s | FSM=BUSQUEDA | Canicas=2/3
+ Configuración: DUAL_PLANE_8 | Cobertura= 5.4% | ΔL=+42.8cm | ΔR=+41.1cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto: 252.5cm                  FR-Alto: 245.0cm
+          FL-Bajo: 209.6cm                    FR-Bajo: 203.9cm  
+                     \                          /
+  Flanco-Izq:   8.5cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   8.6cm
+                     /                          \
+          RL-Tras:  81.4cm                  RR-Tras:  83.9cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     | 209.6 cm  |  +42.8 cm | [================>] | ESPACIO LIBRE
+ us_high_left    | 252.5 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_low_right    | 203.9 cm  |  +41.1 cm | [================>] | ESPACIO LIBRE
+ us_high_right   | 245.0 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_side_left    |   8.5 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   8.6 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    |  81.4 cm  |    ---    | [======>          ] | TRANSITABLE
+ us_rear_right   |  83.9 cm  |    ---    | [======>          ] | TRANSITABLE
+==============================================================================
+[006.2s | BUSQUEDA    ] Pos=[0.00,-0.12] | Target=[0.00,0.60] | Mapeo= 5.9% | Canicas=2/3 | Low=[193.7,197.4] | Acción=PASILLO_CENTRADO_AVANCE
+[006.7s | BUSQUEDA    ] Pos=[0.00,-0.03] | Target=[0.00,0.60] | Mapeo= 8.3% | Canicas=2/3 | Low=[191.2,118.2] | Acción=PASILLO_CENTRADO_AVANCE
+[007.2s | BUSQUEDA    ] Pos=[0.00,0.07] | Target=[0.00,0.60] | Mapeo=10.8% | Canicas=2/3 | Low=[161.1,177.1] | Acción=PASILLO_CENTRADO_AVANCE
+[007.7s | BUSQUEDA    ] Pos=[0.00,0.16] | Target=[0.00,0.60] | Mapeo=10.9% | Canicas=2/3 | Low=[168.0,173.6] | Acción=PASILLO_CENTRADO_AVANCE
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=007.7s | FSM=BUSQUEDA | Canicas=2/3
+ Configuración: DUAL_PLANE_8 | Cobertura=10.9% | ΔL=+86.8cm | ΔR=+72.1cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto: 254.8cm                  FR-Alto: 245.7cm
+          FL-Bajo: 168.0cm                    FR-Bajo: 173.6cm  
+                     \                          /
+  Flanco-Izq:   8.5cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   8.4cm
+                     /                          \
+          RL-Tras: 119.0cm                  RR-Tras: 123.5cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     | 168.0 cm  |  +86.8 cm | [=============>   ] | ESPACIO LIBRE
+ us_high_left    | 254.8 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_low_right    | 173.6 cm  |  +72.1 cm | [=============>   ] | ESPACIO LIBRE
+ us_high_right   | 245.7 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_side_left    |   8.5 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   8.4 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    | 119.0 cm  |    ---    | [=========>       ] | TRANSITABLE
+ us_rear_right   | 123.5 cm  |    ---    | [=========>       ] | TRANSITABLE
+==============================================================================
+
+--- [MAPA DE OCUPACIÓN 2D - LA BAHÍA] ---
++------------------------+
+|          ·E ·          |
+|          ·· ·          |
+|           ···          |
+|           ··           |
+|           ··           |
+|           T·           |
+|           ··           |
+|           ··           |
+|           ··           |
+|           ...          |
+|           .^.          |
+|           ...          |
+|           ...          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ...           |
+|                        |
+|                        |
+|                        |
++------------------------+
+Leyenda: [^ v < >] Robot | [T] Destino | [.] Rastro | [·] Libre | [#] Obstáculo | [E] Salida
+---------------------------------------------
+
+[008.2s | BUSQUEDA    ] Pos=[0.00,0.25] | Target=[0.00,0.60] | Mapeo=11.1% | Canicas=2/3 | Low=[159.8,163.9] | Acción=PASILLO_CENTRADO_AVANCE
+[008.5s] CAPTURA VERIFICADA: #3
+[008.5s | CAPTURA AUTOMÁTICA] ★ Canica LOBITO_1 asegurada y retirada del mapa (3/3).
+[008.5s] ESTADO: MODO ESCAPE ACTIVADO
+[008.5s | TRANSICIÓN CONDUCTUAL] 3 canicas aseguradas.
+⚡ CONMUTACIÓN INMEDIATA A MODO ESCAPE HACIA EL ESTRECHO DE SALIDA.
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=008.5s | FSM=ESCAPE | Canicas=3/3
+ Configuración: DUAL_PLANE_8 | Cobertura=11.3% | ΔL=+105.6cm | ΔR=+100.2cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto: 256.6cm                  FR-Alto: 252.4cm
+          FL-Bajo: 151.0cm                    FR-Bajo: 152.2cm  
+                     \                          /
+  Flanco-Izq:   8.5cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   8.4cm
+                     /                          \
+          RL-Tras: 140.3cm                  RR-Tras: 136.3cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     | 151.0 cm  | +105.6 cm | [============>    ] | ESPACIO LIBRE
+ us_high_left    | 256.6 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_low_right    | 152.2 cm  | +100.2 cm | [============>    ] | ESPACIO LIBRE
+ us_high_right   | 252.4 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_side_left    |   8.5 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   8.4 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    | 140.3 cm  |    ---    | [===========>     ] | ESPACIO LIBRE
+ us_rear_right   | 136.3 cm  |    ---    | [==========>      ] | TRANSITABLE
+==============================================================================
++------------------------+
+|          ·E ·          |
+|          ·· ·          |
+|           ···          |
+|           ··           |
+|           ··           |
+|           ··           |
+|           ··           |
+|           ...          |
+|           .^.          |
+|           ...          |
+|           ...          |
+|           ...          |
+|           ...          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ...           |
+|                        |
+|                        |
+|                        |
++------------------------+
+[008.6s | ESCAPE      ] Pos=[0.00,0.34] | Target=[0.00,1.20] | Mapeo=11.6% | Canicas=3/3 | Low=[152.5,148.2] | Acción=PASILLO_CENTRADO_AVANCE
+[009.1s | ESCAPE      ] Pos=[0.00,0.44] | Target=[0.00,1.20] | Mapeo=11.8% | Canicas=3/3 | Low=[141.4,139.9] | Acción=PASILLO_CENTRADO_AVANCE
+[009.6s | ESCAPE      ] Pos=[0.00,0.53] | Target=[0.00,1.20] | Mapeo=12.0% | Canicas=3/3 | Low=[132.4,133.9] | Acción=PASILLO_CENTRADO_AVANCE
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=009.6s | FSM=ESCAPE | Canicas=3/3
+ Configuración: DUAL_PLANE_8 | Cobertura=12.0% | ΔL= +5.0cm | ΔR= +3.2cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto: 137.4cm                  FR-Alto: 137.1cm
+          FL-Bajo: 132.4cm                    FR-Bajo: 133.9cm  
+                     \                          /
+  Flanco-Izq:   8.6cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   8.4cm
+                     /                          \
+          RL-Tras: 159.1cm                  RR-Tras: 157.5cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     | 132.4 cm  |   +5.0 cm | [==========>      ] | TRANSITABLE
+ us_high_left    | 137.4 cm  |    ---    | [==========>      ] | TRANSITABLE
+ us_low_right    | 133.9 cm  |   +3.2 cm | [==========>      ] | TRANSITABLE
+ us_high_right   | 137.1 cm  |    ---    | [==========>      ] | TRANSITABLE
+ us_side_left    |   8.6 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   8.4 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    | 159.1 cm  |    ---    | [============>    ] | ESPACIO LIBRE
+ us_rear_right   | 157.5 cm  |    ---    | [============>    ] | ESPACIO LIBRE
+==============================================================================
+[010.1s | ESCAPE      ] Pos=[-0.00,0.62] | Target=[0.00,1.20] | Mapeo=12.7% | Canicas=3/3 | Low=[124.2,120.4] | Acción=PASILLO_CENTRADO_AVANCE
+[010.6s | ESCAPE      ] Pos=[-0.00,0.72] | Target=[0.00,1.20] | Mapeo=12.8% | Canicas=3/3 | Low=[112.1,112.6] | Acción=PASILLO_CENTRADO_AVANCE
+[011.0s | ESCAPE      ] Pos=[-0.00,0.81] | Target=[0.00,1.20] | Mapeo=13.0% | Canicas=3/3 | Low=[104.1,102.3] | Acción=PASILLO_CENTRADO_AVANCE
+[011.5s | ESCAPE      ] Pos=[-0.00,0.90] | Target=[0.00,1.20] | Mapeo=13.0% | Canicas=3/3 | Low=[96.0,96.9] | Acción=PASILLO_CENTRADO_AVANCE
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=011.5s | FSM=ESCAPE | Canicas=3/3
+ Configuración: DUAL_PLANE_8 | Cobertura=13.0% | ΔL= +1.8cm | ΔR= -0.9cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto:  97.9cm                  FR-Alto:  95.9cm
+          FL-Bajo:  96.0cm                    FR-Bajo:  96.9cm  
+                     \                          /
+  Flanco-Izq:   8.6cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   8.6cm
+                     /                          \
+          RL-Tras: 192.1cm                  RR-Tras: 194.6cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     |  96.0 cm  |   +1.8 cm | [=======>         ] | TRANSITABLE
+ us_high_left    |  97.9 cm  |    ---    | [=======>         ] | TRANSITABLE
+ us_low_right    |  96.9 cm  |   -0.9 cm | [=======>         ] | TRANSITABLE
+ us_high_right   |  95.9 cm  |    ---    | [=======>         ] | TRANSITABLE
+ us_side_left    |   8.6 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   8.6 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    | 192.1 cm  |    ---    | [===============> ] | ESPACIO LIBRE
+ us_rear_right   | 194.6 cm  |    ---    | [===============> ] | ESPACIO LIBRE
+==============================================================================
+
+--- [MAPA DE OCUPACIÓN 2D - LA BAHÍA] ---
++------------------------+
+|          ·E··          |
+|          ...·          |
+|          .^.·          |
+|          ...           |
+|          ...           |
+|          ....          |
+|          ....          |
+|          ....          |
+|           ...          |
+|           ...          |
+|           ...          |
+|           ...          |
+|           ...          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ...           |
+|                        |
+|                        |
+|                        |
++------------------------+
+Leyenda: [^ v < >] Robot | [T] Destino | [.] Rastro | [·] Libre | [#] Obstáculo | [E] Salida
+---------------------------------------------
+
+[012.0s | ESCAPE      ] Pos=[-0.00,1.00] | Target=[0.00,1.20] | Mapeo=13.0% | Canicas=3/3 | Low=[85.7,85.9] | Acción=PASILLO_CENTRADO_AVANCE
+[012.5s | ESCAPE      ] Pos=[-0.00,1.09] | Target=[0.00,1.20] | Mapeo=13.0% | Canicas=3/3 | Low=[75.9,75.7] | Acción=PASILLO_CENTRADO_AVANCE
+[013.0s | ESCAPE      ] Pos=[-0.00,1.15] | Target=[0.00,1.20] | Mapeo=13.0% | Canicas=3/3 | Low=[70.5,70.4] | Acción=ESCAPE_CRUCE_ESTRECHO
+[013.4s | ESCAPE      ] Pos=[-0.00,1.21] | Target=[0.00,1.20] | Mapeo=13.0% | Canicas=3/3 | Low=[65.0,63.8] | Acción=PASILLO_CENTRADO_AVANCE
+
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=013.4s | FSM=ESCAPE | Canicas=3/3
+ Configuración: DUAL_PLANE_8 | Cobertura=13.0% | ΔL= +0.7cm | ΔR= +2.4cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto:  65.7cm                  FR-Alto:  66.2cm
+          FL-Bajo:  65.0cm                    FR-Bajo:  63.8cm  
+                     \                          /
+  Flanco-Izq:   7.4cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:   7.8cm
+                     /                          \
+          RL-Tras: 226.2cm                  RR-Tras: 224.2cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     |  65.0 cm  |   +0.7 cm | [=====>           ] | TRANSITABLE
+ us_high_left    |  65.7 cm  |    ---    | [=====>           ] | TRANSITABLE
+ us_low_right    |  63.8 cm  |   +2.4 cm | [=====>           ] | TRANSITABLE
+ us_high_right   |  66.2 cm  |    ---    | [=====>           ] | TRANSITABLE
+ us_side_left    |   7.4 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_side_right   |   7.8 cm  |    ---    | [>                ] | PELIGRO: MURO/OBSTÁCULO
+ us_rear_left    | 226.2 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_rear_right   | 224.2 cm  |    ---    | [================>] | ESPACIO LIBRE
+==============================================================================
+
+==============================================================================
+  MISIÓN COMPLETADA CON ÉXITO: BAHÍA ABANDONADA
+  Tiempo total: 13.7s | Canicas aseguradas: 3/3
+  Colisiones registradas: 0 | Cobertura cartográfica: 13.0%
+  Posición de egreso: [-0.00, 1.25] m (Plataforma Exterior)
+==============================================================================
+==============================================================================
+ [RADAR SONAR & MATRIZ DE HACES KEIKO 4WD] | T=013.7s | FSM=FINALIZACION | Canicas=3/3
+ Configuración: DUAL_PLANE_8 | Cobertura=13.0% | ΔL= +1.9cm | ΔR= +1.4cm
+------------------------------------------------------------------------------
+                   [FRONTAL +0° (Doble Nivel Vertical)]
+          FL-Alto:  61.9cm                  FR-Alto:  61.9cm
+          FL-Bajo:  60.0cm                    FR-Bajo:  60.5cm  
+                     \                          /
+  Flanco-Izq:  49.0cm <----  [CHASIS ROVER 4WD]  ----> Flanco-Der:  49.3cm
+                     /                          \
+          RL-Tras: 230.3cm                  RR-Tras: 231.0cm
+                      [RETAGUARDIA 180°]
+------------------------------------------------------------------------------
+ Haz Transductor | Distancia | Coaxial Δ | Perfil Haz       | Inferencia Estado
+------------------------------------------------------------------------------
+ us_low_left     |  60.0 cm  |   +1.9 cm | [====>            ] | TRANSITABLE
+ us_high_left    |  61.9 cm  |    ---    | [====>            ] | TRANSITABLE
+ us_low_right    |  60.5 cm  |   +1.4 cm | [====>            ] | TRANSITABLE
+ us_high_right   |  61.9 cm  |    ---    | [====>            ] | TRANSITABLE
+ us_side_left    |  49.0 cm  |    ---    | [===>             ] | TRANSITABLE
+ us_side_right   |  49.3 cm  |    ---    | [===>             ] | TRANSITABLE
+ us_rear_left    | 230.3 cm  |    ---    | [================>] | ESPACIO LIBRE
+ us_rear_right   | 231.0 cm  |    ---    | [================>] | ESPACIO LIBRE
+==============================================================================
++------------------------+
+|          .E.·          |
+|          ...·          |
+|          ...·          |
+|          ...           |
+|          ...           |
+|          ....          |
+|          ....          |
+|          ....          |
+|           ...          |
+|           ...          |
+|           ...          |
+|           ...          |
+|           ...          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ....          |
+|          ...           |
+|                        |
+|                        |
+|                        |
++------------------------+
+==============================================================================
+
+[013.7s | SIMULACION TERMINADA]
