@@ -39,7 +39,6 @@ keiko/
 │   ├── pom.xml
 │   └── src/
 │
-├── entrega-hito2-java/       <- Snapshot de la entrega del Hito 2 (evidencia)
 ├── docs/                     <- Documentación, consignas de la cátedra y diagramas UML
 └── AGENTS.md                 <- Especificación técnica de ingeniería y reglas operativas
 ```
