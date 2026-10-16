@@ -34,7 +34,7 @@ fi
 
 # 3. Iniciar Servidor Central en segundo plano
 echo "🧠 [INICIO] Arrancando Servidor Central (Cerebro + Hilo Auditor)..."
-java -jar "${SERVER_JAR}" --port 8888 --reset &
+( cd "${SERVER_DIR}" && exec java -jar "${SERVER_JAR}" --port 8888 --reset --estomago "${ROOT_DIR}/estomago.txt" ) &
 SERVER_PID=$!
 
 cleanup() {

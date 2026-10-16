@@ -82,7 +82,7 @@ case "${OPTION}" in
     7)
         echo -e "\n${YELLOW}⚠️  Iniciando Prueba de Fail-Safe (<500 ms)...${NC}"
         echo "1. Levantando servidor central en puerto 8899..."
-        java -jar "${SERVER_JAR}" --port 8899 --reset > /tmp/failsafe_server.log 2>&1 &
+        ( cd "${SERVER_DIR}" && exec java -jar "${SERVER_JAR}" --port 8899 --reset --estomago "${ESTOMAGO_FILE}" ) > /tmp/failsafe_server.log 2>&1 &
         SRV_PID=$!
         sleep 1.5
         echo "2. Conectando cliente robot Webots 3D..."
@@ -110,7 +110,7 @@ case "${OPTION}" in
 2026-09-12T00:00:02.000000000Z | CAPTURA #2 | METADATA: Evento previo simulado: lobito_2 | CHECKSUM=E5F6A7B8
 EOF
         echo "2. Levantando Servidor Central SIN flag --reset (debe restaurar capturas=2 del disco)..."
-        java -jar "${SERVER_JAR}" --port 8899 > /tmp/crash_recovery_server.log 2>&1 &
+        ( cd "${SERVER_DIR}" && exec java -jar "${SERVER_JAR}" --port 8899 --estomago "${ESTOMAGO_FILE}" ) > /tmp/crash_recovery_server.log 2>&1 &
         SRV_PID=$!
         sleep 2
         kill -9 "${SRV_PID}" 2>/dev/null || true
