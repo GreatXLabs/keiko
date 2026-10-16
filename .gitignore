@@ -18,6 +18,7 @@ experiment_state.json
 
 # Logs
 *.log
+!docs/evidencias/*.log
 
 # Python
 __pycache__/
