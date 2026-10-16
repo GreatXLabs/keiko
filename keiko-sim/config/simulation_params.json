@@ -1,0 +1,165 @@
+{
+  "chassis_model": "Rover 4WD Doble Bandeja Acrilico (Todomicro)",
+  "arena": {
+    "width_m": 2.4,
+    "length_m": 2.4,
+    "wall_height_m": 0.20,
+    "wall_thickness_m": 0.04,
+    "exit_strait": {
+      "width_m": 0.30,
+      "orientations": {
+        "north": {"opening_m": [0.0, 1.2], "platform_m": [0.0, 1.6]},
+        "east": {"opening_m": [1.2, 0.0], "platform_m": [1.6, 0.0]},
+        "south": {"opening_m": [0.0, -1.2], "platform_m": [0.0, -1.6]}
+      }
+    }
+  },
+  "physics_calibration": {
+    "rationale": "Calibración física orientada al caso real (o mas riguroso) para garantizar robustez en la pista de competencia.",
+    "contact_properties": {
+      "wheel_floor": {
+        "description": "Goma de neumatico TT contra madera/melamina",
+        "coulomb_friction": 0.82,
+        "force_dependent_slip": 0.010,
+        "bounce": 0.0
+      },
+      "chassis_wall": {
+        "description": "Acrilico del chasis contra MDF (rozamiento deslizante)",
+        "coulomb_friction": 0.05,
+        "bounce": 0.01
+      },
+      "marble_floor": {
+        "description": "Canica de vidrio contra suelo (rodadura realista)",
+        "coulomb_friction": 0.12,
+        "bounce": 0.04
+      }
+    },
+    "arena_tolerances": {
+      "wall_height_m": 0.20,
+      "exit_strait_clearance_m": 0.30,
+      "exit_chamfer_angle_deg": 30.0,
+      "note": "Los chaflanes a 30 grados canalizan el egreso evitando atascos en el estrecho."
+    },
+    "sensor_realism": {
+      "beam_aperture_rad": 0.50,
+      "beam_aperture_deg": 28.6,
+      "rays_per_transducer": 17,
+      "noise_ratio": 0.02,
+      "note": "El ruido se inyecta via la 3.a columna del lookupTable (Webots R2025a no expone un campo noise en DistanceSensor)."
+    }
+  },
+  "robot": {
+    "name": "Orquita_4WD",
+    "chassis_length_m": 0.256,
+    "chassis_width_m": 0.150,
+    "chassis_height_m": 0.065,
+    "wheel_diameter_m": 0.065,
+    "wheel_radius_m": 0.0325,
+    "wheel_width_m": 0.026,
+    "wheelbase_m": 0.150,
+    "axle_track_m": 0.165,
+    "mass_kg": 0.78,
+    "motors_count": 4,
+    "drive_type": "4WD_Skid_Steer",
+    "motor_reduction_ratio": "1:48",
+    "max_speed_rad_s": 12.0
+  },
+  "prey": {
+    "name": "Lobito",
+    "marble_diameter_m": 0.016,
+    "marble_mass_kg": 0.0055,
+    "target_captures": 3
+  },
+  "sensors": {
+    "ultrasonic": {
+      "type": "sonar",
+      "min_range_cm": 2.0,
+      "max_range_cm": 250.0,
+      "beam_aperture_rad": 0.50,
+      "beam_aperture_deg": 28.6,
+      "rays_count": 17,
+      "noise_ratio": 0.02,
+      "noise_model": "ruido gaussiano espurio codificado en la 3.a columna del lookupTable (2%)",
+      "lookup_table": [0.0, 0.0, 0.0, 0.02, 2.0, 0.02, 2.50, 250.0, 0.02]
+    },
+    "configurations": {
+      "dual_plane_4": {
+        "sensor_count": 4,
+        "description": "4 frontales en doble plano vertical (2 bajos Z=0.025 yaw ±5, 2 altos Z=0.095 yaw ±20)",
+        "sensors": {
+          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.130, 0.035, 0.025], "yaw_deg": 5.0},
+          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.130, -0.035, 0.025], "yaw_deg": -5.0},
+          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.120, 0.050, 0.095], "yaw_deg": 20.0},
+          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.120, -0.050, 0.095], "yaw_deg": -20.0}
+        }
+      },
+      "dual_plane_6": {
+        "sensor_count": 6,
+        "description": "4 frontales doble plano + 2 laterales a 90 grados (Z=0.065)",
+        "sensors": {
+          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.130, 0.035, 0.025], "yaw_deg": 5.0},
+          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.130, -0.035, 0.025], "yaw_deg": -5.0},
+          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.120, 0.050, 0.095], "yaw_deg": 20.0},
+          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.120, -0.050, 0.095], "yaw_deg": -20.0},
+          "us_side_left": {"plane": "mid_deck", "offset_xyz_m": [0.0, 0.075, 0.065], "yaw_deg": 90.0},
+          "us_side_right": {"plane": "mid_deck", "offset_xyz_m": [0.0, -0.075, 0.065], "yaw_deg": -90.0}
+        }
+      },
+      "dual_plane_8": {
+        "sensor_count": 8,
+        "description": "4 frontales doble plano + 2 laterales a 90 + 2 traseros a 180 (Z=0.065)",
+        "sensors": {
+          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.130, 0.035, 0.025], "yaw_deg": 5.0},
+          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.130, -0.035, 0.025], "yaw_deg": -5.0},
+          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.120, 0.050, 0.095], "yaw_deg": 20.0},
+          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.120, -0.050, 0.095], "yaw_deg": -20.0},
+          "us_side_left": {"plane": "mid_deck", "offset_xyz_m": [0.0, 0.075, 0.065], "yaw_deg": 90.0},
+          "us_side_right": {"plane": "mid_deck", "offset_xyz_m": [0.0, -0.075, 0.065], "yaw_deg": -90.0},
+          "us_rear_left": {"plane": "mid_deck", "offset_xyz_m": [-0.125, 0.040, 0.065], "yaw_deg": 180.0},
+          "us_rear_right": {"plane": "mid_deck", "offset_xyz_m": [-0.125, -0.040, 0.065], "yaw_deg": 180.0}
+        }
+      },
+      "trisector_10": {
+        "sensor_count": 10,
+        "description": "3 bajos (Z=0.012 yaw -25/0/+25) + 3 altos (Z=0.095 yaw -25/0/+25) + 2 laterales a 90 + 2 traseros a 180",
+        "sensors": {
+          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.125, 0.055, 0.012], "yaw_deg": 25.0},
+          "us_low_center": {"plane": "lower_deck", "offset_xyz_m": [0.140, 0.0, 0.012], "yaw_deg": 0.0},
+          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.125, -0.055, 0.012], "yaw_deg": -25.0},
+          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.125, 0.055, 0.095], "yaw_deg": 25.0},
+          "us_high_center": {"plane": "upper_deck", "offset_xyz_m": [0.140, 0.0, 0.095], "yaw_deg": 0.0},
+          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.125, -0.055, 0.095], "yaw_deg": -25.0},
+          "us_side_left": {"plane": "mid_deck", "offset_xyz_m": [0.0, 0.075, 0.065], "yaw_deg": 90.0},
+          "us_side_right": {"plane": "mid_deck", "offset_xyz_m": [0.0, -0.075, 0.065], "yaw_deg": -90.0},
+          "us_rear_left": {"plane": "mid_deck", "offset_xyz_m": [-0.125, 0.040, 0.065], "yaw_deg": 180.0},
+          "us_rear_right": {"plane": "mid_deck", "offset_xyz_m": [-0.125, -0.040, 0.065], "yaw_deg": 180.0}
+        }
+      }
+    }
+  },
+  "maps": {
+    "standard": {"description": "Mapa base con obstaculos dispersos y 3 lobitos"},
+    "labyrinth": {"description": "Pasillos con giros cerrados y obstaculos adicionales"},
+    "corners": {"description": "Lobitos ubicados en las esquinas de la pista"},
+    "corridors": {"description": "Pasillos estrechos de 0.30-0.35 m de luz libre para probar el ancho del chasis (0.15 m)"}
+  },
+  "classes": [
+    "ESPACIO_LIBRE",
+    "LOBITO",
+    "MURO",
+    "OBSTACULO",
+    "SALIDA"
+  ],
+  "dataset_generation": {
+    "output_csv": "data/datasets/orquitas_dataset_4_sensores.csv",
+    "default_samples_per_class": 400,
+    "simulation_step_ms": 32
+  },
+  "network_protocol": {
+    "transport": "Bluetooth RFCOMM / SPP (Emulado por TCP Socket)",
+    "default_port": 8888,
+    "framing": "\\n",
+    "heartbeat_interval_ms": 250,
+    "failsafe_timeout_ms": 500
+  }
+}
