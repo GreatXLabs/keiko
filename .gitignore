@@ -1,0 +1,37 @@
+# Environment & secrets
+.env
+
+# Java / Maven build output
+target/
+*.class
+classpath.txt
+dependency-reduced-pom.xml
+
+# Training client artifacts
+dist/
+client-cache/
+client.properties
+
+# Runtime state
+estomago.txt
+experiment_state.json
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Webots
+*.wbproj
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+nbproject/private/
+
+# OS
+.DS_Store
+Thumbs.db

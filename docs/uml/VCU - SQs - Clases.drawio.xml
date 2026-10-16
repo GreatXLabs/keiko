@@ -1,0 +1,805 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" pages="11">
+  
+  
+  
+  
+  <diagram id="diag_vcu_keiko" name="VCU">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        
+        <mxCell id="boundary_sistema" parent="1" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fontStyle=1;fontSize=13;fillColor=#f8f9fa;strokeColor=#343a40;strokeWidth=2;" value="Vertical Container" vertex="1">
+          <mxGeometry x="170" y="40" width="700" height="740" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="actor_orquita" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontStyle=1;fontSize=12;" value="Orquita" vertex="1">
+          <mxGeometry x="50" y="240" width="55" height="110" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="actor_cerebro" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontStyle=1;fontSize=12;" value="Cerebro" vertex="1">
+          <mxGeometry x="930" y="240" width="55" height="110" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cu_rf01" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Enviar datos de sensores&#10;RF-01" vertex="1">
+          <mxGeometry x="40" y="80" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cu_rf02" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#fb8c00;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Enviar señal de ingesta&#10;RF-02" vertex="1">
+          <mxGeometry x="40" y="220" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cu_rf05" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Recibir datos&#10;RF-05" vertex="1">
+          <mxGeometry x="260" y="70" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cu_rf06" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#43a047;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Reconocer tipo&#10;de elemento detectado&#10;RF-06" vertex="1">
+          <mxGeometry x="260" y="210" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cu_rf07" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#43a047;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Generar indicación de&#10;movimiento&#10;RF-07" vertex="1">
+          <mxGeometry x="260" y="360" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cu_rf08" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Enviar indicación al cliente&#10;RF-08" vertex="1">
+          <mxGeometry x="470" y="600" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cu_rf03" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#e53935;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Registrar captura&#10;RF-03" vertex="1">
+          <mxGeometry x="470" y="170" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cu_rf04" parent="boundary_sistema" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#e53935;strokeWidth=1.5;fontStyle=1;fontSize=11;align=center;" value="Contar capturas&#10;registradas&#10;RF-04" vertex="1">
+          <mxGeometry x="470" y="320" width="180" height="75" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="edge_inc_05_06" edge="1" parent="boundary_sistema" source="cu_rf05" target="cu_rf06" style="endArrow=open;endSize=8;dashed=1;strokeWidth=1.5;strokeColor=#333333;fontSize=10;verticalAlign=bottom;" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge_inc_06_07" edge="1" parent="boundary_sistema" source="cu_rf06" target="cu_rf07" style="endArrow=open;endSize=8;dashed=1;strokeWidth=1.5;strokeColor=#333333;fontSize=10;verticalAlign=bottom;" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge_inc_07_08" edge="1" parent="boundary_sistema" source="cu_rf07" target="cu_rf08" style="endArrow=open;endSize=8;dashed=1;strokeWidth=1.5;strokeColor=#333333;fontSize=10;verticalAlign=bottom;" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="assoc_orquita_rf01" edge="1" parent="1" source="actor_orquita" target="cu_rf01" style="endArrow=none;strokeWidth=1.5;strokeColor=#1e88e5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc_orquita_rf02" edge="1" parent="1" source="actor_orquita" target="cu_rf02" style="endArrow=none;strokeWidth=1.5;strokeColor=#fb8c00;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc_cerebro_rf05" edge="1" parent="1" source="actor_cerebro" target="cu_rf05" style="endArrow=none;strokeWidth=1.5;strokeColor=#1e88e5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc_cerebro_rf03" edge="1" parent="1" source="actor_cerebro" target="cu_rf03" style="endArrow=none;strokeWidth=1.5;strokeColor=#e53935;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc_cerebro_rf04" edge="1" parent="1" source="actor_cerebro" target="cu_rf04" style="endArrow=none;strokeWidth=1.5;strokeColor=#e53935;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="assoc_cerebro_rf08" edge="1" parent="1" source="actor_cerebro" target="cu_rf08" style="endArrow=none;strokeWidth=1.5;strokeColor=#1e88e5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_sq_rf01_05" name="SQ-RF-01 y RF-05">
+    <mxGraphModel dx="1000" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sq_title_01_05" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=14;" value="RF-01: Enviar datos de sensores / RF-05: Recibir datos" vertex="1">
+          <mxGeometry x="150" y="30" width="550" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_act_orquita" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;participant=umlActor;fontStyle=1;" value="Orquita&#10;(Actor Cliente)" vertex="1">
+          <mxGeometry x="120" y="100" width="30" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_handler" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ManejadorCliente" vertex="1">
+          <mxGeometry x="360" y="100" width="140" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_proto" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="MensajeProtocolo" vertex="1">
+          <mxGeometry x="600" y="100" width="140" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_telemetry" edge="1" parent="1" source="sq_act_orquita" target="sq_life_handler" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="TELEMETRY:d_ll,d_lr,d_hl,d_hr,ts (Socket TCP / SPP)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="280" y="160" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_parse" edge="1" parent="1" source="sq_life_handler" target="sq_life_proto" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="parsearTelemetria(linea)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="530" y="200" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_sensorvec" edge="1" parent="1" source="sq_life_proto" target="sq_life_handler" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;fontSize=10;" value="sensores: VectorSensores">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="530" y="240" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_frame_ref_06" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#e8f5e9;strokeColor=#43a047;labelBackgroundColor=none;" value="REF: &amp;lt;&amp;lt;include&amp;gt;&amp;gt; RF-06 Reconocer tipo de elemento detectado" vertex="1">
+          <mxGeometry x="310" y="290" width="390" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_sq_rf06" name="SQ-RF-06">
+    <mxGraphModel dx="1000" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sq_title_06" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=14;" value="RF-06: Reconocer tipo de elemento detectado (Neuroph 2.98)" vertex="1">
+          <mxGeometry x="150" y="30" width="550" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_06_handler" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ManejadorCliente" vertex="1">
+          <mxGeometry x="130" y="100" width="140" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_06_clf" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ClasificadorNeuroph" vertex="1">
+          <mxGeometry x="380" y="100" width="160" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_06_net" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="NeuralNetwork&#10;(Neuroph 2.98)" vertex="1">
+          <mxGeometry x="630" y="100" width="150" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_06_clasificar" edge="1" parent="1" source="sq_life_06_handler" target="sq_life_06_clf" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="clasificar(sensores: VectorSensores)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="300" y="160" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_06_setinput" edge="1" parent="1" source="sq_life_06_clf" target="sq_life_06_net" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="setInput(sensores.toArrayNormalizado(3.0))">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="550" y="190" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_06_calc" edge="1" parent="1" source="sq_life_06_clf" target="sq_life_06_net" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="calculate()">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="550" y="220" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_06_out" edge="1" parent="1" source="sq_life_06_net" target="sq_life_06_clf" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;fontSize=10;" value="salida: double[] [probabilidades]">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="550" y="250" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_06_ret" edge="1" parent="1" source="sq_life_06_clf" target="sq_life_06_handler" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;fontSize=10;" value="claseDetectada (ej. LOBITO / MURO)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="300" y="280" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_frame_ref_07" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#e8f5e9;strokeColor=#43a047;labelBackgroundColor=none;" value="REF: &amp;lt;&amp;lt;include&amp;gt;&amp;gt; RF-07 Generar indicación de movimiento" vertex="1">
+          <mxGeometry x="110" y="325" width="380" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_sq_rf07" name="SQ-RF-07">
+    <mxGraphModel dx="1000" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sq_title_07" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=14;" value="RF-07: Generar indicación de movimiento (Planificador FSM)" vertex="1">
+          <mxGeometry x="150" y="30" width="550" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_07_handler" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ManejadorCliente" vertex="1">
+          <mxGeometry x="130" y="100" width="140" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_07_planner" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="PlanificadorNavegacion" vertex="1">
+          <mxGeometry x="410" y="100" width="160" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_07_fsm" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="EstadoRobot&#10;(FSM)" vertex="1">
+          <mxGeometry x="660" y="100" width="120" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_07_eval" edge="1" parent="1" source="sq_life_07_handler" target="sq_life_07_planner" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="evaluar(sensores, claseDetectada)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="320" y="160" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_07_state" edge="1" parent="1" source="sq_life_07_planner" target="sq_life_07_fsm" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="getEstado() (BUSQUEDA / ESCAPE)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="580" y="190" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_07_calc" edge="1" parent="1" source="sq_life_07_planner" target="sq_life_07_planner" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;" value="calcularVelocidadesDiferenciales(vLeft, vRight)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="530" y="220" /><mxPoint x="530" y="240" /></Array><mxPoint x="490" y="220" as="sourcePoint" /><mxPoint x="490" y="240" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_07_cmd" edge="1" parent="1" source="sq_life_07_planner" target="sq_life_07_handler" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;fontSize=10;" value="cmd: ComandoRobot(vLeft, vRight, estado)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="320" y="270" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_frame_ref_08" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#e3f2fd;strokeColor=#1e88e5;labelBackgroundColor=none;" value="REF: &amp;lt;&amp;lt;include&amp;gt;&amp;gt; RF-08 Enviar indicación al cliente" vertex="1">
+          <mxGeometry x="110" y="310" width="370" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_sq_rf08" name="SQ-RF-08">
+    <mxGraphModel dx="1000" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sq_title_08" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=14;" value="RF-08: Enviar indicación al cliente (Comando Motriz)" vertex="1">
+          <mxGeometry x="150" y="30" width="550" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_08_handler" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ManejadorCliente" vertex="1">
+          <mxGeometry x="100" y="100" width="140" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_08_proto" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="MensajeProtocolo" vertex="1">
+          <mxGeometry x="380" y="100" width="140" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_08_actor" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;participant=umlActor;fontStyle=1;" value="Orquita&#10;(Actor Cliente)" vertex="1">
+          <mxGeometry x="680" y="100" width="30" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_08_create" edge="1" parent="1" source="sq_life_08_handler" target="sq_life_08_proto" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="crearComando(cmd)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="290" y="160" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_08_trama" edge="1" parent="1" source="sq_life_08_proto" target="sq_life_08_handler" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;fontSize=10;" value="trama: COMMAND:v_l,v_r,estado ">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="290" y="200" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_08_send" edge="1" parent="1" source="sq_life_08_handler" target="sq_life_08_actor" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="enviarMensaje(trama) [TCP Socket / &lt; 500 ms]">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="450" y="240" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_note_08_watchdog" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;verticalAlign=top;align=left;spacingLeft=5;fillColor=#fff9c4;strokeColor=#fbc02d;fontSize=9;" value="Watchdog Fail-Safe de Hardware&#10;se reinicia con cada trama recibida&#10;antes de expirar 500 ms." vertex="1">
+          <mxGeometry x="580" y="270" width="180" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_sq_rf02_03" name="SQ-RF-02 y RF-03">
+    <mxGraphModel dx="1000" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sq_title_02_03" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=14;" value="RF-02: Enviar señal de ingesta / RF-03: Registrar captura (&quot;La Linareada&quot;)" vertex="1">
+          <mxGeometry x="120" y="30" width="610" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_02_actor" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;participant=umlActor;fontStyle=1;" value="Orquita&#10;(Actor Cliente)" vertex="1">
+          <mxGeometry x="80" y="100" width="30" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_02_handler" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ManejadorCliente" vertex="1">
+          <mxGeometry x="230" y="100" width="140" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_03_mgr" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="GestorEstomago" vertex="1">
+          <mxGeometry x="460" y="100" width="150" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_03_fos" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="FileOutputStream&#10;(estomago.txt)" vertex="1">
+          <mxGeometry x="680" y="100" width="140" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_02_event" edge="1" parent="1" source="sq_life_02_actor" target="sq_life_02_handler" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="EVENT:CAPTURA,id=lobito_N (TCP Socket)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="180" y="150" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_03_reg" edge="1" parent="1" source="sq_life_02_handler" target="sq_life_03_mgr" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="registrarCaptura(registro: RegistroCaptura)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="380" y="180" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_frame_03_crit" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#ffebee;strokeColor=#e53935;labelBackgroundColor=none;" value="CRITICAL: synchronized (bloqueoArchivo)" vertex="1">
+          <mxGeometry x="420" y="200" width="410" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_03_count" edge="1" parent="1" source="sq_life_03_mgr" target="sq_life_03_mgr" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;" value="contarCapturasSinLock() + 1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="570" y="220" /><mxPoint x="570" y="240" /></Array><mxPoint x="540" y="220" as="sourcePoint" /><mxPoint x="540" y="240" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_03_write" edge="1" parent="1" source="sq_life_03_mgr" target="sq_life_03_fos" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="write(lineaConCRC32)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="630" y="260" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_03_sync" edge="1" parent="1" source="sq_life_03_mgr" target="sq_life_03_fos" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="flush() &amp;amp; fos.getFD().sync() [Volcado Físico]">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="630" y="300" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_03_ret" edge="1" parent="1" source="sq_life_03_mgr" target="sq_life_02_handler" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;fontSize=10;" value="nuevoTotal: int">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="380" y="370" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_02_ack" edge="1" parent="1" source="sq_life_02_handler" target="sq_life_02_actor" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="enviarMensaje(&quot;ACK:CAPTURA_N &quot;)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="180" y="400" /></Array></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_sq_rf04" name="SQ-RF-04">
+    <mxGraphModel dx="1000" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sq_title_04" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=14;" value="RF-04: Contar capturas registradas (Hilo Auditor en Disco)" vertex="1">
+          <mxGeometry x="150" y="30" width="550" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_04_auditor" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="AuditorEstomago&#10;(Hilo Daemon)" vertex="1">
+          <mxGeometry x="120" y="100" width="140" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_04_mgr" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="GestorEstomago" vertex="1">
+          <mxGeometry x="390" y="100" width="150" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_04_fis" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="FileInputStream&#10;(estomago.txt)" vertex="1">
+          <mxGeometry x="650" y="100" width="140" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_frame_04_loop" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#fff8e1;strokeColor=#f57f17;labelBackgroundColor=none;" value="LOOP: Cada AUDITOR_SONDEO_MS (200 ms)" vertex="1">
+          <mxGeometry x="90" y="160" width="720" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_04_poll" edge="1" parent="1" source="sq_life_04_auditor" target="sq_life_04_mgr" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="contarCapturasRegistradas()">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="290" y="200" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_frame_04_crit" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#ffebee;strokeColor=#e53935;labelBackgroundColor=none;" value="CRITICAL: synchronized (bloqueoArchivo)" vertex="1">
+          <mxGeometry x="350" y="220" width="440" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_04_read" edge="1" parent="1" source="sq_life_04_mgr" target="sq_life_04_fis" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="readLine() / contar líneas válidas">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="570" y="250" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_04_ret" edge="1" parent="1" source="sq_life_04_mgr" target="sq_life_04_auditor" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;endSize=8;fontSize=10;" value="totalFisico: int">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="290" y="320" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_frame_04_opt" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#f3e5f5;strokeColor=#8e24aa;labelBackgroundColor=none;" value="OPT: [totalFisico &gt;= 3]" vertex="1">
+          <mxGeometry x="110" y="350" width="680" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_frame_04_ref_escape" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;fillColor=#e1d5e7;strokeColor=#9673a6;labelBackgroundColor=none;" value="REF: Transición a Modo Escape" vertex="1">
+          <mxGeometry x="150" y="375" width="590" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_sq_escape" name="SQ-Escape">
+    <mxGraphModel dx="1000" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sq_title_escape" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=1;fontSize=14;" value="Transición a Modo Escape (Disparada por RF-04 al Auditar 3 Capturas)" vertex="1">
+          <mxGeometry x="130" y="30" width="590" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_esc_auditor" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="AuditorEstomago" vertex="1">
+          <mxGeometry x="50" y="100" width="130" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_esc_server" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ServidorCentral&#10;(OyenteAuditor)" vertex="1">
+          <mxGeometry x="220" y="100" width="140" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_esc_planner" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="PlanificadorNavegacion" vertex="1">
+          <mxGeometry x="400" y="100" width="150" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_esc_sock" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;fontStyle=1;" value="ReceptorConexiones" vertex="1">
+          <mxGeometry x="590" y="100" width="140" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_life_esc_actor" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;participant=umlActor;fontStyle=1;" value="Orquita&#10;(Actor Cliente)" vertex="1">
+          <mxGeometry x="780" y="100" width="30" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="sq_msg_esc_1" edge="1" parent="1" source="sq_life_esc_auditor" target="sq_life_esc_server" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="onModoEscapeActivado(capturas)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="180" y="160" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_esc_2" edge="1" parent="1" source="sq_life_esc_server" target="sq_life_esc_planner" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="activarModoEscape()">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="340" y="190" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_esc_3" edge="1" parent="1" source="sq_life_esc_server" target="sq_life_esc_sock" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="transmitirATodos(&quot;STATE_CHANGE:ESCAPE &quot;)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="450" y="230" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_msg_esc_4" edge="1" parent="1" source="sq_life_esc_sock" target="sq_life_esc_actor" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=10;" value="enviarMensaje(&quot;STATE_CHANGE:ESCAPE &quot;)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="700" y="270" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="sq_note_esc_mutacion" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;verticalAlign=top;align=left;spacingLeft=5;fillColor=#f3e5f5;strokeColor=#8e24aa;fontSize=9;" value="Mutación Conductual Irreversible:&#10;La Orquita cesa la captura de presas&#10;y navega hacia el Estrecho de Salida." vertex="1">
+          <mxGeometry x="360" y="310" width="220" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_clases_keiko" name="Clases">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1400" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        
+        <mxCell id="cls_config" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="ConfiguracionServidor" vertex="1">
+          <mxGeometry x="50" y="40" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_config_attr" parent="cls_config" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ PUERTO_PREDETERMINADO: int = 5000&#10;+ NOMBRE_ARCHIVO_ESTOMAGO: String = &quot;estomago.txt&quot;&#10;+ AUDITOR_SONDEO_MS: int = 200&#10;+ CAPTURAS_REQUERIDAS_ESCAPE: int = 3&#10;+ HEARTBEAT_INTERVALO_MS: int = 250&#10;+ FAILSAFE_TIMEOUT_MS: int = 500&#10;- puerto: int&#10;- rutaArchivoEstomago: String&#10;- rutaArchivoModelo: String" vertex="1">
+          <mxGeometry y="26" width="280" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_config_line" parent="cls_config" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="90" width="280" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_config_meth" parent="cls_config" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ getPuerto(): int&#10;+ getArchivoEstomago(): File&#10;+ resolverArchivoModelo(): File&#10;+ getAuditorSondeoMs(): int&#10;+ getCapturasRequeridasEscape(): int" vertex="1">
+          <mxGeometry y="98" width="280" height="52" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_listener" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=36;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&amp;lt;&amp;lt;interface&amp;gt;&amp;gt;&#10;OyenteAuditor" vertex="1">
+          <mxGeometry x="750" y="40" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_listener_empty" parent="cls_listener" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry y="36" width="300" height="10" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_listener_line" parent="cls_listener" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="46" width="300" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_listener_meth" parent="cls_listener" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ onCapturaAuditada(total: int): void&#10;+ onModoEscapeActivado(caps: List&lt;RegistroCaptura&gt;): void" vertex="1">
+          <mxGeometry y="54" width="300" height="66" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_estomago" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="GestorEstomago" vertex="1">
+          <mxGeometry x="380" y="270" width="320" height="244" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_estomago_attr" parent="cls_estomago" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- archivoEstomago: File&#10;- bloqueoArchivo: Object&#10;+ CAPTURA_PREFIX: String" vertex="1">
+          <mxGeometry y="26" width="320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_estomago_line" parent="cls_estomago" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="66" width="320" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_estomago_meth" parent="cls_estomago" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ GestorEstomago(archivo: File)&#10;- asegurarExistenciaArchivo(): void&#10;+ registrarCaptura(c: RegistroCaptura): int [RF-03]&#10;+ registrarCaptura(dist: double, data: String): int&#10;+ contarCapturasRegistradas(): int [RF-04]&#10;+ contarCapturasValidas(): int [RF-04]&#10;+ obtenerCapturasValidas(): List&lt;RegistroCaptura&gt;&#10;+ vaciarEstomago(): void" vertex="1">
+          <mxGeometry y="74" width="320" height="170" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_auditor" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="AuditorEstomago" vertex="1">
+          <mxGeometry x="750" y="270" width="300" height="246" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_auditor_attr" parent="cls_auditor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- gestorEstomago: GestorEstomago&#10;- intervaloMs: int&#10;- capturasRequeridas: int&#10;- oyentes: List&lt;OyenteAuditor&gt;&#10;- corriendo: AtomicBoolean&#10;- modoEscapeActivado: AtomicBoolean" vertex="1">
+          <mxGeometry y="26" width="300" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_auditor_line" parent="cls_auditor" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="114" width="300" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_auditor_meth" parent="cls_auditor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ AuditorEstomago(gestor: GestorEstomago)&#10;+ AuditorEstomago(gestor: GestorEstomago, intervaloMs: int, capsReq: int)&#10;+ agregarOyente(l: OyenteAuditor): void&#10;+ iniciar(): void&#10;+ run(): void [RF-04]&#10;+ detener(): void&#10;+ isModoEscapeActivado(): boolean" vertex="1">
+          <mxGeometry y="122" width="300" height="124" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_sock" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="ReceptorConexiones" vertex="1">
+          <mxGeometry x="50" y="270" width="280" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_sock_attr" parent="cls_sock" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- puerto: int&#10;- gestorEstomago: GestorEstomago&#10;- clasificador: ClasificadorNeuroph&#10;- planificador: PlanificadorNavegacion&#10;- clientesConectados: List&lt;ManejadorCliente&gt;&#10;- serverSocket: ServerSocket&#10;- corriendo: boolean" vertex="1">
+          <mxGeometry y="26" width="280" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_sock_line" parent="cls_sock" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="114" width="280" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_sock_meth" parent="cls_sock" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ ReceptorConexiones(p: int, g: GestorEstomago, c: ClasificadorNeuroph, pl: PlanificadorNavegacion)&#10;+ iniciar(): void&#10;+ run(): void&#10;+ transmitirATodos(msg: String): void&#10;+ removerCliente(c: ManejadorCliente): void&#10;+ detener(): void" vertex="1">
+          <mxGeometry y="122" width="280" height="68" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_handler" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="ManejadorCliente" vertex="1">
+          <mxGeometry x="50" y="520" width="280" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_handler_attr" parent="cls_handler" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- socket: Socket&#10;- gestorEstomago: GestorEstomago&#10;- receptor: ReceptorConexiones&#10;- clasificador: ClasificadorNeuroph&#10;- planificador: PlanificadorNavegacion&#10;- conectado: AtomicBoolean&#10;- lector: BufferedReader&#10;- escritor: BufferedWriter" vertex="1">
+          <mxGeometry y="26" width="280" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_handler_line" parent="cls_handler" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="114" width="280" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_handler_meth" parent="cls_handler" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ ManejadorCliente(s: Socket, g: GestorEstomago, r: ReceptorConexiones, c: ClasificadorNeuroph, p: PlanificadorNavegacion)&#10;+ run(): void&#10;- procesarTelemetria(l: String): void [RF-05]&#10;- procesarEvento(l: String): void [RF-02/RF-03]&#10;+ enviarMensaje(m: String): void [RF-08]&#10;+ cerrar(): void&#10;+ isConectado(): boolean" vertex="1">
+          <mxGeometry y="122" width="280" height="88" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_neuroph" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="ClasificadorNeuroph" vertex="1">
+          <mxGeometry x="380" y="550" width="310" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_neuroph_attr" parent="cls_neuroph" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ CLASES: String[] = {ESPACIO_LIBRE, LOBITO, MURO, OBSTACULO, SALIDA}&#10;- neuralNetwork: NeuralNetwork&#10;- archivoModelo: File" vertex="1">
+          <mxGeometry y="26" width="310" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_neuroph_line" parent="cls_neuroph" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="74" width="310" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_neuroph_meth" parent="cls_neuroph" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ ClasificadorNeuroph(modelo: File)&#10;+ clasificar(s: VectorSensores): String [RF-06]&#10;+ inferenciaReglas(s: VectorSensores): String&#10;+ isCargado(): boolean" vertex="1">
+          <mxGeometry y="82" width="310" height="68" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_planner" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="PlanificadorNavegacion" vertex="1">
+          <mxGeometry x="750" y="550" width="300" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_planner_attr" parent="cls_planner" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- gestorEstomago: GestorEstomago&#10;- estado: EstadoRobot" vertex="1">
+          <mxGeometry y="26" width="300" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_planner_line" parent="cls_planner" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="62" width="300" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_planner_meth" parent="cls_planner" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ PlanificadorNavegacion(g: GestorEstomago)&#10;+ evaluar(s: VectorSensores, c: String): ComandoRobot [RF-07]&#10;+ activarModoEscape(): void&#10;+ getEstado(): EstadoRobot&#10;+ setEstado(e: EstadoRobot): void" vertex="1">
+          <mxGeometry y="70" width="300" height="80" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_reg" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="RegistroCaptura" vertex="1">
+          <mxGeometry x="380" y="750" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_reg_attr" parent="cls_reg" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- numeroCaptura: int&#10;- idCaptura: String&#10;- timestamp: long&#10;- metadata: String" vertex="1">
+          <mxGeometry y="26" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_reg_line" parent="cls_reg" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="86" width="280" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_reg_meth" parent="cls_reg" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ toLineaArchivo(): String&#10;+ fromLinea(linea: String): RegistroCaptura" vertex="1">
+          <mxGeometry y="94" width="280" height="56" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_proto" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="MensajeProtocolo" vertex="1">
+          <mxGeometry x="50" y="760" width="280" height="154" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_proto_attr" parent="cls_proto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ PREFIX_TELEMETRY: String&#10;+ PREFIX_COMMAND: String&#10;+ PREFIX_EVENT: String&#10;+ MSG_HEARTBEAT: String" vertex="1">
+          <mxGeometry y="26" width="280" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_proto_line" parent="cls_proto" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="74" width="280" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_proto_meth" parent="cls_proto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ parsearTelemetria(l: String): VectorSensores [RF-05]&#10;+ crearComando(cmd: ComandoRobot): String [RF-08]&#10;+ crearComando(vL: double, vR: double, est: EstadoRobot): String&#10;+ crearAckIngesta(num: int): String&#10;+ crearModoEscape(): String" vertex="1">
+          <mxGeometry y="82" width="280" height="72" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_vec" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="VectorSensores" vertex="1">
+          <mxGeometry x="720" y="750" width="260" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_vec_attr" parent="cls_vec" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- dLowLeft, dLowRight: double&#10;- dHighLeft, dHighRight: double&#10;- timestamp: long" vertex="1">
+          <mxGeometry y="26" width="260" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_vec_line" parent="cls_vec" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="74" width="260" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_vec_meth" parent="cls_vec" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ isValido(): boolean&#10;+ toArrayNormalizado(m: double): double[]&#10;+ getMinLow(): double&#10;+ getMinHigh(): double" vertex="1">
+          <mxGeometry y="82" width="260" height="68" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_cmd" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="ComandoRobot" vertex="1">
+          <mxGeometry x="1030" y="750" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_cmd_attr" parent="cls_cmd" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- vLeft: double&#10;- vRight: double&#10;- estado: EstadoRobot" vertex="1">
+          <mxGeometry y="26" width="220" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_cmd_line" parent="cls_cmd" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry y="74" width="220" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_cmd_meth" parent="cls_cmd" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ getVLeft(): double&#10;+ getVRight(): double&#10;+ getEstado(): EstadoRobot" vertex="1">
+          <mxGeometry y="82" width="220" height="58" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="cls_estado" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=36;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&amp;lt;&amp;lt;enum&amp;gt;&amp;gt;&#10;EstadoRobot" vertex="1">
+          <mxGeometry x="1030" y="550" width="220" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_estado_attr" parent="cls_estado" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ BUSQUEDA&#10;+ APROXIMACION&#10;+ CAPTURA&#10;+ ESCAPE&#10;+ FINALIZACION&#10;+ ERROR_SEGURO" vertex="1">
+          <mxGeometry y="36" width="220" height="114" as="geometry" />
+        </mxCell>
+
+        
+        <mxCell id="rel_auditor_mgr" edge="1" parent="1" source="cls_auditor" target="cls_estomago" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_auditor_listener" edge="1" parent="1" source="cls_auditor" target="cls_listener" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_sock_handler" edge="1" parent="1" source="cls_sock" target="cls_handler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_estomago_reg" edge="1" parent="1" source="cls_estomago" target="cls_reg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_planner_estado" edge="1" parent="1" source="cls_planner" target="cls_estado" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      <mxCell id="rel_sock_config" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_sock" target="cls_config"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_sock_estomago" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_sock" target="cls_estomago"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_sock_neuroph" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_sock" target="cls_neuroph"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_sock_planner" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_sock" target="cls_planner"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_handler_estomago" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_handler" target="cls_estomago"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_handler_neuroph" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_handler" target="cls_neuroph"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_handler_planner" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_handler" target="cls_planner"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_handler_proto" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_handler" target="cls_proto"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_handler_vec" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_handler" target="cls_vec"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_handler_cmd" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_handler" target="cls_cmd"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_auditor_config" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_auditor" target="cls_config"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_estomago_config" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_estomago" target="cls_config"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_neuroph_config" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_neuroph" target="cls_config"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_neuroph_vec" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_neuroph" target="cls_vec"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_planner_estomago" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_planner" target="cls_estomago"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_planner_cmd" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_planner" target="cls_cmd"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_planner_listener" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_planner" target="cls_listener"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_proto_vec" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_proto" target="cls_vec"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="rel_proto_cmd" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#000000;strokeWidth=1;" edge="1" parent="1" source="cls_proto" target="cls_cmd"><mxGeometry relative="1" as="geometry" /></mxCell></root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_despliegue_keiko" name="Diagrama de Despliegue">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" /><mxCell id="1" parent="0" />
+        <mxCell id="deploy_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="&lt;div style=&quot;font-size: 17px; font-weight: bold; color: #1a237e;&quot;&gt;DIAGRAMA DE DESPLIEGUE - SISTEMA AUTÓNOMO ORQUITAS (KEIKO)&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #555555;&quot;&gt;Arquitectura Física Distribuida Cliente-Servidor en Tiempo Real (Kit Rover 4WD + Arduino UNO R3 ↔ PC Servidor Central)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="760" x="45" y="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="node_orquita" parent="1" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=40;fillColor=#f8f9fa;fontColor=#212529;strokeColor=#495057;strokeWidth=2;fontStyle=1;fontSize=13;swimlaneFillColor=#ffffff;rounded=1;arcSize=6;" value="&amp;lt;&amp;lt;dispositivo / hardware&amp;gt;&amp;gt;&#10;ORQUITA (Chasis Rover 4WD Skid-Steer)" vertex="1">
+          <mxGeometry height="330" width="670" x="90" y="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_arduino" parent="node_orquita" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="ARDUINO UNO R3 (ATmega328P)&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• Firmware: orquita_firmware.ino&lt;br/&gt;• Muestreo sensorial periódico (40 ms) [RF-01]&lt;br/&gt;• Control motriz diferencial PWM Skid-Steer&lt;br/&gt;• Watchdog Fail-Safe de Hardware (&amp;lt; 500 ms)&lt;br/&gt;• Buffer de recepción serie y framing ' '&lt;/span&gt;" vertex="1">
+          <mxGeometry height="120" width="300" x="20" y="55" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_hc05" parent="node_orquita" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="MÓDULO BLUETOOTH HC-05&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• Perfil Bluetooth RFCOMM / SPP (Serial)&lt;br/&gt;• Interfaz UART Hardware (Pines D0/RX, D1/TX)&lt;br/&gt;• Velocidad: 38400 baudios, 8N1&lt;br/&gt;• Enlace inalámbrico hacia Servidor PC&lt;br/&gt;• Antena integrada de 2.4 GHz&lt;/span&gt;" vertex="1">
+          <mxGeometry height="120" width="310" x="340" y="55" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_sensores" parent="node_orquita" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#8e24aa;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="BANCO DE SENSORES FÍSICOS&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• 2x HC-SR04 Plano Inferior (Canicas / Lobitos)&lt;br/&gt;  (Trig D8/D11, Echo D10/D12 — Z = 2.5 cm)&lt;br/&gt;• 2x HC-SR04 Plano Superior (Muros y Obstáculos)&lt;br/&gt;  (Trig A0/A2, Echo A1/A3 — Z = 6.5 cm)&lt;br/&gt;• 1x Sensor Bucal de Captura (Pin D2) [RF-02]&lt;/span&gt;" vertex="1">
+          <mxGeometry height="125" width="300" x="20" y="190" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_motores" parent="node_orquita" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#f57f17;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="DRIVER L298N &amp; MOTORES 4WD&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• Driver Puente H Dual L298N&lt;br/&gt;  Control PWM (Pines D3-ENA, D9-ENB)&lt;br/&gt;  Sentido de giro (Pines D4, D5, D6, D7)&lt;br/&gt;• 4x Motores DC con reductores 1:48 (Ruedas 66mm)&lt;br/&gt;• Batería Li-Ion (7.4V) con regulador LM2596&lt;/span&gt;" vertex="1">
+          <mxGeometry height="125" width="310" x="340" y="190" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="link_bluetooth" edge="1" parent="1" source="node_orquita" target="node_pc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=6 4;strokeWidth=2.5;startArrow=classic;endArrow=classic;strokeColor=#0288d1;align=center;verticalAlign=middle;fontSize=10;labelBackgroundColor=#ffffff;" value="&amp;lt;&amp;lt;protocolo inalámbrico&amp;gt;&amp;gt;&lt;br/&gt;&lt;b style=&quot;font-size: 12px; color: #0288d1;&quot;&gt;BLUETOOTH RFCOMM / SPP (38400 baud)&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;font-size: 9px; color: #424242;&quot;&gt;• TELEMETRY: &amp;lt;d_ll, d_lr, d_hl, d_hr, ts&amp;gt; (cada 40 ms) [RF-01/RF-05]&lt;br/&gt;• COMMAND: &amp;lt;v_left, v_right, estado&amp;gt; [RF-08]&lt;br/&gt;• EVENT:CAPTURA (detección física en tolva bucal) [RF-02/RF-03]&lt;br/&gt;• HEARTBEAT bidireccional (timeout liveness &amp;lt; 500 ms)&lt;/span&gt;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="425" y="420" as="sourcePoint" />
+            <mxPoint x="425" y="550" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="node_pc" parent="1" style="shape=swimlane;whiteSpace=wrap;html=1;startSize=40;fillColor=#f8f9fa;fontColor=#212529;strokeColor=#495057;strokeWidth=2;fontStyle=1;fontSize=13;swimlaneFillColor=#ffffff;rounded=1;arcSize=6;" value="&amp;lt;&amp;lt;dispositivo / estación base&amp;gt;&amp;gt;&#10;PC SERVIDOR (Cerebro Central)" vertex="1">
+          <mxGeometry height="360" width="670" x="90" y="560" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_servidor_java" parent="node_pc" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="SERVIDOR CENTRAL JAVA (keiko-server.jar)&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• Entorno de Ejecución: OpenJDK Java 21 LTS&lt;br/&gt;• ReceptorConexiones / ManejadorCliente (RFCOMM/SPP) [RF-05, RF-08]&lt;br/&gt;• PlanificadorNavegacion (FSM y toma de decisiones) [RF-07]&lt;br/&gt;• Control motriz diferencial y evasión reactiva&lt;/span&gt;" vertex="1">
+          <mxGeometry height="130" width="300" x="20" y="55" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_neuroph" parent="node_pc" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#43a047;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="MOTOR IA NEUROPH 2.98 [RF-06]&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• Red Neuronal Perceptrón Multicapa (MLP)&lt;br/&gt;• Modelo calibrado: orquitas_production_champion.nnet&lt;br/&gt;• Entrada: Vector 4 distancias normalizadas [0..1]&lt;br/&gt;• Salida: LOBITO, MURO, OBSTACULO, SALIDA, LIBRE&lt;br/&gt;• Clasificación robusta frente a incertidumbre&lt;/span&gt;" vertex="1">
+          <mxGeometry height="130" width="310" x="340" y="55" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_auditor" parent="node_pc" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#fb8c00;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="HILO AUDITOR (&quot;La Linareada&quot;) [RF-04]&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• Hilo Daemon independiente (AuditorEstomago)&lt;br/&gt;• Sondeo continuo de estomago.txt cada 200 ms&lt;br/&gt;• Sección Crítica synchronized(bloqueoArchivo)&lt;br/&gt;• Prohibición de estado volátil en RAM&lt;br/&gt;• Disparo irreversible de onModoEscapeActivado() (3 capturas)&lt;br/&gt;• Ordena la transición formal al Modo Escape&lt;/span&gt;" vertex="1">
+          <mxGeometry height="145" width="300" x="20" y="200" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="comp_estomago" parent="node_pc" style="shape=module;jettyWidth=8;jettyHeight=4;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#e53935;strokeWidth=1.5;fontStyle=1;fontSize=11;align=left;spacingLeft=15;verticalAlign=top;spacingTop=6;" value="PERSISTENCIA FÍSICA: estomago.txt [RF-03]&lt;br/&gt;&lt;span style=&quot;font-size: 9px; font-weight: normal; color: #37474f;&quot;&gt;• Archivo persistente en disco físico&lt;br/&gt;• GestorEstomago: Sección Crítica synchronized&lt;br/&gt;• Registro inmutable: Timestamp | CRC32 | Metadata&lt;br/&gt;• Vaciado forzado por hardware obligatorio:&lt;br/&gt;  bw.flush() y fos.getFD().sync() en disco&lt;br/&gt;• Única fuente de verdad biológica del sistema&lt;/span&gt;" vertex="1">
+          <mxGeometry height="145" width="310" x="340" y="200" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_srv_neuroph" edge="1" parent="node_pc" source="comp_servidor_java" target="comp_neuroph" style="html=1;verticalAlign=bottom;endArrow=open;endFill=1;dashed=1;strokeColor=#2e7d32;fontSize=9;" value="clasificar(sensores) [RF-06]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_srv_estomago" edge="1" parent="node_pc" source="comp_servidor_java" target="comp_estomago" style="html=1;verticalAlign=bottom;endArrow=open;endFill=1;strokeColor=#c62828;fontSize=9;" value="registrarCaptura() [RF-03]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_auditor_estomago" edge="1" parent="node_pc" source="comp_auditor" target="comp_estomago" style="html=1;verticalAlign=bottom;endArrow=open;endFill=1;strokeColor=#ef6c00;fontSize=9;" value="contarCapturasRegistradas() [RF-04]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_auditor_srv" edge="1" parent="node_pc" source="comp_auditor" target="comp_servidor_java" style="html=1;verticalAlign=bottom;endArrow=open;endFill=1;dashed=1;strokeColor=#1565c0;fontSize=9;" value="onModoEscapeActivado() [3 capturas]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  
+  
+  
+  <diagram id="diag_estados_keiko" name="Diagrama de Estados">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" /><mxCell id="1" parent="0" />
+        <mxCell id="fsm_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" value="&lt;div style=&quot;font-size: 17px; font-weight: bold; color: #1a237e;&quot;&gt;DIAGRAMA DE TRANSICIÓN DE ESTADOS - CICLO BIOLÓGICO DE LA ORQUITA (KEIKO)&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #555555;&quot;&gt;Máquina de Estados Finita (FSM) Oficial — Programación Sobre Redes &amp;amp; Desarrollo de Sistemas (Ciclo 2026)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="980" x="60" y="20" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="fsm_start" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#212121;strokeColor=none;" vertex="1">
+          <mxGeometry height="30" width="30" x="40" y="305" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="state_busqueda" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=2;fontStyle=1;fontSize=12;align=center;" value="BÚSQUEDA&#10;entry / Iniciar patrullaje de sectores&#10;do / Muestrear sensores [RF-01, RF-05]&#10;do / Clasificar entorno Neuroph [RF-06]" vertex="1">
+          <mxGeometry height="90" width="200" x="130" y="275" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="state_aproximacion" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#e3f2fd;strokeColor=#1e88e5;strokeWidth=2;fontStyle=1;fontSize=12;align=center;" value="APROXIMACIÓN&#10;entry / Reducir velocidad (1.8 rad/s)&#10;do / Orientar rumbo hacia canica&#10;do / Transmitir comando motriz [RF-08]" vertex="1">
+          <mxGeometry height="90" width="200" x="430" y="275" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="state_captura" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#fb8c00;strokeWidth=2;fontStyle=1;fontSize=12;align=center;" value="CAPTURA&#10;entry / Frenado preventivo de avance&#10;do / Registrar en estomago.txt [RF-03]&#10;do / flush() y FileDescriptor.sync()" vertex="1">
+          <mxGeometry height="90" width="200" x="740" y="275" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="state_escape" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#8e24aa;strokeWidth=2;fontStyle=1;fontSize=12;align=center;" value="ESCAPE&#10;entry / Cesar búsqueda de lobitos&#10;do / Navegar hacia Estrecho de Salida&#10;do / Generar comando motriz escape [RF-07, 08]" vertex="1">
+          <mxGeometry height="90" width="210" x="735" y="490" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="state_finalizacion" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#43a047;strokeWidth=2;fontStyle=1;fontSize=12;align=center;" value="FINALIZACIÓN&#10;entry / Detener motores (PWM=0)&#10;do / Notificar 'BAHIA_ABANDONADA'&#10;do / Misión cumplida con éxito (+30 pts)" vertex="1">
+          <mxGeometry height="90" width="200" x="430" y="490" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="fsm_end" parent="1" style="ellipse;shape=doubleEllipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#1b5e20;strokeColor=#43a047;strokeWidth=2.5;" vertex="1">
+          <mxGeometry height="40" width="40" x="210" y="515" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="state_failsafe" parent="1" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#ffebee;strokeColor=#e53935;strokeWidth=2;fontStyle=1;fontSize=12;align=center;" value="ERROR SEGURO (FAIL-SAFE)&#10;entry / Corte PWM inmediato a 0 (Driver L298N)&#10;do / Frenar motores (prohibida navegación ciega)&#10;do / Esperar reconexión / heartbeat (&lt; 500 ms)" vertex="1">
+          <mxGeometry height="80" width="290" x="385" y="90" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_start" edge="1" parent="1" source="fsm_start" target="state_busqueda" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.5;strokeColor=#212121;fontSize=10;labelBackgroundColor=#ffffff;" value="ARRANQUE SISTEMA&#10;[Init Sensores/Motores]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_busq_aprox" edge="1" parent="1" source="state_busqueda" target="state_aproximacion" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.5;strokeColor=#1565c0;fontSize=10;labelBackgroundColor=#ffffff;" value="LOBITO DETECTADO&#10;[RF-06 = LOBITO]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_aprox_busq" edge="1" parent="1" source="state_aproximacion" target="state_busqueda" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.2;strokeColor=#757575;dashed=1;fontSize=9;labelBackgroundColor=#ffffff;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="PRESA PERDIDA / OBSTÁCULO">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="530" y="390" />
+              <mxPoint x="230" y="390" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="edge_aprox_cap" edge="1" parent="1" source="state_aproximacion" target="state_captura" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.5;strokeColor=#e65100;fontSize=10;labelBackgroundColor=#ffffff;" value="CONTACTO BUCAL&#10;[EVENT:CAPTURA (RF-02)]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_cap_busq" edge="1" parent="1" source="state_captura" target="state_busqueda" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.5;strokeColor=#e65100;fontSize=10;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" value="CAPTURA PERSISTIDA&#10;[RF-04: Conteo &lt; 3 / Seguir caza]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="840" y="210" />
+              <mxPoint x="230" y="210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="edge_cap_escape" edge="1" parent="1" source="state_captura" target="state_escape" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=2;strokeColor=#6a1b9a;fontSize=10;labelBackgroundColor=#ffffff;" value="PANZA LLENA AUDITADA&#10;[RF-04: 3 capturas válidas en disco&#10;Auditor dispara onModoEscapeActivado()]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_escape_fin" edge="1" parent="1" source="state_escape" target="state_finalizacion" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.8;strokeColor=#2e7d32;fontSize=10;labelBackgroundColor=#ffffff;" value="ESTRECHO CRUZADO&#10;[Salida franqueada]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_fin_end" edge="1" parent="1" source="state_finalizacion" target="fsm_end" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.8;strokeColor=#1b5e20;fontSize=10;labelBackgroundColor=#ffffff;" value="MISIÓN COMPLETADA&#10;[Parada definitiva]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="edge_busq_failsafe" edge="1" parent="1" source="state_busqueda" target="state_failsafe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.2;strokeColor=#c62828;dashed=1;fontSize=9;labelBackgroundColor=#ffffff;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="TIMEOUT ENLACE &gt; 500 ms">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="200" y="130" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="edge_aprox_failsafe" edge="1" parent="1" source="state_aproximacion" target="state_failsafe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.2;strokeColor=#c62828;dashed=1;fontSize=9;labelBackgroundColor=#ffffff;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" value="TIMEOUT ENLACE &gt; 500 ms">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="530" y="275" as="sourcePoint" />
+            <mxPoint x="530" y="170" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="edge_escape_failsafe" edge="1" parent="1" source="state_escape" target="state_failsafe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.2;strokeColor=#c62828;dashed=1;fontSize=9;labelBackgroundColor=#ffffff;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="TIMEOUT ENLACE &gt; 500 ms">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="960" y="535" />
+              <mxPoint x="960" y="130" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="edge_failsafe_recovery" edge="1" parent="1" source="state_failsafe" target="state_busqueda" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeWidth=1.5;strokeColor=#2e7d32;fontSize=9;labelBackgroundColor=#ffffff;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" value="ENLACE RESTABLECIDO / HEARTBEAT&#10;[Reanudar navegación]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="350" y="150" />
+              <mxPoint x="350" y="240" />
+              <mxPoint x="280" y="240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
