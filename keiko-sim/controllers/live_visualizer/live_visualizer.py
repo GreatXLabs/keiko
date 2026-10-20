@@ -51,10 +51,10 @@ def log_msg(msg):
 
 # Geometría canónica de salida por pared: (posición del estrecho, yaw de egreso)
 EXIT_GEOM = {
-    "north": ((0.0, 1.2), math.pi / 2.0),
-    "east": ((1.2, 0.0), 0.0),
-    "south": ((0.0, -1.2), -math.pi / 2.0),
-    "west": ((-1.2, 0.0), math.pi),
+    "north": ((0.0, 0.60), math.pi / 2.0),
+    "east": ((0.60, 0.0), 0.0),
+    "south": ((0.0, -0.60), -math.pi / 2.0),
+    "west": ((-0.60, 0.0), math.pi),
 }
 
 def detect_exit(supervisor):
@@ -70,11 +70,11 @@ def detect_exit(supervisor):
             pass
 
     if ex is not None and ey is not None:
-        if ey > 1.0:
+        if ey > 0.45:
             wall = "north"
-        elif ex > 1.0:
+        elif ex > 0.45:
             wall = "east"
-        elif ey < -1.0:
+        elif ey < -0.45:
             wall = "south"
         else:
             wall = "west"
@@ -184,14 +184,13 @@ def main():
     # Se fusiona con el sonar: cubre los puntos ciegos de las esquinas que los
     # transductores frontales no ven y que causan impactos laterales.
     # -------------------------------------------------------------------------
-    OBSTACLE_DEFS = [
-        "WALL_SOUTH", "WALL_WEST", "WALL_EAST", "WALL_NORTH_LEFT", "WALL_NORTH_RIGHT",
-        "EXIT_WALL_WEST", "EXIT_WALL_EAST", "EXIT_WALL_NORTH",
-        "EXIT_CHAMFER_WEST", "EXIT_CHAMFER_EAST",
-        "OBSTACLE_BOX_1", "OBSTACLE_BOX_2",
-        "OBSTACLE_CYLINDER_1", "OBSTACLE_CYLINDER_2",
-        "CORRIDOR_WALL_LEFT", "CORRIDOR_WALL_RIGHT",
-    ]
+    OBSTACLE_DEFS = (
+        ["WALL_SOUTH", "OBSTACLE_BOX_1", "OBSTACLE_BOX_2", "OBSTACLE_BOX_3",
+         "OBSTACLE_CYLINDER_1", "OBSTACLE_CYLINDER_2",
+         "CORRIDOR_WALL_LEFT", "CORRIDOR_WALL_RIGHT"]
+        + [f"WALL_ARC_R{i:02d}" for i in range(1, 17)]
+        + [f"WALL_ARC_L{i:02d}" for i in range(1, 17)]
+    )
     obstacles = []  # (cx, cy, half_x, half_y, yaw)
     for ob_def in OBSTACLE_DEFS:
         node = robot.getFromDef(ob_def)
@@ -259,7 +258,7 @@ def main():
         dy = math.sin(desired_angle) * (1.0 - w) + math.sin(rep_angle) * w
         return math.atan2(dy, dx), d
 
-    mapper = ArenaMapper(x_min=-1.15, x_max=1.15, y_min=-1.15, y_max=1.15, res=0.10, exit_pos=exit_pos)
+    mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=exit_pos)
 
     # Constantes cinemáticas Skid-Steer
     MAX_SPEED = 7.5
@@ -283,7 +282,7 @@ def main():
 
     # Watchdog anti-atasco
     stall_check_x = 0.0
-    stall_check_y = -0.20
+    stall_check_y = -0.32
     stall_timer = 0
 
     # Rotación de presas: deprioritiza temporalmente una canica inalcanzable
@@ -320,7 +319,7 @@ def main():
                 best = (m_id, (mp[0], mp[1]))
         return best if best is not None else fallback
 
-    _init_sel = nearest_uncaptured_marble(0.0, -0.20)
+    _init_sel = nearest_uncaptured_marble(0.0, -0.32)
     current_target = _init_sel[1] if _init_sel else exit_pos
 
     log_msg("[INICIALIZACION] Captura automática frontal lista. Caza a la presa más cercana.\n")

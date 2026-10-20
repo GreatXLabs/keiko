@@ -19,10 +19,10 @@ def clamp(val, min_v, max_v):
 
 # Geometría canónica de salida por pared: (posición del estrecho, yaw de egreso)
 EXIT_GEOM = {
-    "north": ((0.0, 1.2), math.pi / 2.0),
-    "east": ((1.2, 0.0), 0.0),
-    "south": ((0.0, -1.2), -math.pi / 2.0),
-    "west": ((-1.2, 0.0), math.pi),
+    "north": ((0.0, 0.60), math.pi / 2.0),
+    "east": ((0.60, 0.0), 0.0),
+    "south": ((0.0, -0.60), -math.pi / 2.0),
+    "west": ((-0.60, 0.0), math.pi),
 }
 
 def detect_exit(supervisor):
@@ -33,13 +33,13 @@ def detect_exit(supervisor):
             pos = node.getPosition()
             if pos is not None and len(pos) >= 2:
                 ex, ey = pos[0], pos[1]
-                if ey > 1.0:
+                if ey > 0.45:
                     return "north"
-                if ex > 1.0:
+                if ex > 0.45:
                     return "east"
-                if ey < -1.0:
+                if ey < -0.45:
                     return "south"
-                if ex < -1.0:
+                if ex < -0.45:
                     return "west"
         except Exception:
             pass
@@ -104,17 +104,17 @@ def main():
     trans_field = robot_node.getField("translation")
     rot_field = robot_node.getField("rotation")
 
-    # Posiciones fijas de referencia en la Bahia
+    # Posiciones fijas de referencia en la Bahia Semieliptica
     lobitos = [
-        (0.3, 0.5),
-        (-0.6, -0.1),
-        (0.4, -0.7)
+        (0.24, 0.28),
+        (-0.52, -0.05),
+        (0.50, -0.32)
     ]
     
     obstaculos = [
-        (-0.5, 0.4),    # Caja 1
-        (0.5, -0.3),    # Cilindro
-        (-0.3, -0.6)    # Bloque 2
+        (-0.42, 0.16),
+        (0.42, 0.08),
+        (-0.28, -0.30)
     ]
 
     # Salida dinámica: soporta paredes Norte, Este, Sur y Oeste
@@ -153,31 +153,37 @@ def main():
                 heading = base_angle + random.uniform(-0.04, 0.04)
 
             elif target_class == "MURO":
-                # Posicionar de frente a un muro perimetral continuo
-                wall = random.choice(["south", "west", "east", "north_left", "north_right"])
-                dist = random.uniform(0.18, 0.50)
+                # Posicionar de frente a un muro perimetral (base plana o arco semielíptico)
+                wall = random.choice(["south", "arc_left", "arc_right"])
+                dist = random.uniform(0.18, 0.45)
                 heading_jitter = random.uniform(-0.15, 0.15) # perpendicular al muro
 
                 if wall == "south":
-                    rx = random.uniform(-0.8, 0.8)
-                    ry = -1.2 + dist
+                    rx = random.uniform(-0.65, 0.65)
+                    ry = -0.60 + dist
                     heading = -math.pi / 2 + heading_jitter
-                elif wall == "west":
-                    rx = -1.2 + dist
-                    ry = random.uniform(-0.8, 0.8)
-                    heading = math.pi + heading_jitter
-                elif wall == "east":
-                    rx = 1.2 - dist
-                    ry = random.uniform(-0.8, 0.8)
-                    heading = 0.0 + heading_jitter
-                elif wall == "north_left":
-                    rx = random.uniform(-0.9, -0.35)
-                    ry = 1.2 - dist
-                    heading = math.pi / 2 + heading_jitter
-                else: # north_right
-                    rx = random.uniform(0.35, 0.9)
-                    ry = 1.2 - dist
-                    heading = math.pi / 2 + heading_jitter
+                elif wall == "arc_left":
+                    theta = random.uniform(math.pi * 0.58, math.pi * 0.90)
+                    wx = 0.90 * math.cos(theta)
+                    wy = -0.60 + 1.20 * math.sin(theta)
+                    nx = math.cos(theta) / 0.90
+                    ny = math.sin(theta) / 1.20
+                    nlen = math.hypot(nx, ny)
+                    nx, ny = nx / nlen, ny / nlen
+                    rx = wx - nx * dist
+                    ry = wy - ny * dist
+                    heading = math.atan2(ny, nx) + heading_jitter
+                else: # arc_right
+                    theta = random.uniform(math.pi * 0.10, math.pi * 0.42)
+                    wx = 0.90 * math.cos(theta)
+                    wy = -0.60 + 1.20 * math.sin(theta)
+                    nx = math.cos(theta) / 0.90
+                    ny = math.sin(theta) / 1.20
+                    nlen = math.hypot(nx, ny)
+                    nx, ny = nx / nlen, ny / nlen
+                    rx = wx - nx * dist
+                    ry = wy - ny * dist
+                    heading = math.atan2(ny, nx) + heading_jitter
 
             elif target_class == "OBSTACULO":
                 # Posicionar lateralmente frente a un obstaculo interno (deteccion asimetrica)
@@ -201,13 +207,13 @@ def main():
 
             else: # ESPACIO_LIBRE
                 # En áreas centrales despejadas orientadas a corredores libres
-                rx = random.uniform(-0.25, 0.25)
-                ry = random.uniform(-0.25, 0.25)
+                rx = random.uniform(-0.20, 0.20)
+                ry = random.uniform(-0.30, 0.05)
                 heading = random.uniform(0, 2 * math.pi)
 
-            # Limitar dentro de la pista
-            rx = clamp(rx, -1.05, 1.05)
-            ry = clamp(ry, -1.05, 1.05)
+            # Limitar dentro de la pista semielíptica
+            rx = clamp(rx, -0.75, 0.75)
+            ry = clamp(ry, -0.45, 0.42)
 
             # Aplicar pose al robot
             trans_field.setSFVec3f([rx, ry, 0.03])

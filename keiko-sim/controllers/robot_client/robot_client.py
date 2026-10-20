@@ -51,10 +51,10 @@ def log_msg(msg):
 
 # Geometría canónica de salida por pared: (posición del estrecho, yaw de egreso)
 EXIT_GEOM = {
-    "north": ((0.0, 1.2), math.pi / 2.0),
-    "east": ((1.2, 0.0), 0.0),
-    "south": ((0.0, -1.2), -math.pi / 2.0),
-    "west": ((-1.2, 0.0), math.pi),
+    "north": ((0.0, 0.60), math.pi / 2.0),
+    "east": ((0.60, 0.0), 0.0),
+    "south": ((0.0, -0.60), -math.pi / 2.0),
+    "west": ((-0.60, 0.0), math.pi),
 }
 
 def detect_exit(supervisor):
@@ -70,11 +70,11 @@ def detect_exit(supervisor):
             pass
 
     if ex is not None and ey is not None:
-        if ey > 1.0:
+        if ey > 0.45:
             wall = "north"
-        elif ex > 1.0:
+        elif ex > 0.45:
             wall = "east"
-        elif ey < -1.0:
+        elif ey < -0.45:
             wall = "south"
         else:
             wall = "west"
@@ -177,7 +177,7 @@ def main():
     log_msg(f"[HARDWARE] Salida detectada: {exit_wall.upper()} @ ({exit_pos[0]:.2f}, {exit_pos[1]:.2f}) | yaw={exit_yaw:.2f}")
 
     # Cartógrafo 2D a bordo
-    mapper = ArenaMapper(x_min=-1.15, x_max=1.15, y_min=-1.15, y_max=1.15, res=0.10)
+    mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=exit_pos)
 
     captures_count = 0
     current_server_state = "BUSQUEDA"

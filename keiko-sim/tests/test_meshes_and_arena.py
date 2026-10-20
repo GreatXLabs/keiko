@@ -101,5 +101,27 @@ class TestArenaGeometry(unittest.TestCase):
         self.assertIn("../meshes/orquita_capote.stl", wbt_cap)
 
 
+class TestWebotsHeadlessLoad(unittest.TestCase):
+    def test_webots_loads_new_world_without_vrml_errors(self):
+        import shutil
+        import subprocess
+        webots_bin = shutil.which("webots")
+        if not webots_bin:
+            self.skipTest("Webots no instalado en PATH")
+        world = os.path.join(SIM_DIR, "worlds", "bahia_de_caza.wbt")
+        cmd = [webots_bin, "--batch", "--mode=fast", "--no-rendering", "--stdout", "--stderr", world]
+        if shutil.which("xvfb-run"):
+            cmd = ["xvfb-run", "-a"] + cmd
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            out, err = proc.communicate(timeout=12)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out, err = proc.communicate()
+        combined = (out or "") + "\n" + (err or "")
+        self.assertNotIn("ERROR:", combined, f"Errores VRML en Webots:\n{combined}")
+        self.assertIn("Salida detectada: NORTH @ (0.00, 0.60)", combined)
+
+
 if __name__ == "__main__":
     unittest.main()
