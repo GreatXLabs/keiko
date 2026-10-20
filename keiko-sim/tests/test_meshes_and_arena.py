@@ -57,5 +57,49 @@ class TestMeshesAndArena(unittest.TestCase):
         self.assertAlmostEqual(c_max[2] - c_min[2], 0.156, delta=0.01)
 
 
+import sys
+SCRIPTS_DIR = os.path.join(SIM_DIR, "scripts")
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+import build_worlds
+
+
+class TestArenaGeometry(unittest.TestCase):
+    def test_semi_ellipse_wall_segments_and_exit_gap(self):
+        for variant in ("standard", "deformed_wide", "deformed_narrow", "asymmetric", "labyrinth", "corners"):
+            geom = build_worlds.get_arena_geometry(variant)
+            self.assertAlmostEqual(geom["wall_thickness"], 0.005, places=4)
+            self.assertAlmostEqual(geom["wall_height"], 0.18, places=3)
+            self.assertAlmostEqual(geom["exit_width"], 0.30, delta=0.005)
+            # Check area is approximately 1.70 m^2 (+/- 0.35 m^2 for deformed variants)
+            self.assertGreater(geom["area_m2"], 1.35)
+            self.assertLess(geom["area_m2"], 2.15)
+            # Check gap between left and right arc endpoints at the exit
+            self.assertAlmostEqual(geom["actual_exit_gap_m"], 0.30, delta=0.005)
+
+    def test_marbles_and_obstacles_clearance(self):
+        for variant in ("standard", "labyrinth", "corners", "corridors"):
+            cfg = build_worlds.MAP_CONFIGS[variant]
+            self.assertEqual(len(cfg["marbles"]), 3)
+            self.assertGreaterEqual(len(cfg["boxes"]), 2)
+            self.assertLessEqual(len(cfg["boxes"]), 3)
+            for m_name, mx, my in cfg["marbles"]:
+                # Inside semi-ellipse and with safe margin from back wall (y = -0.60) and arc
+                self.assertGreater(my, -0.38, f"{m_name} too close to back wall in {variant}")
+                self.assertLess(my, 0.38, f"{m_name} too close to exit vertex in {variant}")
+
+    def test_generated_world_uses_meshes_and_has_no_chamfers_or_exit_tunnel(self):
+        wbt_no_cap = build_worlds.generate_world("live_visualizer", "standard", "dual_plane_8", "north", include_capote=False)
+        self.assertIn("../meshes/orquita_chassis_body.stl", wbt_no_cap)
+        self.assertIn("../meshes/orquita_wheel.stl", wbt_no_cap)
+        self.assertNotIn("../meshes/orquita_capote.stl", wbt_no_cap)
+        self.assertNotIn("EXIT_CHAMFER", wbt_no_cap)
+        self.assertNotIn("EXIT_WALL_NORTH", wbt_no_cap)
+
+        wbt_cap = build_worlds.generate_world("live_visualizer", "standard", "dual_plane_8", "north", include_capote=True)
+        self.assertIn("../meshes/orquita_capote.stl", wbt_cap)
+
+
 if __name__ == "__main__":
     unittest.main()

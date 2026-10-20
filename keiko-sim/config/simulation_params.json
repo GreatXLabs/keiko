@@ -1,30 +1,38 @@
 {
-  "chassis_model": "Rover 4WD Doble Bandeja Acrilico (Todomicro)",
+  "chassis_model": "Rover 4WD Doble Bandeja Acrilico + Capote CAD (GreatXLabs/Keiko-Modelos-3D)",
   "arena": {
-    "width_m": 2.4,
-    "length_m": 2.4,
-    "wall_height_m": 0.20,
-    "wall_thickness_m": 0.04,
+    "shape": "semi_ellipse_deformable",
+    "base_width_m": 1.80,
+    "semi_minor_b_m": 0.90,
+    "max_depth_a_m": 1.20,
+    "estimated_area_m2": 1.70,
+    "back_wall_y_m": -0.60,
+    "exit_vertex_y_m": 0.60,
+    "wall_height_m": 0.18,
+    "wall_thickness_m": 0.005,
+    "wall_material": "carton_5mm_extremos_planos",
     "exit_strait": {
       "width_m": 0.30,
+      "chamfers_enabled": false,
+      "tunnel_walls_enabled": false,
       "orientations": {
-        "north": {"opening_m": [0.0, 1.2], "platform_m": [0.0, 1.6]},
-        "east": {"opening_m": [1.2, 0.0], "platform_m": [1.6, 0.0]},
-        "south": {"opening_m": [0.0, -1.2], "platform_m": [0.0, -1.6]}
+        "north": {"opening_m": [0.0, 0.60], "platform_m": [0.0, 0.85]},
+        "east": {"opening_m": [0.60, 0.0], "platform_m": [0.85, 0.0]},
+        "south": {"opening_m": [0.0, -0.60], "platform_m": [0.0, -0.85]}
       }
     }
   },
   "physics_calibration": {
-    "rationale": "Calibración física orientada al caso real (o mas riguroso) para garantizar robustez en la pista de competencia.",
+    "rationale": "Calibración física fiel al escenario real de competencia (semielipse de cartón de 5mm contra pared, obstáculos tamaño borrador de pizarra y canicas con margen amplio).",
     "contact_properties": {
       "wheel_floor": {
-        "description": "Goma de neumatico TT contra madera/melamina",
+        "description": "Goma de neumatico TT contra suelo de baldosas",
         "coulomb_friction": 0.82,
         "force_dependent_slip": 0.010,
         "bounce": 0.0
       },
       "chassis_wall": {
-        "description": "Acrilico del chasis contra MDF (rozamiento deslizante)",
+        "description": "Acrilico/Capote del chasis contra muro de carton de 5mm",
         "coulomb_friction": 0.05,
         "bounce": 0.01
       },
@@ -35,40 +43,54 @@
       }
     },
     "arena_tolerances": {
-      "wall_height_m": 0.20,
+      "wall_height_m": 0.18,
+      "wall_thickness_m": 0.005,
       "exit_strait_clearance_m": 0.30,
-      "exit_chamfer_angle_deg": 30.0,
-      "note": "Los chaflanes a 30 grados canalizan el egreso evitando atascos en el estrecho."
+      "exit_chamfer_angle_deg": 0.0,
+      "note": "La salida es un simple hueco de 30 cm en el cartón sin chaflanes, marcos ni túneles."
     },
     "sensor_realism": {
       "beam_aperture_rad": 0.50,
       "beam_aperture_deg": 28.6,
       "rays_per_transducer": 17,
       "noise_ratio": 0.02,
-      "note": "El ruido se inyecta via la 3.a columna del lookupTable (Webots R2025a no expone un campo noise en DistanceSensor)."
+      "note": "El ruido se inyecta via la 3.a columna del lookupTable (Webots R2025a)."
     }
   },
   "robot": {
     "name": "Orquita_4WD",
-    "chassis_length_m": 0.256,
+    "cad_repository": "https://github.com/GreatXLabs/Keiko-Modelos-3D",
+    "chassis_length_m": 0.257,
     "chassis_width_m": 0.150,
-    "chassis_height_m": 0.065,
-    "wheel_diameter_m": 0.065,
-    "wheel_radius_m": 0.0325,
-    "wheel_width_m": 0.026,
-    "wheelbase_m": 0.150,
-    "axle_track_m": 0.165,
+    "chassis_height_m": 0.0761,
+    "capote_length_m": 0.330,
+    "capote_width_m": 0.200,
+    "capote_height_m": 0.156,
+    "include_capote_default": false,
+    "wheel_diameter_m": 0.0672,
+    "wheel_radius_m": 0.0336,
+    "wheel_width_m": 0.025,
+    "wheelbase_m": 0.1171,
+    "axle_track_m": 0.120,
     "mass_kg": 0.78,
     "motors_count": 4,
     "drive_type": "4WD_Skid_Steer",
     "motor_reduction_ratio": "1:48",
     "max_speed_rad_s": 12.0
   },
+  "obstacles": {
+    "reference": "Borrador de pizarra",
+    "count_range": [2, 3],
+    "length_m": 0.14,
+    "width_m": 0.06,
+    "height_m": 0.12
+  },
   "prey": {
     "name": "Lobito",
     "marble_diameter_m": 0.016,
     "marble_mass_kg": 0.0055,
-    "target_captures": 3
+    "target_captures": 3,
+    "min_clearance_to_walls_m": 0.22
   },
   "sensors": {
     "ultrasonic": {
@@ -138,10 +160,10 @@
     }
   },
   "maps": {
-    "standard": {"description": "Mapa base con obstaculos dispersos y 3 lobitos"},
-    "labyrinth": {"description": "Pasillos con giros cerrados y obstaculos adicionales"},
-    "corners": {"description": "Lobitos ubicados en las esquinas de la pista"},
-    "corridors": {"description": "Pasillos estrechos de 0.30-0.35 m de luz libre para probar el ancho del chasis (0.15 m)"}
+    "standard": {"description": "Semielipse canónica (~1.80m x 1.20m) con 2 borradores y 3 lobitos con amplio margen"},
+    "labyrinth": {"description": "Semielipse deformada con 3 obstáculos tipo borrador y 3 lobitos"},
+    "corners": {"description": "Semielipse asimétrica con lobitos más próximos a los extremos de la base"},
+    "corridors": {"description": "Semielipse estrecha para evaluar maniobrabilidad entre borradores"}
   },
   "classes": [
     "ESPACIO_LIBRE",
