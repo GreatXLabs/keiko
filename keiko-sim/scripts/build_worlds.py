@@ -310,28 +310,12 @@ def render_arena_walls(map_name="standard", exit_wall="north"):
       }}
     }}""")
 
-    # 3. Plataforma de piso exterior (solo suelo a nivel Z=-0.10, sin paredes ni marcos en la salida)
+    # 3. Marcador de referencia de salida (sin geometría superpuesta con el piso para evitar Z-fighting)
     ey = geom["exit_pos"][1]
-    nodes.append(f"""    # Referencia de Piso Exterior de Salida (sin muros ni marcos que devuelvan eco)
+    nodes.append(f"""    # Marcador de Referencia de Salida (sin malla ni colisionador que solape el piso)
     DEF EXIT_PLATFORM Solid {{
       translation 0 {ey + 0.35:.4f} -0.10
-      children [
-        Shape {{
-          appearance PBRAppearance {{
-            baseColor 0.14 0.24 0.32
-            roughness 0.6
-            metalness 0.05
-          }}
-          geometry Box {{
-            size 0.80 0.70 0.20
-          }}
-        }}
-      ]
       name "exit_platform"
-      contactMaterial "floor"
-      boundingObject Box {{
-        size 0.80 0.70 0.20
-      }}
     }}""")
 
     inner = "\n\n".join(nodes)
@@ -634,7 +618,7 @@ PointLight {{
   location 0 0 2.2
 }}
 
-# Suelo Principal de la Bahia de Caza (2.2m x 1.6m x 0.20m)
+# Suelo Único Continuo del Laboratorio y Bahía de Caza (12m x 12m x 0.20m, cota superior Z = 0.0)
 DEF FLOOR Solid {{
   translation 0 0 -0.10
   children [
@@ -645,33 +629,11 @@ DEF FLOOR Solid {{
         metalness 0.1
       }}
       geometry Box {{
-        size 2.2 1.6 0.20
-      }}
-    }}
-  ]
-  name "floor"
-  contactMaterial "floor"
-  boundingObject Box {{
-    size 2.2 1.6 0.20
-  }}
-}}
-
-# Suelo del Laboratorio Extendido (12m x 12m) - Permite que el ultrasonido mida >250cm al salir por el hueco de 30cm
-DEF SAFETY_GROUND Solid {{
-  translation 0 0 -0.20
-  children [
-    Shape {{
-      appearance PBRAppearance {{
-        baseColor 0.08 0.12 0.18
-        roughness 0.8
-        metalness 0.0
-      }}
-      geometry Box {{
         size 12.0 12.0 0.20
       }}
     }}
   ]
-  name "safety_ground"
+  name "floor"
   contactMaterial "floor"
   boundingObject Box {{
     size 12.0 12.0 0.20
