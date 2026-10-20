@@ -49,10 +49,12 @@ class TestMeshesAndArena(unittest.TestCase):
         self.assertAlmostEqual(w_max[0] - w_min[0], 0.0672, delta=0.005)
         self.assertAlmostEqual(w_max[2] - w_min[2], 0.0672, delta=0.005)
 
-        # Capote: ~0.330m total X (from -0.1325 to +0.1975), 0.200m Y width at front scoop, ~0.156m Z height with fin
+        # Capote: ~0.330m total X (frente en +0.1325m, cola/aleta caudal en -0.1975m), 0.200m Y width, ~0.156m Z height
         n_cap, c_min, c_max = read_stl_bbox(capote_stl)
         self.assertGreater(n_cap, 20)
         self.assertAlmostEqual(c_max[0] - c_min[0], 0.330, delta=0.01)
+        self.assertAlmostEqual(c_min[0], -0.1975, delta=0.005)
+        self.assertAlmostEqual(c_max[0], 0.1325, delta=0.005)
         self.assertAlmostEqual(c_max[1] - c_min[1], 0.200, delta=0.01)
         self.assertAlmostEqual(c_max[2] - c_min[2], 0.156, delta=0.01)
 

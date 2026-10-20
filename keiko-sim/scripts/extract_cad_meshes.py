@@ -244,59 +244,54 @@ def add_extruded_polygon_z(tris, poly_xy, z_bottom, z_top):
 def build_capote_mesh():
     """
     Reconstruye la malla 3D exacta del Capote diseñada en Chassis.FCStd (convertida a metros en Webots):
-    1. Cuerpo principal (Pad): X in [-0.1325, +0.1325], Y in [-0.080, +0.080], Z in [0.0, 0.100]
-       con chaflanes traseros de 29 mm en las esquinas (-0.1325, ±0.080).
-    2. Trompa / Hocico medio (Pad002): X in [0.0975, 0.1675], Y in [-0.055, +0.055], Z in [0.0175, 0.0825].
-    3. Pala recolectora frontal (Pad003 + Pad004 + Chamfer001):
-       X in [0.1375, 0.1975], Y in [-0.100, +0.100], Z in [0.0425, 0.0525] con chaflanes frontales de 16 mm.
-    4. Aleta dorsal de Orca (Pad005):
-       Perfil en X in [-0.0744, +0.0354], Y in [-0.005, +0.005], Z in [0.100, 0.156].
+    En FreeCAD (Chassis.FCStd y Assembly_Main.FCStd):
+      - El FRENTE de la Orquita (cabeza) apunta hacia -Y_fc (Y_fc = -132.5 mm -> X_wb = +0.1325 m).
+      - La COLA de la Orquita (pedúnculo + aleta caudal horizontal) apunta hacia +Y_fc
+        (Y_fc = +132.5..+197.5 mm -> X_wb = -0.1325..-0.1975 m).
+      - La aleta dorsal superior (Pad005 + Chamfer 29mm + Chamfer001 16mm) nace cerca del frente
+        (Y_fc = -74.39 mm -> X_wb = +0.07439 m) y se inclina hacia atrás hasta la punta en
+        (Y_fc = +35.41 mm -> X_wb = -0.03541 m, Z = 0.156 m).
     """
     tris = []
 
-    # 1. Cuerpo principal con chaflán trasero de 29 mm (0.029 m)
-    c_rear = 0.029
+    # 1. Cuerpo principal rectangular (Pad): X_wb in [-0.1325, +0.1325], Y_wb in [-0.080, +0.080], Z in [0.0, 0.100]
     main_poly = [
-        (-0.1325 + c_rear, -0.080),
+        (-0.1325, -0.080),
         (0.1325, -0.080),
         (0.1325, 0.080),
-        (-0.1325 + c_rear, 0.080),
-        (-0.1325, 0.080 - c_rear),
-        (-0.1325, -0.080 + c_rear),
+        (-0.1325, 0.080),
     ]
-    add_extruded_polygon_z(tris, main_poly, 0.002, 0.100)
+    add_extruded_polygon_z(tris, main_poly, 0.0, 0.100)
 
-    # 2. Hocico frontal intermedio
-    snout_poly = [
-        (0.0975, -0.055),
-        (0.1675, -0.055),
-        (0.1675, 0.055),
-        (0.0975, 0.055),
+    # 2. Pedúnculo caudal trasero (Pad002): X_wb in [-0.1675, -0.0975], Y_wb in [-0.055, +0.055], Z in [0.0175, 0.0825]
+    peduncle_poly = [
+        (-0.1675, -0.055),
+        (-0.0975, -0.055),
+        (-0.0975, 0.055),
+        (-0.1675, 0.055),
     ]
-    add_extruded_polygon_z(tris, snout_poly, 0.0175, 0.0825)
+    add_extruded_polygon_z(tris, peduncle_poly, 0.0175, 0.0825)
 
-    # 3. Pala frontal de 200 mm de ancho con chaflanes de 16 mm (0.016 m)
-    c_front = 0.016
-    blade_poly = [
-        (0.1375, -0.100),
-        (0.1975 - c_front, -0.100),
-        (0.1975, -0.100 + c_front),
-        (0.1975, 0.100 - c_front),
-        (0.1975 - c_front, 0.100),
-        (0.1375, 0.100),
+    # 3. Aleta caudal horizontal trasera de 200 mm de ancho (Pad003 + Pad004):
+    #    X_wb in [-0.1975, -0.1375], Y_wb in [-0.100, +0.100], Z in [0.0425, 0.0525]
+    tail_fluke_poly = [
+        (-0.1975, -0.100),
+        (-0.1375, -0.100),
+        (-0.1375, 0.100),
+        (-0.1975, 0.100),
     ]
-    add_extruded_polygon_z(tris, blade_poly, 0.0425, 0.0525)
+    add_extruded_polygon_z(tris, tail_fluke_poly, 0.0425, 0.0525)
 
-    # 4. Aleta dorsal de Orca (extruida en Y entre -0.005 y +0.005)
-    # Vértices exactos tomados del BRep de Chassis.FCStd (Sketch004 + Pad005)
+    # 4. Aleta dorsal de Orca (Pad005 + Chamfer 29mm + Chamfer001 16mm, extruida en Y_wb entre -0.005 y +0.005)
+    #    Vértices exactos de Body.Shape.brp con X_wb = -Y_fc / 1000.0 (frente hacia +X_wb, inclinada hacia -X_wb)
     fin_xz = [
-        (-0.07439, 0.10000),
-        (-0.00939, 0.10000),
-        (0.00661, 0.10000),
-        (0.00060, 0.11249),
-        (0.03541, 0.15600),
-        (-0.00059, 0.15600),
-        (-0.04771, 0.13335),
+        (0.07439, 0.10000),   # base frontal
+        (0.04771, 0.13335),   # quiebre borde de ataque (Chamfer 29 mm)
+        (0.00059, 0.15600),   # borde superior frontal
+        (-0.03541, 0.15600),  # punta superior trasera de la aleta dorsal
+        (-0.00060, 0.11249),  # muesca borde de salida (Chamfer001 16 mm)
+        (-0.00661, 0.10000),  # base trasera
+        (0.00939, 0.10000),   # punto intermedio de base
     ]
     y_left = 0.005
     y_right = -0.005

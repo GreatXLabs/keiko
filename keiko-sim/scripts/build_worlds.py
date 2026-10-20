@@ -508,7 +508,7 @@ def generate_world(controller_name, map_name="standard", sensor_config="dual_pla
 
     capote_visual_node = ""
     if include_capote:
-        capote_visual_node = """    # Carcasa Exterior "Capote" (CAD Chassis.FCStd: cuerpo 265x160x100mm + pala 200mm + aleta de orca)
+        capote_visual_node = """    # Carcasa Exterior "Capote" (CAD Chassis.FCStd: frente en +X, aleta dorsal y cola en -X)
     DEF ORQUITA_CAPOTE_VISUAL Shape {
       appearance PBRAppearance {
         baseColor 0.12 0.14 0.18
