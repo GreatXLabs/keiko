@@ -31,6 +31,7 @@ if COMMON_DIR not in sys.path:
 
 from arena_mapper import ArenaMapper
 from sonar_visualizer import SonarVisualizer
+from ultrasonic_physics import UltrasonicPhysicsModel, SensorBorderFilter
 
 try:
     sys.stdout.reconfigure(line_buffering=True)
@@ -126,10 +127,16 @@ def main():
             sensors[name] = s
             filtered_distances[name] = 250.0
 
-    if "us_low_center" in sensors:
+    if "us_low_center" in sensors and "us_side_left" in sensors:
         active_config = "trisector_10"
+    elif "us_low_center" in sensors:
+        active_config = "trisector_front_6"
     else:
         active_config = "dual_plane_8"
+
+    physics_mode = os.environ.get("ORQUITAS_SENSOR_PHYSICS", "realistic").strip().lower()
+    us_physics = UltrasonicPhysicsModel(mode=physics_mode)
+    border_filter = SensorBorderFilter(sensor_names=list(sensors.keys()))
 
     sonar_vis = SonarVisualizer(robot, display_name="sensor_hud", config_name=active_config)
     log_msg(f"[HARDWARE] Banco ultrasónico: {active_config.upper()} ({len(sensors)} transductores activos).")
@@ -241,30 +248,38 @@ def main():
             continue
 
         # -------------------------------------------------------------
-        # 1. FILTRADO SENSORIAL PASO-BAJO Y VALIDACIÓN DE FRONTERA
+        # 1. FILTRADO SENSORIAL DE FRONTERA Y FÍSICA ACÚSTICA HC-SR04
         # -------------------------------------------------------------
-        readings = {}
-        for s_name, dev in sensors.items():
-            raw_val = dev.getValue()
-            filtered_distances[s_name] = 0.50 * filtered_distances[s_name] + 0.50 * raw_val
-            readings[s_name] = max(2.0, min(300.0, filtered_distances[s_name]))
-
-        d_ll = readings.get("us_low_left", 250.0)
-        d_lr = readings.get("us_low_right", 250.0)
-        d_hl = readings.get("us_high_left", 250.0)
-        d_hr = readings.get("us_high_right", 250.0)
-        d_sl = readings.get("us_side_left", 250.0)
-        d_sr = readings.get("us_side_right", 250.0)
-        d_rl = readings.get("us_rear_left", 250.0)
-        d_rr = readings.get("us_rear_right", 250.0)
-
-        # Posición y orientación del robot
         r_pos = self_node.getPosition()
         rx, ry = r_pos[0], r_pos[1]
         rot = self_node.getOrientation()
         fwd_x = rot[0]
         fwd_y = rot[3]
         yaw = math.atan2(fwd_y, fwd_x)
+
+        active_marbles_xy = []
+        for m_data in marbles.values():
+            if not m_data["captured"]:
+                try:
+                    mp = m_data["node"].getPosition()
+                    active_marbles_xy.append((mp[0], mp[1]))
+                except Exception:
+                    pass
+
+        raw_readings = {s_name: dev.getValue() for s_name, dev in sensors.items()}
+        realistic_raw = us_physics.apply(raw_readings, robot_pose=(rx, ry, yaw), marble_positions=active_marbles_xy)
+        readings = border_filter.update(realistic_raw)
+
+        d_ll = readings.get("us_low_left", 250.0)
+        d_lc = readings.get("us_low_center", 250.0)
+        d_lr = readings.get("us_low_right", 250.0)
+        d_hl = readings.get("us_high_left", 250.0)
+        d_hc = readings.get("us_high_center", 250.0)
+        d_hr = readings.get("us_high_right", 250.0)
+        d_sl = readings.get("us_side_left", 250.0)
+        d_sr = readings.get("us_side_right", 250.0)
+        d_rl = readings.get("us_rear_left", 250.0)
+        d_rr = readings.get("us_rear_right", 250.0)
 
         # -------------------------------------------------------------
         # 2. ACTUALIZACIÓN DEL MAPA DE OCUPACIÓN 2D
@@ -361,29 +376,28 @@ def main():
         has_rear = ("us_rear_left" in sensors) and ("us_rear_right" in sensors)
         has_center = ("us_low_center" in sensors) and ("us_high_center" in sensors)
 
-        # Banco modular 4 / 6 / 8 / 10 transductores. Protocol.java (contrato serie)
-        # admite 4, 6 u 8 canales, de modo que en la topología trisector de 10 los
-        # transductores centrales se fusionan por mínimo en su canal frontal afín.
-        # ponytail: techo = 8 canales de cable; ampliar Protocol.java + SensorVector
-        # si se requiere telemetría de 10 canales nativa.
-        f_ll, f_lr, f_hl, f_hr = d_ll, d_lr, d_hl, d_hr
-        if has_center:
-            d_lc = readings.get("us_low_center", 250.0)
-            d_hc = readings.get("us_high_center", 250.0)
-            f_ll, f_lr = min(f_ll, d_lc), min(f_lr, d_lc)
-            f_hl, f_hr = min(f_hl, d_hc), min(f_hr, d_hc)
-
-        if sensor_mode >= 8 and has_side and has_rear:
-            telemetry_msg = (f"TELEMETRY:{f_ll:.2f},{f_lr:.2f},{f_hl:.2f},{f_hr:.2f},"
+        if has_center and not has_side:
+            # Configuración principal de 6 sensores frontales (trisector_front_6):
+            # [low_left, low_center, low_right, high_left, high_center, high_right]
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lc:.2f},{d_lr:.2f},"
+                             f"{d_hl:.2f},{d_hc:.2f},{d_hr:.2f},"
+                             f"{int(sim_time*1000)}\n")
+        elif sensor_mode >= 10 and has_center and has_side and has_rear:
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lc:.2f},{d_lr:.2f},"
+                             f"{d_hl:.2f},{d_hc:.2f},{d_hr:.2f},"
                              f"{d_sl:.2f},{d_sr:.2f},{d_rl:.2f},{d_rr:.2f},"
-                             f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n")
+                             f"{int(sim_time*1000)}\n")
+        elif sensor_mode >= 8 and has_side and has_rear:
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lr:.2f},{d_hl:.2f},{d_hr:.2f},"
+                             f"{d_sl:.2f},{d_sr:.2f},{d_rl:.2f},{d_rr:.2f},"
+                             f"{int(sim_time*1000)}\n")
         elif sensor_mode >= 6 and has_side:
-            telemetry_msg = (f"TELEMETRY:{f_ll:.2f},{f_lr:.2f},{f_hl:.2f},{f_hr:.2f},"
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lr:.2f},{d_hl:.2f},{d_hr:.2f},"
                              f"{d_sl:.2f},{d_sr:.2f},"
-                             f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n")
+                             f"{int(sim_time*1000)}\n")
         else:
-            telemetry_msg = (f"TELEMETRY:{f_ll:.2f},{f_lr:.2f},{f_hl:.2f},{f_hr:.2f},"
-                             f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n")
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lr:.2f},{d_hl:.2f},{d_hr:.2f},"
+                             f"{int(sim_time*1000)}\n")
 
         try:
             sock.sendall(telemetry_msg.encode("utf-8"))

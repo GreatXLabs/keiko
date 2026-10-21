@@ -36,6 +36,7 @@ if COMMON_DIR not in sys.path:
 
 from arena_mapper import ArenaMapper
 from sonar_visualizer import SonarVisualizer
+from ultrasonic_physics import UltrasonicPhysicsModel, SensorBorderFilter
 
 LOG_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs", "simulation_live.log"))
 os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
@@ -121,12 +122,18 @@ def main():
             sensors[name] = s
             filtered_distances[name] = 250.0
 
-    if "us_low_center" in sensors:
+    if "us_low_center" in sensors and "us_side_left" in sensors:
         active_config = "trisector_10"
+    elif "us_low_center" in sensors:
+        active_config = "trisector_front_6"
     elif "us_low_left" in sensors:
         active_config = "dual_plane_8"
     else:
-        active_config = "dual_plane_8"
+        active_config = "trisector_front_6"
+
+    physics_mode = os.environ.get("ORQUITAS_SENSOR_PHYSICS", "realistic").strip().lower()
+    us_physics = UltrasonicPhysicsModel(mode=physics_mode)
+    border_filter = SensorBorderFilter(sensor_names=list(sensors.keys()))
 
     sonar_vis = SonarVisualizer(robot, display_name="sensor_hud", config_name=active_config)
     log_msg(f"[HARDWARE] Configuración sensorial activa: {active_config.upper()} ({len(sensors)} transductores).")
@@ -329,13 +336,27 @@ def main():
         elapsed_sec = (step_count * time_step) / 1000.0
 
         # -------------------------------------------------------------
-        # 1. LECTURA Y FILTRADO PASO-BAJO
+        # 1. LECTURA ACÚSTICA REALISTA HC-SR04 Y FILTRO DE FRONTERA
         # -------------------------------------------------------------
-        readings = {}
-        for s_name, dev in sensors.items():
-            raw_val = dev.getValue()
-            filtered_distances[s_name] = 0.50 * filtered_distances[s_name] + 0.50 * raw_val
-            readings[s_name] = max(2.0, min(300.0, filtered_distances[s_name]))
+        r_pos = self_node.getPosition()
+        rx, ry = r_pos[0], r_pos[1]
+        rot = self_node.getOrientation()
+        fwd_x = rot[0]
+        fwd_y = rot[3]
+        yaw = math.atan2(fwd_y, fwd_x)
+
+        active_marbles_xy = []
+        for m_data in marbles.values():
+            if not m_data["captured"]:
+                try:
+                    mp = m_data["node"].getPosition()
+                    active_marbles_xy.append((mp[0], mp[1]))
+                except Exception:
+                    pass
+
+        raw_readings = {s_name: dev.getValue() for s_name, dev in sensors.items()}
+        realistic_raw = us_physics.apply(raw_readings, robot_pose=(rx, ry, yaw), marble_positions=active_marbles_xy)
+        readings = border_filter.update(realistic_raw)
 
         d_ll = readings.get("us_low_left", 250.0)
         d_lr = readings.get("us_low_right", 250.0)
@@ -359,13 +380,6 @@ def main():
             min_low = min(d_ll, d_lr)
             min_high = min(d_hl, d_hr)
         min_rear = min(d_rl, d_rr)
-
-        r_pos = self_node.getPosition()
-        rx, ry = r_pos[0], r_pos[1]
-        rot = self_node.getOrientation()
-        fwd_x = rot[0]
-        fwd_y = rot[3]
-        yaw = math.atan2(fwd_y, fwd_x)
 
         # Holgura al obstáculo estático más cercano (modelo del Supervisor)
         clearance, _ob_x, _ob_y = nearest_obstacle(rx, ry)

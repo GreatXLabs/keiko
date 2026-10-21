@@ -10,7 +10,7 @@
 
 La versión inicial de `keiko-sim` modelaba la Bahía de Caza como un cuadrado rígido de $2.40\text{ m} \times 2.40\text{ m}$ con muros de $4\text{ cm}$ de espesor, chaflanes artificiales a $30^\circ$ en la salida, un túnel cerrado de llegada y un chasis construido a mano con cajas primitivas.
 
-De acuerdo con las especificaciones relevadas con la cátedra ([`docs/consignas/La Competencia.md`](file:///home/lucagmb/workspace/2026/greatx-labs/keiko/docs/consignas/La%20Competencia.md)) y los diseños CAD del equipo (`GreatXLabs/Keiko-Modelos-3D`):
+De acuerdo con las especificaciones relevadas con la cátedra (`docs/consignas/La Competencia.md`) y los diseños CAD del equipo (`GreatXLabs/Keiko-Modelos-3D`):
 1. **La Bahía real** es una **semielipse irregular** armada manualmente con cartón de $5\text{ mm}$ de espesor y $15-20\text{ cm}$ de altura contra una pared plana de $\sim 1.80\text{ m}$ ($2b$, con $b \approx 0.90\text{ m}$) y una profundidad máxima de $\sim 1.20\text{ m}$ ($a \approx 1.20\text{ m}$, área interior $\approx 1.70\text{ m}^2$).
 2. **El Estrecho de Salida** mide exactamente **$30\text{ cm}$**, ubicado en el centro del arco curvo. Es simplemente un hueco donde falta cartón: no tiene chaflanes guía, ni marcos, ni postes en "T", ni paredes exteriores cercanas. Como cualquier distancia pared-a-pared dentro de la bahía es $\le 1.85\text{ m}$, la única firma física real de la salida para los sensores ultrasónicos es medir distancias abiertas muy altas ($> 2.00\text{ m}$) hacia el exterior del aula.
 3. **Obstáculos internos:** Son de **2 a 3 objetos** del tamaño de un borrador de pizarra ($\sim 14\text{ cm} \times 6\text{ cm}$), significativamente más grandes que las canicas.

@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 """
-Dataset Collector & Supervisor - Orquitas (Keiko)
-Genera datasets sintéticos masivos y balanceados a partir de simulaciones físicas en Webots 3D.
-Extrae lecturas de configuraciones modulares de 4, 6, 8 o 10 sensores ultrasónicos
-(planos duales o trisector) y las etiqueta con Ground Truth de alta fidelidad para
-entrenamiento directo en Neuroph 2.98.
+Dataset Collector & Supervisor Realista - Orquitas (Keiko)
+Genera datasets física y acústicamente realistas en la Bahía Semielíptica de Webots 3D.
+
+Características clave:
+1. Soporta la configuración principal de 6 sensores frontales (trisector_front_6:
+   us_low_left, us_low_center, us_low_right, us_high_left, us_high_center, us_high_right)
+   además de configuraciones de 4, 6-lateral, 8 y 10 sensores.
+2. Aplica el modelo acústico real HC-SR04 (UltrasonicPhysicsModel):
+   - Las canicas (16 mm) solo devuelven eco en el plano bajo hasta ~32 cm y dentro de ±9.5°.
+   - Ruido térmico proporcional a la distancia y cuantización real.
+3. Distinción física real entre ESPACIO_LIBRE y SALIDA sin mapa:
+   - Dentro de la semielipse (1.80m x 1.20m), las lecturas internas de pared a pared son <= 175 cm.
+   - Únicamente al apuntar a través del hueco de salida de 30 cm los haces frontales (bajo y alto)
+     miden > 185-250 cm hacia el exterior de la bahía.
+4. Cuando se recolectan los 6 sensores frontales, exporta simultáneamente 3 variantes de dataset
+   a partir de las mismas mediciones físicas para benchmarking iterativo en Neuroph 2.98:
+   - orquitas_dataset_6_sensores.csv (5 clases canónicas: ESPACIO_LIBRE, LOBITO, MURO, OBSTACULO, SALIDA)
+   - orquitas_dataset_6_sensores_7clases.csv (7 clases: LOBITO_IZQ/CENTRO/DER)
+   - orquitas_dataset_6_sensores_9clases.csv (9 clases: LOBITO_IZQ/CENTRO/DER + OBSTACULO_IZQ/CENTRO/DER)
 """
 
 import sys
@@ -14,10 +28,17 @@ import random
 import csv
 from controller import Supervisor
 
+COMMON_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "common"))
+if COMMON_DIR not in sys.path:
+    sys.path.insert(0, COMMON_DIR)
+
+from ultrasonic_physics import UltrasonicPhysicsModel, SENSOR_MOUNT_GEOM
+
+
 def clamp(val, min_v, max_v):
     return max(min_v, min(max_v, val))
 
-# Geometría canónica de salida por pared: (posición del estrecho, yaw de egreso)
+
 EXIT_GEOM = {
     "north": ((0.0, 0.60), math.pi / 2.0),
     "east": ((0.60, 0.0), 0.0),
@@ -25,8 +46,8 @@ EXIT_GEOM = {
     "west": ((-0.60, 0.0), math.pi),
 }
 
+
 def detect_exit(supervisor):
-    """Detecta la pared de salida dinámicamente (nodo EXIT_PLATFORM -> env EXIT_WALL -> norte)."""
     node = supervisor.getFromDef("EXIT_PLATFORM")
     if node is not None:
         try:
@@ -46,14 +67,30 @@ def detect_exit(supervisor):
     wall = os.environ.get("EXIT_WALL", "").strip().lower()
     return wall if wall in EXIT_GEOM else "north"
 
+
+def is_inside_semi_ellipse(x, y, margin=0.15):
+    if y < -0.60 + margin:
+        return False
+    a = max(0.2, 1.20 - margin)
+    b = max(0.2, 0.90 - margin)
+    dy = y - (-0.60)
+    if dy < 0:
+        return False
+    return (x / b) ** 2 + (dy / a) ** 2 <= 1.0
+
+
 def main():
     supervisor = Supervisor()
     time_step = int(supervisor.getBasicTimeStep())
     if time_step <= 0:
         time_step = 32
 
-    # Configuración Modular de Sensores (4, 6 u 8 sensores)
-    sensor_count = 4
+    has_center_dev = supervisor.getDevice("us_low_center") is not None
+    has_side_dev = supervisor.getDevice("us_side_left") is not None
+    has_rear_dev = supervisor.getDevice("us_rear_left") is not None
+
+    # Determinar configuración activa según dispositivos presentes en el mundo o argumento
+    sensor_count = 6 if has_center_dev and not has_side_dev else (10 if has_center_dev and has_rear_dev else (8 if has_rear_dev else 4))
     if len(sys.argv) > 1:
         try:
             sensor_count = int(sys.argv[1])
@@ -68,9 +105,13 @@ def main():
     if sensor_count == 10:
         sensor_names = ["us_low_left", "us_low_center", "us_low_right", "us_high_left", "us_high_center", "us_high_right", "us_side_left", "us_side_right", "us_rear_left", "us_rear_right"]
         csv_filename = "orquitas_dataset_10_sensores.csv"
+    elif sensor_count == 6 and has_center_dev:
+        # Configuración principal: 6 sensores frontales (3 bajos + 3 altos)
+        sensor_names = ["us_low_left", "us_low_center", "us_low_right", "us_high_left", "us_high_center", "us_high_right"]
+        csv_filename = "orquitas_dataset_6_sensores.csv"
     elif sensor_count == 6:
         sensor_names = ["us_low_left", "us_low_right", "us_high_left", "us_high_right", "us_side_left", "us_side_right"]
-        csv_filename = "orquitas_dataset_6_sensores.csv"
+        csv_filename = "orquitas_dataset_6_side_sensores.csv"
     elif sensor_count == 8:
         sensor_names = ["us_low_left", "us_low_right", "us_high_left", "us_high_right", "us_side_left", "us_side_right", "us_rear_left", "us_rear_right"]
         csv_filename = "orquitas_dataset_8_sensores.csv"
@@ -80,11 +121,10 @@ def main():
         csv_filename = "orquitas_dataset_4_sensores.csv"
 
     print("==========================================================")
-    print(f"  ORQUITAS (KEIKO) - GENERADOR MASIVO DE DATASETS ({sensor_count} SENSORES)")
-    print(f"  TimeStep: {time_step} ms | Sensores: {len(sensor_names)} habilitados")
+    print(f"  ORQUITAS (KEIKO) - GENERADOR REALISTA DE DATASETS ({sensor_count} SENSORES)")
+    print(f"  Canales: {sensor_names}")
     print("==========================================================")
 
-    # 1. Obtener dispositivos de sensores
     sensors = {}
     for name in sensor_names:
         s = supervisor.getDevice(name)
@@ -92,199 +132,285 @@ def main():
             s.enable(time_step)
             sensors[name] = s
         else:
-            print(f"[ERROR] No se encontro el sensor: {name}", file=sys.stderr)
+            print(f"[ERROR] No se encontró el sensor: {name}", file=sys.stderr)
             sys.exit(1)
 
-    # 2. Obtener nodo del robot para control de pose
     robot_node = supervisor.getFromDef("ORQUITA")
     if not robot_node:
-        print("[ERROR] Nodo DEF ORQUITA no encontrado en el mundo.", file=sys.stderr)
+        print("[ERROR] Nodo DEF ORQUITA no encontrado.", file=sys.stderr)
         sys.exit(1)
 
     trans_field = robot_node.getField("translation")
     rot_field = robot_node.getField("rotation")
 
-    # Posiciones fijas de referencia en la Bahia Semieliptica
     lobitos = [
         (0.24, 0.28),
         (-0.52, -0.05),
-        (0.50, -0.32)
+        (0.50, -0.32),
     ]
-    
     obstaculos = [
         (-0.42, 0.16),
         (0.42, 0.08),
-        (-0.28, -0.30)
+        (-0.28, -0.30),
     ]
 
-    # Salida dinámica: soporta paredes Norte, Este, Sur y Oeste
     exit_wall = detect_exit(supervisor)
     salida_pos, salida_yaw = EXIT_GEOM[exit_wall]
-    print(f"[INFO] Salida detectada: {exit_wall.upper()} @ ({salida_pos[0]:.2f}, {salida_pos[1]:.2f})")
-
-    # Configuracion de Dataset
-    SAMPLES_PER_CLASS = 400
-    classes = ["LOBITO", "MURO", "OBSTACULO", "SALIDA", "ESPACIO_LIBRE"]
-    dataset = []
+    us_physics = UltrasonicPhysicsModel(mode="realistic", seed=2026)
 
     out_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data", "datasets")
     os.makedirs(out_dir, exist_ok=True)
-    out_csv = os.path.join(out_dir, csv_filename)
 
-    print(f"Generando {SAMPLES_PER_CLASS * len(classes)} muestras ({SAMPLES_PER_CLASS} por clase)...")
+    # Recolectamos sub-clases detalladas y luego proyectamos a 5, 7 y 9 clases
+    is_front_6 = (sensor_count == 6 and has_center_dev)
+    if is_front_6:
+        sub_targets = [
+            ("LOBITO_IZQ", 220),
+            ("LOBITO_CENTRO", 220),
+            ("LOBITO_DER", 220),
+            ("OBSTACULO_IZQ", 220),
+            ("OBSTACULO_CENTRO", 220),
+            ("OBSTACULO_DER", 220),
+            ("MURO", 450),
+            ("SALIDA", 450),
+            ("ESPACIO_LIBRE", 450),
+        ]
+    else:
+        sub_targets = [
+            ("LOBITO", 400),
+            ("OBSTACULO", 400),
+            ("MURO", 400),
+            ("SALIDA", 400),
+            ("ESPACIO_LIBRE", 400),
+        ]
 
-    for target_class in classes:
-        print(f"-> Generando muestras para clase: {target_class}...")
+    rows_5 = []
+    rows_7 = []
+    rows_9 = []
+
+    sector_angles = {
+        "IZQ": +0.3840,     # +22°
+        "CENTRO": 0.0000,   #   0°
+        "DER": -0.3840,     # -22°
+    }
+    sector_mount = {
+        "IZQ": (0.128, +0.052),
+        "CENTRO": (0.134, 0.000),
+        "DER": (0.128, -0.052),
+    }
+
+    for sub_class, target_n in sub_targets:
+        print(f"-> Recolectando {target_n} muestras para: {sub_class}...")
         count = 0
         attempts = 0
+        max_attempts = target_n * 80
 
-        while count < SAMPLES_PER_CLASS and attempts < SAMPLES_PER_CLASS * 60:
+        while count < target_n and attempts < max_attempts:
             attempts += 1
 
-            if target_class == "LOBITO":
-                # Posicionar frente a una canica en el suelo (10 a 40 cm del sensor frontal a X=0.138)
+            if sub_class.startswith("LOBITO"):
                 lob = random.choice(lobitos)
-                sensor_dist = random.uniform(0.10, 0.40)
-                dist = 0.138 + sensor_dist
-                # Ángulo apuntando hacia el lobito con leve variación frontal
-                base_angle = random.uniform(0, 2 * math.pi)
-                rx = lob[0] - dist * math.cos(base_angle)
-                ry = lob[1] - dist * math.sin(base_angle)
-                heading = base_angle + random.uniform(-0.04, 0.04)
+                sector = sub_class.split("_")[1] if "_" in sub_class else random.choice(["IZQ", "CENTRO", "DER"])
+                s_ang = sector_angles[sector]
+                sx_loc, sy_loc = sector_mount[sector]
+                # Distancia física realista para detectar canica de 16 mm: 6 cm a 29 cm desde el sensor
+                sensor_dist = random.uniform(0.06, 0.29)
+                base_angle = random.uniform(-math.pi, math.pi)
+                heading = base_angle - s_ang + random.uniform(-0.07, 0.07)
+                cos_h, sin_h = math.cos(heading), math.sin(heading)
+                beam_dir_x = math.cos(heading + s_ang)
+                beam_dir_y = math.sin(heading + s_ang)
+                # Posicionar robot para que el sensor del sector elegido quede a sensor_dist de la canica
+                rx = lob[0] - beam_dir_x * sensor_dist - (sx_loc * cos_h - sy_loc * sin_h)
+                ry = lob[1] - beam_dir_y * sensor_dist - (sx_loc * sin_h + sy_loc * cos_h)
+                if not is_inside_semi_ellipse(rx, ry, margin=0.14):
+                    continue
 
-            elif target_class == "MURO":
-                # Posicionar de frente a un muro perimetral (base plana o arco semielíptico)
-                wall = random.choice(["south", "arc_left", "arc_right"])
-                dist = random.uniform(0.18, 0.45)
-                heading_jitter = random.uniform(-0.15, 0.15) # perpendicular al muro
-
-                if wall == "south":
-                    rx = random.uniform(-0.65, 0.65)
-                    ry = -0.60 + dist
-                    heading = -math.pi / 2 + heading_jitter
-                elif wall == "arc_left":
-                    theta = random.uniform(math.pi * 0.58, math.pi * 0.90)
-                    wx = 0.90 * math.cos(theta)
-                    wy = -0.60 + 1.20 * math.sin(theta)
-                    nx = math.cos(theta) / 0.90
-                    ny = math.sin(theta) / 1.20
-                    nlen = math.hypot(nx, ny)
-                    nx, ny = nx / nlen, ny / nlen
-                    rx = wx - nx * dist
-                    ry = wy - ny * dist
-                    heading = math.atan2(ny, nx) + heading_jitter
-                else: # arc_right
-                    theta = random.uniform(math.pi * 0.10, math.pi * 0.42)
-                    wx = 0.90 * math.cos(theta)
-                    wy = -0.60 + 1.20 * math.sin(theta)
-                    nx = math.cos(theta) / 0.90
-                    ny = math.sin(theta) / 1.20
-                    nlen = math.hypot(nx, ny)
-                    nx, ny = nx / nlen, ny / nlen
-                    rx = wx - nx * dist
-                    ry = wy - ny * dist
-                    heading = math.atan2(ny, nx) + heading_jitter
-
-            elif target_class == "OBSTACULO":
-                # Posicionar lateralmente frente a un obstaculo interno (deteccion asimetrica)
+            elif sub_class.startswith("OBSTACULO"):
                 obs = random.choice(obstaculos)
-                dist = random.uniform(0.15, 0.40)
-                offset_side = random.choice([-0.10, 0.10])
-                base_angle = random.uniform(0, 2 * math.pi)
-                rx = obs[0] - dist * math.cos(base_angle) + offset_side * math.sin(base_angle)
-                ry = obs[1] - dist * math.sin(base_angle) - offset_side * math.cos(base_angle)
-                heading = base_angle + random.uniform(-0.15, 0.15)
+                sector = sub_class.split("_")[1] if "_" in sub_class else random.choice(["IZQ", "CENTRO", "DER"])
+                s_ang = sector_angles[sector]
+                sx_loc, sy_loc = sector_mount[sector]
+                sensor_dist = random.uniform(0.10, 0.44)
+                base_angle = random.uniform(-math.pi, math.pi)
+                heading = base_angle - s_ang + random.uniform(-0.08, 0.08)
+                cos_h, sin_h = math.cos(heading), math.sin(heading)
+                beam_dir_x = math.cos(heading + s_ang)
+                beam_dir_y = math.sin(heading + s_ang)
+                rx = obs[0] - beam_dir_x * sensor_dist - (sx_loc * cos_h - sy_loc * sin_h)
+                ry = obs[1] - beam_dir_y * sensor_dist - (sx_loc * sin_h + sy_loc * cos_h)
+                if not is_inside_semi_ellipse(rx, ry, margin=0.15):
+                    continue
 
-            elif target_class == "SALIDA":
-                # Pasillo de aproximación al Estrecho de Salida (pared detectada),
-                # con variaciones laterales y rotacionales reales sobre el eje de egreso.
-                dist_to_exit = random.uniform(0.35, 0.85)
-                lateral_off = random.uniform(-0.08, 0.08)
+            elif sub_class == "MURO":
+                wall = random.choice(["south", "arc_left", "arc_right"])
+                dist = random.uniform(0.14, 0.46)
+                heading_jitter = random.uniform(-0.22, 0.22)
+                if wall == "south":
+                    rx = random.uniform(-0.62, 0.62)
+                    ry = -0.60 + dist
+                    heading = -math.pi / 2.0 + heading_jitter
+                elif wall == "arc_left":
+                    theta = random.uniform(math.pi * 0.60, math.pi * 0.90)
+                    wx = 0.90 * math.cos(theta)
+                    wy = -0.60 + 1.20 * math.sin(theta)
+                    nx, ny = math.cos(theta) / 0.90, math.sin(theta) / 1.20
+                    nlen = math.hypot(nx, ny)
+                    nx, ny = nx / nlen, ny / nlen
+                    rx = wx - nx * dist
+                    ry = wy - ny * dist
+                    heading = math.atan2(ny, nx) + heading_jitter
+                else:
+                    theta = random.uniform(math.pi * 0.10, math.pi * 0.40)
+                    wx = 0.90 * math.cos(theta)
+                    wy = -0.60 + 1.20 * math.sin(theta)
+                    nx, ny = math.cos(theta) / 0.90, math.sin(theta) / 1.20
+                    nlen = math.hypot(nx, ny)
+                    nx, ny = nx / nlen, ny / nlen
+                    rx = wx - nx * dist
+                    ry = wy - ny * dist
+                    heading = math.atan2(ny, nx) + heading_jitter
+
+            elif sub_class == "SALIDA":
+                dist_to_exit = random.uniform(0.18, 0.90)
+                lateral_off = random.uniform(-0.11, 0.11)
                 dir_x, dir_y = math.cos(salida_yaw), math.sin(salida_yaw)
                 rx = salida_pos[0] - dir_x * dist_to_exit - dir_y * lateral_off
                 ry = salida_pos[1] - dir_y * dist_to_exit + dir_x * lateral_off
-                heading = salida_yaw + random.uniform(-0.12, 0.12)
+                if not is_inside_semi_ellipse(rx, ry, margin=0.14):
+                    continue
+                # Apuntar hacia el hueco de 30 cm de modo que el eje central del robot enfile la salida
+                angle_to_gap = math.atan2(salida_pos[1] - ry, salida_pos[0] - rx)
+                heading = angle_to_gap + random.uniform(-0.20, 0.20)
 
-            else: # ESPACIO_LIBRE
-                # En áreas centrales despejadas orientadas a corredores libres
-                rx = random.uniform(-0.20, 0.20)
-                ry = random.uniform(-0.30, 0.05)
-                heading = random.uniform(0, 2 * math.pi)
+            else:  # ESPACIO_LIBRE
+                rx = random.uniform(-0.45, 0.45)
+                ry = random.uniform(-0.38, 0.18)
+                heading = random.uniform(-math.pi, math.pi)
+                if not is_inside_semi_ellipse(rx, ry, margin=0.20):
+                    continue
 
-            # Limitar dentro de la pista semielíptica
-            rx = clamp(rx, -0.75, 0.75)
-            ry = clamp(ry, -0.45, 0.42)
-
-            # Aplicar pose al robot
-            trans_field.setSFVec3f([rx, ry, 0.03])
+            trans_field.setSFVec3f([rx, ry, 0.001])
             rot_field.setSFRotation([0, 0, 1, heading])
             supervisor.simulationResetPhysics()
-
-            # Avanzar pasos de simulacion para refrescar sensores
-            supervisor.step(time_step)
             supervisor.step(time_step)
 
-            d_ll = sensors["us_low_left"].getValue()
-            d_lr = sensors["us_low_right"].getValue()
-            d_hl = sensors["us_high_left"].getValue()
-            d_hr = sensors["us_high_right"].getValue()
+            us_physics.reset_history()
+            raw = {name: sensors[name].getValue() for name in sensor_names}
+            realistic = us_physics.apply(raw, robot_pose=(rx, ry, heading), marble_positions=lobitos)
 
-            min_low = min(d_ll, d_lr)
-            min_high = min(d_hl, d_hr)
-            if "us_low_center" in sensors:
-                min_low = min(min_low, sensors["us_low_center"].getValue())
-            if "us_high_center" in sensors:
-                min_high = min(min_high, sensors["us_high_center"].getValue())
+            d_ll = realistic["us_low_left"]
+            d_lr = realistic["us_low_right"]
+            d_hl = realistic["us_high_left"]
+            d_hr = realistic["us_high_right"]
+            d_lc = realistic.get("us_low_center", min(d_ll, d_lr))
+            d_hc = realistic.get("us_high_center", min(d_hl, d_hr))
 
-            # Validacion física de la firma
-            if target_class == "LOBITO":
-                # El lobito es una canica baja: bajo detecta cercania, alto ve significativamente mas lejos
-                if min_low > 50.0 or min_high < (min_low + 8.0):
+            delta_l = d_hl - d_ll
+            delta_c = d_hc - d_lc
+            delta_r = d_hr - d_lr
+            min_low = min(d_ll, d_lc, d_lr)
+            min_high = min(d_hl, d_hc, d_hr)
+            max_both = max(min(d_ll, d_hl), min(d_lc, d_hc), min(d_lr, d_hr))
+
+            # Validar que la muestra física corresponda limpiamente al fenómeno buscado
+            if sub_class.startswith("LOBITO"):
+                # Debe haber eco válido de canica (<= 32 cm) y contraste vertical claro (> 14 cm)
+                if sub_class == "LOBITO_IZQ":
+                    if not (d_ll <= 32.0 and delta_l >= 14.0 and d_ll < d_lc - 3.0 and d_ll < d_lr - 3.0):
+                        continue
+                elif sub_class == "LOBITO_CENTRO":
+                    if not (d_lc <= 32.0 and delta_c >= 14.0 and d_lc <= d_ll and d_lc <= d_lr):
+                        continue
+                elif sub_class == "LOBITO_DER":
+                    if not (d_lr <= 32.0 and delta_r >= 14.0 and d_lr < d_lc - 3.0 and d_lr < d_ll - 3.0):
+                        continue
+                else:
+                    if not (min_low <= 32.0 and max(delta_l, delta_c, delta_r) >= 14.0):
+                        continue
+
+            elif sub_class.startswith("OBSTACULO"):
+                # El borrador mide 12 cm de alto (bloquea bajo y alto del sector, |delta| < 10 cm),
+                # pero es angosto (6-14 cm), dejando al menos otro sector frontal mucho más libre (> +18 cm)
+                if max(delta_l, delta_c, delta_r) > 12.0:
                     continue
-            elif target_class == "MURO":
-                # Muro perpendicular continuo: ambos planos ven distancia similar y simétrica
-                if min_low > 55.0 or min_high > 55.0:
+                s_l = 0.5 * (d_ll + d_hl)
+                s_c = 0.5 * (d_lc + d_hc)
+                s_r = 0.5 * (d_lr + d_hr)
+                if sub_class == "OBSTACULO_IZQ":
+                    if not (s_l <= 46.0 and abs(delta_l) <= 10.0 and s_c > s_l + 15.0 and s_r > s_l + 18.0):
+                        continue
+                elif sub_class == "OBSTACULO_CENTRO":
+                    if not (s_c <= 46.0 and abs(delta_c) <= 10.0 and s_l > s_c + 15.0 and s_r > s_c + 15.0):
+                        continue
+                elif sub_class == "OBSTACULO_DER":
+                    if not (s_r <= 46.0 and abs(delta_r) <= 10.0 and s_c > s_r + 15.0 and s_l > s_r + 18.0):
+                        continue
+                else:
+                    if not (min(s_l, s_c, s_r) <= 46.0 and (max(s_l, s_c, s_r) - min(s_l, s_c, s_r)) >= 18.0):
+                        continue
+
+            elif sub_class == "MURO":
+                # Muro continuo: al menos 2 sectores adyacentes ven cerca (<= 48 cm), sin delta vertical
+                if max(abs(delta_l), abs(delta_c), abs(delta_r)) > 10.0:
                     continue
-                if abs(d_ll - d_lr) > 18.0 or abs(min_low - min_high) > 15.0:
-                    continue
-            elif target_class == "OBSTACULO":
-                # Obstáculo puntual: asimetría clara entre flancos
-                if min(min_low, min_high) > 50.0:
-                    continue
-                asym = abs(min(d_ll, d_hl) - min(d_lr, d_hr))
-                if asym < 14.0:
-                    continue
-            elif target_class == "SALIDA":
-                # Salida: sensores frontales ven espacio abierto hacia el estrecho pero muros laterales
-                if min_low < 35.0 or min_high < 35.0 or min(d_ll, d_lr) > 240.0:
-                    continue
-            elif target_class == "ESPACIO_LIBRE":
-                # Todo despejado a más de 80 cm
-                if min_low < 80.0 or min_high < 80.0:
+                s_l, s_c, s_r = 0.5 * (d_ll + d_hl), 0.5 * (d_lc + d_hc), 0.5 * (d_lr + d_hr)
+                if not (s_c <= 48.0 and (abs(s_l - s_c) <= 14.0 or abs(s_r - s_c) <= 14.0) and max(s_l, s_c, s_r) <= 68.0):
                     continue
 
-            # Muestra válida: registrar lecturas de todos los sensores configurados
-            row_data = {f"dist_{name.replace('us_', '')}": round(sensors[name].getValue(), 2) for name in sensor_names}
-            row_data["class_label"] = target_class
-            dataset.append(row_data)
+            elif sub_class == "SALIDA":
+                # Hueco de salida de 30 cm: el par central frontal atraviesa el hueco (> 185 cm)
+                # y los sensores laterales están libres de colisión con los bordes del hueco (>= 45 cm)
+                if min(d_lc, d_hc) < 185.0 or min_low < 45.0 or min_high < 45.0:
+                    continue
+
+            elif sub_class == "ESPACIO_LIBRE":
+                # Interior despejado (> 52 cm en todos los sensores frontales, pero <= 178 cm porque está dentro de la bahía)
+                if min_low < 52.0 or min_high < 52.0 or max_both >= 180.0:
+                    continue
+
+            base_row = {f"dist_{name.replace('us_', '')}": round(realistic[name], 2) for name in sensor_names}
+
+            # Etiqueta para 5 clases
+            if sub_class.startswith("LOBITO"):
+                lbl5 = "LOBITO"
+                lbl7 = sub_class
+                lbl9 = sub_class
+            elif sub_class.startswith("OBSTACULO"):
+                lbl5 = "OBSTACULO"
+                lbl7 = "OBSTACULO"
+                lbl9 = sub_class
+            else:
+                lbl5 = sub_class
+                lbl7 = sub_class
+                lbl9 = sub_class
+
+            r5 = dict(base_row); r5["class_label"] = lbl5; rows_5.append(r5)
+            r7 = dict(base_row); r7["class_label"] = lbl7; rows_7.append(r7)
+            r9 = dict(base_row); r9["class_label"] = lbl9; rows_9.append(r9)
             count += 1
 
-        print(f"   -> Obtenidas {count} muestras para {target_class} en {attempts} intentos.")
+        print(f"   -> Obtenidas {count}/{target_n} muestras para {sub_class} ({attempts} intentos).")
 
-    # Guardar a CSV
-    random.shuffle(dataset)
-    with open(out_csv, mode="w", newline="") as f:
+    def save_csv(filename, rows):
+        rng = random.Random(42)
+        shuffled = list(rows)
+        rng.shuffle(shuffled)
+        path = os.path.join(out_dir, filename)
         fieldnames = [f"dist_{name.replace('us_', '')}" for name in sensor_names] + ["class_label"]
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(dataset)
+        with open(path, mode="w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(shuffled)
+        print(f"  [OK] Guardado {path} ({len(shuffled)} filas)")
 
-    print("\n==========================================================")
-    print(f"  DATASET GENERADO CON EXITO: {len(dataset)} filas")
-    print(f"  Ruta: {out_csv}")
-    print("==========================================================")
-    
+    save_csv(csv_filename, rows_5)
+    if is_front_6:
+        save_csv("orquitas_dataset_6_sensores_7clases.csv", rows_7)
+        save_csv("orquitas_dataset_6_sensores_9clases.csv", rows_9)
+
     supervisor.simulationQuit(0)
+
 
 if __name__ == "__main__":
     main()

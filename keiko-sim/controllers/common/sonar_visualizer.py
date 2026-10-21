@@ -52,6 +52,14 @@ class SonarVisualizer:
         # Definición geométrica y angular de configuraciones de sensores
         # Ángulos en grados: 0° = Norte/Frente, +90° = Este/Derecha, -90° = Oeste/Izquierda, 180° = Sur/Atrás
         self.sensor_profiles = {
+            "trisector_front_6": {
+                "us_low_left":     {"yaw": -22.0, "x_off": -9, "y_off": -16, "is_high": False, "is_front": True,  "pair": "us_high_left",     "label": "FL-Low"},
+                "us_low_center":   {"yaw": 0.0,   "x_off": 0,  "y_off": -18, "is_high": False, "is_front": True,  "pair": "us_high_center",   "label": "FC-Low"},
+                "us_low_right":    {"yaw": +22.0, "x_off": +9, "y_off": -16, "is_high": False, "is_front": True,  "pair": "us_high_right",    "label": "FR-Low"},
+                "us_high_left":    {"yaw": -22.0, "x_off": -9, "y_off": -16, "is_high": True,  "is_front": True,  "pair": "us_low_left",      "label": "FL-High"},
+                "us_high_center":  {"yaw": 0.0,   "x_off": 0,  "y_off": -18, "is_high": True,  "is_front": True,  "pair": "us_low_center",    "label": "FC-High"},
+                "us_high_right":   {"yaw": +22.0, "x_off": +9, "y_off": -16, "is_high": True,  "is_front": True,  "pair": "us_low_right",     "label": "FR-High"},
+            },
             "dual_plane_8": {
                 "us_low_left":   {"yaw": -5.0,  "x_off": -6, "y_off": -18, "is_high": False, "is_front": True,  "pair": "us_high_left",  "label": "FL-Low"},
                 "us_low_right":  {"yaw": +5.0,  "x_off": +6, "y_off": -18, "is_high": False, "is_front": True,  "pair": "us_high_right", "label": "FR-Low"},
@@ -301,7 +309,14 @@ class SonarVisualizer:
             "-" * 78,
         ]
 
-        if self.config_name == "trisector_10" and d_lc is not None:
+        if self.config_name == "trisector_front_6" and d_lc is not None:
+            lines.extend([
+                "           [ABANICO FRONTAL 6 SENSORES: IZQ (+22°), CEN (0°), DER (-22°)]",
+                f"   FL(+22°): L={d_ll:4.1f} H={d_hl:4.1f}{'★' if marble_l else ' '} | FC(0°): L={d_lc:4.1f} H={d_hc:4.1f}{'★' if marble_c else ' '} | FR(-22°): L={d_lr:4.1f} H={d_hr:4.1f}{'★' if marble_r else ' '}",
+                "               \\                    |                    /",
+                "                          [CHASIS ORQUITA 4WD]",
+            ])
+        elif self.config_name == "trisector_10" and d_lc is not None:
             lines.extend([
                 "           [ABANICO FRONTAL TRISECTORIAL: IZQ (-25°), CEN (0°), DER (+25°)]",
                 f"   FL(-25°): L={d_ll:4.1f} H={d_hl:4.1f}{'★' if marble_l else ' '} | FC(0°): L={d_lc:4.1f} H={d_hc:4.1f}{'★' if marble_c else ' '} | FR(+25°): L={d_lr:4.1f} H={d_hr:4.1f}{'★' if marble_r else ' '}",
@@ -351,10 +366,14 @@ class SonarVisualizer:
             lines.append(format_row("us_high_center", d_hc, None, True, False))
         lines.append(format_row("us_low_right", d_lr, delta_r, True, marble_r))
         lines.append(format_row("us_high_right", d_hr, None, True, False))
-        lines.append(format_row("us_side_left", d_sl))
-        lines.append(format_row("us_side_right", d_sr))
-        lines.append(format_row("us_rear_left", d_rl))
-        lines.append(format_row("us_rear_right", d_rr))
+        if "us_side_left" in readings:
+            lines.append(format_row("us_side_left", d_sl))
+        if "us_side_right" in readings:
+            lines.append(format_row("us_side_right", d_sr))
+        if "us_rear_left" in readings:
+            lines.append(format_row("us_rear_left", d_rl))
+        if "us_rear_right" in readings:
+            lines.append(format_row("us_rear_right", d_rr))
         lines.append("=" * 78)
 
         return "\n".join(lines)

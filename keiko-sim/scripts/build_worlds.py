@@ -408,6 +408,7 @@ TRANSDUCERS = {
 }
 
 SENSOR_LAYOUTS = {
+    "trisector_front_6": {"front": "trisector", "side": False, "rear": False},
     "dual_plane_4": {"front": "dual_plane", "side": False, "rear": False},
     "dual_plane_6": {"front": "dual_plane", "side": True, "rear": False},
     "dual_plane_8": {"front": "dual_plane", "side": True, "rear": True},
@@ -422,12 +423,12 @@ DUAL_PLANE_FRONT = [
 ]
 
 TRISECTOR_FRONT = [
-    ("us_low_left", 0.125, 0.055, 0.012, 0.4363, "LOW"),
-    ("us_low_center", 0.140, 0.000, 0.012, 0.0, "LOW"),
-    ("us_low_right", 0.125, -0.055, 0.012, -0.4363, "LOW"),
-    ("us_high_left", 0.125, 0.055, 0.095, 0.4363, "HIGH"),
-    ("us_high_center", 0.140, 0.000, 0.095, 0.0, "HIGH"),
-    ("us_high_right", 0.125, -0.055, 0.095, -0.4363, "HIGH"),
+    ("us_low_left", 0.128, 0.052, 0.012, 0.3840, "LOW"),
+    ("us_low_center", 0.134, 0.000, 0.012, 0.0000, "LOW"),
+    ("us_low_right", 0.128, -0.052, 0.012, -0.3840, "LOW"),
+    ("us_high_left", 0.122, 0.052, 0.095, 0.3840, "HIGH"),
+    ("us_high_center", 0.128, 0.000, 0.095, 0.0000, "HIGH"),
+    ("us_high_right", 0.122, -0.052, 0.095, -0.3840, "HIGH"),
 ]
 
 SIDE_SENSORS = [
@@ -441,8 +442,8 @@ REAR_SENSORS = [
 ]
 
 
-def render_sensor_rig(sensor_config="dual_plane_8"):
-    layout = SENSOR_LAYOUTS.get(sensor_config, SENSOR_LAYOUTS["dual_plane_8"])
+def render_sensor_rig(sensor_config="trisector_front_6"):
+    layout = SENSOR_LAYOUTS.get(sensor_config, SENSOR_LAYOUTS["trisector_front_6"])
     sensors = list(TRISECTOR_FRONT if layout["front"] == "trisector" else DUAL_PLANE_FRONT)
     if layout["side"]:
         sensors += SIDE_SENSORS
@@ -465,9 +466,9 @@ def render_sensor_rig(sensor_config="dual_plane_8"):
       translation {x} {y} {z}
       rotation 0 0 1 {yaw}
       name "{name}"
-      type "sonar"
+      type "generic"
       numberOfRays 17
-      aperture {SENSOR_APERTURE_RAD}
+      aperture 0.35
       lookupTable [ {SENSOR_LOOKUP} ]
       children [
         {child}
@@ -486,7 +487,7 @@ def render_sensor_rig(sensor_config="dual_plane_8"):
     return "\n\n".join(nodes) + "\n\n" + hud_node
 
 
-def generate_world(controller_name, map_name="standard", sensor_config="dual_plane_8", exit_wall="north", include_capote=None):
+def generate_world(controller_name, map_name="standard", sensor_config="trisector_front_6", exit_wall="north", include_capote=None):
     if include_capote is None:
         include_capote = os.environ.get("ORQUITAS_CAPOTE", "0").strip() in ("1", "true", "TRUE", "yes")
 
@@ -904,24 +905,26 @@ DEF ORQUITA Robot {{
 # GENERACION DE MUNDOS DE SIMULACION
 # -----------------------------------------------------------------------------
 WORLDS = [
-    ("bahia_de_caza.wbt", "live_visualizer", "standard", "dual_plane_8", "north"),
-    ("bahia_de_caza_client.wbt", "robot_client", "standard", "dual_plane_8", "north"),
-    ("bahia_de_caza_dataset.wbt", "dataset_collector", "standard", "dual_plane_8", "north"),
+    ("bahia_de_caza.wbt", "live_visualizer", "standard", "trisector_front_6", "north"),
+    ("bahia_de_caza_client.wbt", "robot_client", "standard", "trisector_front_6", "north"),
+    ("bahia_de_caza_dataset.wbt", "dataset_collector", "standard", "trisector_front_6", "north"),
     ("bahia_de_caza_dataset_dp4.wbt", "dataset_collector", "standard", "dual_plane_4", "north"),
     ("bahia_de_caza_dataset_dp6.wbt", "dataset_collector", "standard", "dual_plane_6", "north"),
+    ("bahia_de_caza_dataset_dp8.wbt", "dataset_collector", "standard", "dual_plane_8", "north"),
     ("bahia_de_caza_dataset_trisector.wbt", "dataset_collector", "standard", "trisector_10", "north"),
-    ("bahia_de_caza_labyrinth.wbt", "live_visualizer", "labyrinth", "dual_plane_8", "north"),
-    ("bahia_de_caza_labyrinth_client.wbt", "robot_client", "labyrinth", "dual_plane_8", "north"),
-    ("bahia_de_caza_corners.wbt", "live_visualizer", "corners", "dual_plane_8", "north"),
-    ("bahia_de_caza_corners_client.wbt", "robot_client", "corners", "dual_plane_8", "north"),
-    ("bahia_de_caza_corridors.wbt", "live_visualizer", "corridors", "dual_plane_8", "north"),
-    ("bahia_de_caza_corridors_client.wbt", "robot_client", "corridors", "dual_plane_8", "north"),
+    ("bahia_de_caza_labyrinth.wbt", "live_visualizer", "labyrinth", "trisector_front_6", "north"),
+    ("bahia_de_caza_labyrinth_client.wbt", "robot_client", "labyrinth", "trisector_front_6", "north"),
+    ("bahia_de_caza_corners.wbt", "live_visualizer", "corners", "trisector_front_6", "north"),
+    ("bahia_de_caza_corners_client.wbt", "robot_client", "corners", "trisector_front_6", "north"),
+    ("bahia_de_caza_corridors.wbt", "live_visualizer", "corridors", "trisector_front_6", "north"),
+    ("bahia_de_caza_corridors_client.wbt", "robot_client", "corridors", "trisector_front_6", "north"),
     ("bahia_de_caza_dp4.wbt", "live_visualizer", "standard", "dual_plane_4", "north"),
     ("bahia_de_caza_dp6.wbt", "live_visualizer", "standard", "dual_plane_6", "north"),
+    ("bahia_de_caza_dp8.wbt", "live_visualizer", "standard", "dual_plane_8", "north"),
     ("bahia_de_caza_trisector.wbt", "live_visualizer", "standard", "trisector_10", "north"),
     ("bahia_de_caza_trisector_client.wbt", "robot_client", "standard", "trisector_10", "north"),
-    ("bahia_de_caza_east.wbt", "live_visualizer", "standard", "dual_plane_8", "east"),
-    ("bahia_de_caza_south.wbt", "live_visualizer", "standard", "dual_plane_8", "south"),
+    ("bahia_de_caza_east.wbt", "live_visualizer", "standard", "trisector_front_6", "east"),
+    ("bahia_de_caza_south.wbt", "live_visualizer", "standard", "trisector_front_6", "south"),
 ]
 
 
