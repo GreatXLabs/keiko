@@ -19,28 +19,38 @@ public class PlanificadorNavegacion {
         }
     }
 
-    // RF-07: Generar indicacion de movimiento segun deteccion neural y estado FSM.
+    // RF-07: Generar indicacion de movimiento exclusivamente segun la clase neuronal y el estado FSM.
     public synchronized ComandoRobot evaluar(VectorSensores sensores, String claseDetectada) {
-        if (estado == EstadoRobot.BUSQUEDA) {
-            if ("LOBITO".equals(claseDetectada)) {
-                double vLeft = 1.8;
-                double vRight = 1.8;
-                if (sensores.getDLowLeft() < sensores.getDLowRight()) {
-                    vRight += 0.4;
-                } else {
-                    vLeft += 0.4;
-                }
-                return new ComandoRobot(vLeft, vRight, EstadoRobot.APROXIMACION);
-            } else if ("MURO".equals(claseDetectada) || "OBSTACULO".equals(claseDetectada)) {
+        if (claseDetectada == null) {
+            claseDetectada = "ESPACIO_LIBRE";
+        }
+        if (estado == EstadoRobot.BUSQUEDA || estado == EstadoRobot.APROXIMACION) {
+            if ("LOBITO_IZQ".equals(claseDetectada)) {
+                return new ComandoRobot(1.5, 2.4, EstadoRobot.APROXIMACION);
+            } else if ("LOBITO_DER".equals(claseDetectada)) {
+                return new ComandoRobot(2.4, 1.5, EstadoRobot.APROXIMACION);
+            } else if ("LOBITO_CENTRO".equals(claseDetectada) || "LOBITO".equals(claseDetectada)) {
+                return new ComandoRobot(2.2, 2.2, EstadoRobot.APROXIMACION);
+            } else if ("OBSTACULO_IZQ".equals(claseDetectada)) {
+                // Obstaculo a la izquierda -> girar a la derecha
+                return new ComandoRobot(4.5, -4.5, EstadoRobot.BUSQUEDA);
+            } else if ("OBSTACULO_DER".equals(claseDetectada)) {
+                // Obstaculo a la derecha -> girar a la izquierda
+                return new ComandoRobot(-4.5, 4.5, EstadoRobot.BUSQUEDA);
+            } else if ("MURO".equals(claseDetectada) || "OBSTACULO_CENTRO".equals(claseDetectada) || "OBSTACULO".equals(claseDetectada)) {
                 return new ComandoRobot(-5.0, 5.0, EstadoRobot.BUSQUEDA);
             } else {
                 return new ComandoRobot(5.0, 5.0, EstadoRobot.BUSQUEDA);
             }
         } else if (estado == EstadoRobot.ESCAPE) {
-            if ("MURO".equals(claseDetectada) || "OBSTACULO".equals(claseDetectada)) {
-                return new ComandoRobot(-5.0, 5.0, EstadoRobot.ESCAPE);
-            } else if ("SALIDA".equals(claseDetectada)) {
+            if ("SALIDA".equals(claseDetectada)) {
                 return new ComandoRobot(6.0, 6.0, EstadoRobot.ESCAPE);
+            } else if ("OBSTACULO_IZQ".equals(claseDetectada)) {
+                return new ComandoRobot(4.5, -4.5, EstadoRobot.ESCAPE);
+            } else if ("OBSTACULO_DER".equals(claseDetectada)) {
+                return new ComandoRobot(-4.5, 4.5, EstadoRobot.ESCAPE);
+            } else if ("MURO".equals(claseDetectada) || "OBSTACULO_CENTRO".equals(claseDetectada) || "OBSTACULO".equals(claseDetectada)) {
+                return new ComandoRobot(-5.0, 5.0, EstadoRobot.ESCAPE);
             } else {
                 return new ComandoRobot(5.0, 5.0, EstadoRobot.ESCAPE);
             }

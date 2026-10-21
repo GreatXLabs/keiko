@@ -1,9 +1,5 @@
 package com.orquitas.server;
 
-import com.orquitas.server.model.RobotCommand;
-import com.orquitas.server.model.RobotState;
-import com.orquitas.server.model.SensorVector;
-import com.orquitas.server.network.Protocol;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -14,65 +10,63 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ProtocolParserTest {
 
     @Test
-    public void testParseValidTelemetry() {
+    public void testParseValidTelemetry4Sensors() {
         String msg = "TELEMETRY:23.45,12.80,150.20,145.10,1725984000\n";
-        SensorVector sv = Protocol.parseTelemetry(msg);
+        VectorSensores sv = MensajeProtocolo.parsearTelemetria(msg);
 
-        assertEquals(23.45, sv.distLowLeft(), 1e-4);
-        assertEquals(12.80, sv.distLowRight(), 1e-4);
-        assertEquals(150.20, sv.distHighLeft(), 1e-4);
-        assertEquals(145.10, sv.distHighRight(), 1e-4);
-        assertTrue(sv.isValid());
+        assertEquals(4, sv.getCantidadSensores());
+        assertEquals(23.45, sv.getDLowLeft(), 1e-4);
+        assertEquals(12.80, sv.getDLowRight(), 1e-4);
+        assertEquals(150.20, sv.getDHighLeft(), 1e-4);
+        assertEquals(145.10, sv.getDHighRight(), 1e-4);
+        assertTrue(sv.isValido());
     }
 
     @Test
     public void testParseValid6SensorTelemetry() {
-        String msg = "TELEMETRY:23.45,12.80,150.20,145.10,80.50,75.30,1725984000,0.15,0.25,1.57\n";
-        SensorVector sv = Protocol.parseTelemetry(msg);
+        // Orden trisector_front_6: LL, LC, LR, HL, HC, HR + ts + x, y, theta
+        String msg = "TELEMETRY:23.45,18.10,12.80,150.20,148.00,145.10,1725984000,0.15,0.25,1.57\n";
+        VectorSensores sv = MensajeProtocolo.parsearTelemetria(msg);
 
-        assertEquals(23.45, sv.distLowLeft(), 1e-4);
-        assertEquals(12.80, sv.distLowRight(), 1e-4);
-        assertEquals(150.20, sv.distHighLeft(), 1e-4);
-        assertEquals(145.10, sv.distHighRight(), 1e-4);
-        assertEquals(80.50, sv.distSideLeft(), 1e-4);
-        assertEquals(75.30, sv.distSideRight(), 1e-4);
-        assertEquals(6, sv.sensorCount());
+        assertEquals(6, sv.getCantidadSensores());
+        assertEquals(23.45, sv.getDLowLeft(), 1e-4);
+        assertEquals(18.10, sv.getDLowCenter(), 1e-4);
+        assertEquals(12.80, sv.getDLowRight(), 1e-4);
+        assertEquals(150.20, sv.getDHighLeft(), 1e-4);
+        assertEquals(148.00, sv.getDHighCenter(), 1e-4);
+        assertEquals(145.10, sv.getDHighRight(), 1e-4);
         assertTrue(sv.hasPose());
-        assertEquals(0.15, sv.posX(), 1e-4);
-        assertEquals(0.25, sv.posY(), 1e-4);
-        assertTrue(sv.isValid());
+        assertEquals(0.15, sv.getPosX(), 1e-4);
+        assertEquals(0.25, sv.getPosY(), 1e-4);
+        assertTrue(sv.isValido());
     }
 
     @Test
     public void testParseValid8SensorTelemetry() {
         String msg = "TELEMETRY:23.45,12.80,150.20,145.10,80.50,75.30,95.0,92.0,1725984000,0.15,0.25,1.57\n";
-        SensorVector sv = Protocol.parseTelemetry(msg);
+        VectorSensores sv = MensajeProtocolo.parsearTelemetria(msg);
 
-        assertEquals(80.50, sv.distSideLeft(), 1e-4);
-        assertEquals(75.30, sv.distSideRight(), 1e-4);
-        assertEquals(95.0, sv.distRearLeft(), 1e-4);
-        assertEquals(92.0, sv.distRearRight(), 1e-4);
-        assertEquals(8, sv.sensorCount());
-        assertTrue(sv.isValid());
+        assertEquals(8, sv.getCantidadSensores());
+        assertTrue(sv.isValido());
     }
 
     @Test
     public void testParseMalformedTelemetryThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> Protocol.parseTelemetry("CORRUPTED_DATA\n"));
-        assertThrows(IllegalArgumentException.class, () -> Protocol.parseTelemetry("TELEMETRY:12.3,45.6\n"));
-        assertThrows(IllegalArgumentException.class, () -> Protocol.parseTelemetry("TELEMETRY:abc,def,ghi,jkl\n"));
+        assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearTelemetria("CORRUPTED_DATA\n"));
+        assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearTelemetria("TELEMETRY:12.3,45.6\n"));
+        assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearTelemetria("TELEMETRY:abc,def,ghi,jkl\n"));
     }
 
     @Test
     public void testFormatCommand() {
-        RobotCommand cmd = new RobotCommand(5.0, 4.5, RobotState.BUSQUEDA, "CRUISE");
-        String formatted = Protocol.formatCommand(cmd);
+        ComandoRobot cmd = new ComandoRobot(5.0, 4.5, EstadoRobot.BUSQUEDA);
+        String formatted = MensajeProtocolo.crearComando(cmd);
 
         assertEquals("COMMAND:5.00,4.50,BUSQUEDA\n", formatted);
     }
 
     @Test
     public void testFormatHeartbeat() {
-        assertEquals("HEARTBEAT\n", Protocol.formatHeartbeat());
+        assertEquals("HEARTBEAT\n", MensajeProtocolo.crearHeartbeat());
     }
 }

@@ -19,7 +19,7 @@ public class SimuladorOrquitaCliente {
 
     public static void main(String[] args) {
         String host = "127.0.0.1";
-        int port = ServerConfig.DEFAULT_PORT;
+        int port = ConfiguracionServidor.PUERTO_PREDETERMINADO;
 
         if (args.length >= 1) host = args[0];
         if (args.length >= 2) port = Integer.parseInt(args[1]);

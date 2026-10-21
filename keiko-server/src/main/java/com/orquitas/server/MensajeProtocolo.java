@@ -29,9 +29,9 @@ public class MensajeProtocolo {
     // Retorna el cuerpo o contenido util del mensaje.
     public String getContenido() { return contenido; }
 
-    // RF-05: Parsea y valida el vector de distancias sensoriales del cliente.
+    // RF-05: Parsea y valida el vector de distancias sensoriales del cliente (4, 6, 8 o 10 canales).
     public static VectorSensores parsearTelemetria(String linea) {
-        if (!linea.startsWith(PREFIX_TELEMETRY)) {
+        if (linea == null || !linea.startsWith(PREFIX_TELEMETRY)) {
             throw new IllegalArgumentException("Prefijo de telemetria invalido");
         }
         String data = linea.substring(PREFIX_TELEMETRY.length()).trim();
@@ -40,12 +40,70 @@ public class MensajeProtocolo {
             throw new IllegalArgumentException("Telemetria incompleta: se esperan al menos 4 distancias");
         }
         try {
-            double ll = Double.parseDouble(tokens[0].trim());
-            double lr = Double.parseDouble(tokens[1].trim());
-            double hl = Double.parseDouble(tokens[2].trim());
-            double hr = Double.parseDouble(tokens[3].trim());
-            long ts = (tokens.length >= 5) ? Long.parseLong(tokens[4].trim()) : System.currentTimeMillis();
-            return new VectorSensores(ll, lr, hl, hr, ts);
+            // Determinar cantidad de sensores y si incluye timestamp y pose (x, y, theta)
+            int total = tokens.length;
+            int numSensores;
+            boolean hasTimestamp = false;
+            boolean hasPose = false;
+
+            if (total == 4 || total == 6 || total == 8 || total == 10) {
+                numSensores = total;
+            } else if (total == 5 || total == 7 || total == 9 || total == 11) {
+                numSensores = total - 1;
+                hasTimestamp = true;
+            } else if (total == 8 + 4 || total == 6 + 4 || total == 4 + 4 || total == 10 + 4) {
+                // Caso ambiguo para total == 8 (8 sensores sin ts vs 4 sensores + ts + 3 pose):
+                // Si el token 4 es un entero grande (> 10000) o tiene decimales pequeños en los ultimos 3
+                if (total == 8) {
+                    double t4 = Double.parseDouble(tokens[4].trim());
+                    if (t4 > 500.0) {
+                        numSensores = 4;
+                        hasTimestamp = true;
+                        hasPose = true;
+                    } else {
+                        numSensores = 8;
+                    }
+                } else if (total == 10) {
+                    double t6 = Double.parseDouble(tokens[6].trim());
+                    if (t6 > 500.0) {
+                        numSensores = 6;
+                        hasTimestamp = true;
+                        hasPose = true;
+                    } else {
+                        numSensores = 10;
+                    }
+                } else {
+                    numSensores = total - 4;
+                    hasTimestamp = true;
+                    hasPose = true;
+                }
+            } else {
+                throw new IllegalArgumentException("Cantidad de campos de telemetria no soportada: " + total);
+            }
+
+            // Re-chequeo para total == 10 (6 sensores + ts + 3 pose vs 10 sensores sin ts)
+            if (total == 10 && !hasPose) {
+                double t6 = Double.parseDouble(tokens[6].trim());
+                if (t6 > 500.0) {
+                    numSensores = 6;
+                    hasTimestamp = true;
+                    hasPose = true;
+                }
+            }
+
+            double[] canales = new double[numSensores];
+            for (int i = 0; i < numSensores; i++) {
+                canales[i] = Double.parseDouble(tokens[i].trim());
+            }
+
+            long ts = hasTimestamp ? Long.parseLong(tokens[numSensores].trim()) : System.currentTimeMillis();
+            double posX = 0.0, posY = 0.0, theta = 0.0;
+            if (hasPose) {
+                posX = Double.parseDouble(tokens[numSensores + 1].trim());
+                posY = Double.parseDouble(tokens[numSensores + 2].trim());
+                theta = Double.parseDouble(tokens[numSensores + 3].trim());
+            }
+            return new VectorSensores(canales, ts, hasPose, posX, posY, theta);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Formato numerico corrupto en telemetria", e);
         }

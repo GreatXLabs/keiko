@@ -1,10 +1,5 @@
 package com.orquitas.server;
 
-import com.orquitas.server.ai.NeurophClassifier;
-import com.orquitas.server.config.ServerConfig;
-import com.orquitas.server.model.ClassificationResult;
-import com.orquitas.server.model.EnvironmentClass;
-import com.orquitas.server.model.SensorVector;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -13,59 +8,71 @@ import java.io.File;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Prueba de inferencia neuronal con Neuroph 2.98 sobre la red entrenada.
+ * Prueba de inferencia neuronal con Neuroph 2.98 sobre la red entrenada de 6 sensores frontales.
  */
 public class NeurophInferenceTest {
 
-    private static NeurophClassifier classifier;
+    private static ClasificadorNeuroph classifier;
 
     @BeforeAll
-    public static void setUp() throws Exception {
-        File modelFile = new ServerConfig().resolveModelFile();
+    public static void setUp() {
+        File modelFile = new ConfiguracionServidor().resolverArchivoModelo();
         assertTrue(modelFile.exists(), "El modelo .nnet debe existir en " + modelFile.getAbsolutePath());
-        classifier = new NeurophClassifier(modelFile);
+        classifier = new ClasificadorNeuroph(modelFile);
+        assertTrue(classifier.isCargado(), "La red Neuroph 2.98 debe estar cargada en memoria");
     }
 
     @Test
-    public void testInferenceEspacioLibre() {
-        // Lecturas de espacio abierto (> 150 cm en todos los sensores)
-        SensorVector vector = new SensorVector(200.0, 210.0, 220.0, 215.0, System.currentTimeMillis());
-        ClassificationResult result = classifier.classify(vector);
+    public void testInferenceEspacioLibre6Sensores() {
+        // Lecturas de espacio abierto dentro de la bahía (~90-135 cm en los 6 sensores frontales)
+        VectorSensores vector = new VectorSensores(110.0, 118.0, 112.0, 111.0, 119.0, 113.0);
+        String detected = classifier.clasificar(vector);
 
-        assertNotNull(result);
-        assertEquals(EnvironmentClass.ESPACIO_LIBRE, result.detectedClass(),
-                "Debe clasificar como ESPACIO_LIBRE cuando todos los sensores reportan distancias lejanas");
-        assertTrue(result.confidence() > 0.50, "La confianza debe ser > 50%");
+        assertNotNull(detected);
+        assertEquals("ESPACIO_LIBRE", detected,
+                "Debe clasificar como ESPACIO_LIBRE cuando los 6 sensores reportan agua interior despejada");
+        assertTrue(classifier.getUltimaConfianza() > 0.50, "La confianza debe ser > 50%");
     }
 
     @Test
-    public void testInferenceLobito() {
-        // Lecturas típicas de lobito: bajo detecta canica (< 35 cm), alto ve agua abierta (> 120 cm)
-        SensorVector vector = new SensorVector(25.0, 28.0, 150.0, 160.0, System.currentTimeMillis());
-        ClassificationResult result = classifier.classify(vector);
+    public void testInferenceSalida6Sensores() {
+        // Lecturas mirando por el estrecho de salida de 30 cm (> 200 cm hacia el exterior)
+        VectorSensores vector = new VectorSensores(85.0, 242.0, 238.0, 86.0, 244.0, 239.0);
+        String detected = classifier.clasificar(vector);
 
-        assertNotNull(result);
-        assertEquals(EnvironmentClass.LOBITO, result.detectedClass(),
-                "Debe detectar LOBITO cuando el plano inferior detecta objeto pequeño y el plano superior está despejado");
-        assertTrue(result.confidence() > 0.50);
+        assertNotNull(detected);
+        assertEquals("SALIDA", detected,
+                "Debe clasificar como SALIDA cuando un sector frontal ve > 200 cm hacia afuera de la bahía");
     }
 
     @Test
-    public void testInferenceMuro() {
-        // Lecturas de muro frontal: tanto plano bajo como alto detectan obstáculo cercano a similar distancia
-        SensorVector vector = new SensorVector(15.0, 15.0, 16.0, 15.0, System.currentTimeMillis());
-        ClassificationResult result = classifier.classify(vector);
+    public void testInferenceLobito6Sensores() {
+        // Lecturas típicas de lobito en sector central: bajo centro detecta canica (~16 cm), alto centro ve lejos (~125 cm)
+        VectorSensores vector = new VectorSensores(120.0, 16.0, 118.0, 121.0, 122.0, 119.0);
+        String detected = classifier.clasificar(vector);
 
-        assertNotNull(result);
-        assertTrue(result.detectedClass() == EnvironmentClass.MURO || result.detectedClass() == EnvironmentClass.OBSTACULO,
-                "Debe clasificar como MURO u OBSTACULO cuando ambos planos están obstruidos");
+        assertNotNull(detected);
+        assertTrue(detected.startsWith("LOBITO"),
+                "Debe detectar LOBITO (o LOBITO_CENTRO) cuando el plano bajo detecta canica y el alto está despejado, obtuvo: " + detected);
+        assertTrue(classifier.getUltimaConfianza() > 0.50);
+    }
+
+    @Test
+    public void testInferenceMuro6Sensores() {
+        // Lecturas de muro frontal continuo: tanto plano bajo como alto bloqueados en múltiples sectores
+        VectorSensores vector = new VectorSensores(22.0, 20.0, 23.0, 22.5, 20.2, 23.1);
+        String detected = classifier.clasificar(vector);
+
+        assertNotNull(detected);
+        assertTrue(detected.equals("MURO") || detected.startsWith("OBSTACULO"),
+                "Debe clasificar como MURO u OBSTACULO cuando ambos planos están obstruidos, obtuvo: " + detected);
     }
 
     @Test
     public void testDefensiveHandlingOfInvalidVector() {
-        SensorVector invalid = new SensorVector(-5.0, Double.NaN, 500.0, 20.0, 0);
-        ClassificationResult result = classifier.classify(invalid);
-        assertNotNull(result);
-        assertEquals(EnvironmentClass.ESPACIO_LIBRE, result.detectedClass());
+        VectorSensores invalid = new VectorSensores(-5.0, Double.NaN, 500.0, 20.0, 0);
+        String detected = classifier.clasificar(invalid);
+        assertNotNull(detected);
+        assertEquals("ESPACIO_LIBRE", detected);
     }
 }
