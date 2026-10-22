@@ -2,6 +2,7 @@ package com.orquitas.server;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -40,6 +41,12 @@ public class ManejadorCliente implements Runnable {
     @Override
     public void run() {
         LOGGER.info(() -> "[CLIENTE CONECTADO] Desde: " + socket.getRemoteSocketAddress());
+        try {
+            // Desactiva Nagle: las tramas cortas de telemetria/comando no deben retenerse en buffer.
+            socket.setTcpNoDelay(true);
+        } catch (SocketException e) {
+            LOGGER.warning("[RED] No se pudo habilitar TCP_NODELAY: " + e.getMessage());
+        }
         try {
             lector = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
             escritor = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));

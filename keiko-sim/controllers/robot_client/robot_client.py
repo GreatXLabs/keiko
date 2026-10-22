@@ -200,12 +200,14 @@ def main():
     # Conexión con el Servidor Central
     sock = None
     rx_buffer = ""
-    last_command_sim_time = 0.0
+    last_command_wall_time = time.monotonic()
     in_failsafe = False
     inactivity_timer = 0.0
+    received_server_command = False
 
     def try_connect():
-        nonlocal sock, rx_buffer, last_command_sim_time, in_failsafe
+        nonlocal sock, rx_buffer, last_command_wall_time, in_failsafe
+        nonlocal inactivity_timer, received_server_command
         if sock is not None:
             try:
                 sock.close()
@@ -215,14 +217,19 @@ def main():
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             s.settimeout(0.5)
             s.connect((server_host, server_port))
+            # Sin Nagle: las tramas cortas de control no deben esperar ACKs acumulados.
+            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            if s.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY) == 0:
+                log_msg("[RED] ADVERTENCIA: TCP_NODELAY inactivo; la latencia de Nagle puede disparar el watchdog.")
             s.setblocking(False)
             sock = s
             rx_buffer = ""
-            last_command_sim_time = robot.getTime()
+            last_command_wall_time = time.monotonic()
             in_failsafe = False
+            inactivity_timer = 0.0
+            received_server_command = False
             log_msg(f"[CONEXIÓN] Enlace establecido con Servidor Central en {server_host}:{server_port}")
             return True
         except Exception:
@@ -447,7 +454,8 @@ def main():
 
                             last_action_desc = f"CMD_SERVER({current_server_state})"
                             set_drive_velocities(vl_cmd, vr_cmd)
-                            last_command_sim_time = sim_time
+                            last_command_wall_time = time.monotonic()
+                            received_server_command = True
                             if in_failsafe:
                                 log_msg("[FAIL-SAFE RESTABLECIDO] Enlace activo recuperado. Reanudando marcha.")
                                 in_failsafe = False
@@ -455,7 +463,7 @@ def main():
                             pass
 
                 elif line == "HEARTBEAT":
-                    last_command_sim_time = sim_time
+                    last_command_wall_time = time.monotonic()
                     if in_failsafe:
                         in_failsafe = False
 
@@ -471,8 +479,10 @@ def main():
 
         # -------------------------------------------------------------
         # 7. WATCHDOG FAIL-SAFE (< 500 ms) - REQUISITO EXCLUYENTE
+        # Se mide en tiempo de pared: en --mode=fast el reloj de simulación corre
+        # mucho más rápido que la red y dispararía falsos timeouts por scheduling.
         # -------------------------------------------------------------
-        time_since_last_cmd = sim_time - last_command_sim_time
+        time_since_last_cmd = time.monotonic() - last_command_wall_time
         if time_since_last_cmd > failsafe_timeout_sec:
             set_drive_velocities(0.0, 0.0)
             if not in_failsafe:
@@ -480,8 +490,11 @@ def main():
                 log_msg(f"[FAIL-SAFE ACTIVO] Timeout de enlace ({time_since_last_cmd*1000:.0f} ms > 500 ms).")
                 log_msg("   MOTORES DETENIDOS POR SEGURIDAD.")
 
-        # Inactividad reglamentaria (>10 segundos continuos inmóvil)
-        if abs(vl_cmd) < 0.05 and abs(vr_cmd) < 0.05:
+        # Inactividad reglamentaria (>10 s de parada ordenada por el servidor).
+        # No cuenta en sincronización inicial, reconexiones ni fail-safe transitorio:
+        # solo cuando ya hubo un COMMAND y los motores quedan deliberadamente en reposo.
+        if (received_server_command and not in_failsafe
+                and abs(vl_cmd) < 0.05 and abs(vr_cmd) < 0.05):
             inactivity_timer += (time_step / 1000.0)
             if inactivity_timer >= 10.0 and sim_time > 5.0:
                 log_msg(f"\n[FIN REGLAMENTARIO] Inmóvil por {inactivity_timer:.1f}s continuos (>10s reglamentarios).")
