@@ -409,6 +409,83 @@ def main():
         save_csv("orquitas_dataset_6_sensores_7clases.csv", rows_7)
         save_csv("orquitas_dataset_6_sensores_9clases.csv", rows_9)
 
+    # -------------------------------------------------------------------------
+    # DATASET POR PAR COAXIAL (dist_low, dist_high -> 4 CLASES CON UMBRAL CERRADO)
+    # Clases: BLOQUEO (2..24 cm), LOBITO (low<=30 y high-low>=16), ESPACIO_LIBRE (25.5..180 cm), SALIDA (>=185 cm)
+    # -------------------------------------------------------------------------
+    pair_rows = []
+    pair_counts = {"BLOQUEO": 0, "LOBITO": 0, "ESPACIO_LIBRE": 0, "SALIDA": 0}
+    target_per_pair_class = 600
+
+    # 1. Extraer pares reales medidos en Webots de las filas recolectadas
+    for r in rows_9:
+        pairs = [
+            (r.get("dist_low_left"), r.get("dist_high_left")),
+            (r.get("dist_low_center"), r.get("dist_high_center")),
+            (r.get("dist_low_right"), r.get("dist_high_right")),
+        ]
+        for dl, dh in pairs:
+            if dl is None or dh is None:
+                continue
+            delta = dh - dl
+            if dl <= 30.0 and delta >= 16.0 and dh >= 30.0:
+                p_lbl = "LOBITO"
+            elif dl <= 24.0 and dh <= 24.0 and abs(delta) <= 8.0:
+                p_lbl = "BLOQUEO"
+            elif dl >= 185.0 and dh >= 185.0 and abs(delta) <= 18.0:
+                p_lbl = "SALIDA"
+            elif 25.5 <= dl <= 180.0 and 25.5 <= dh <= 180.0 and abs(delta) <= 12.0:
+                p_lbl = "ESPACIO_LIBRE"
+            else:
+                continue
+            if pair_counts[p_lbl] < target_per_pair_class:
+                pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": p_lbl})
+                pair_counts[p_lbl] += 1
+
+    # 2. Completar cobertura uniforme en las 4 regiones físicas para evitar puntos ciegos en [2.0, 250.0] cm
+    rng_pair = random.Random(101)
+    # Anclas exactas de escala [2.0, 250.0] cm
+    pair_rows.append({"dist_low": 2.0, "dist_high": 2.0, "class_label": "BLOQUEO"})
+    pair_rows.append({"dist_low": 250.0, "dist_high": 250.0, "class_label": "SALIDA"})
+
+    while pair_counts["BLOQUEO"] < target_per_pair_class:
+        dl = rng_pair.uniform(2.0, 24.0)
+        dh = max(2.0, min(24.0, dl + rng_pair.uniform(-5.0, 7.0)))
+        dl = round(dl / 0.25) * 0.25
+        dh = round(dh / 0.25) * 0.25
+        pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "BLOQUEO"})
+        pair_counts["BLOQUEO"] += 1
+
+    while pair_counts["LOBITO"] < target_per_pair_class:
+        dl = round(rng_pair.uniform(2.25, 30.0) / 0.25) * 0.25
+        min_dh = max(30.0, dl + 16.0)
+        dh = round(rng_pair.uniform(min_dh, 250.0) / 0.25) * 0.25
+        pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "LOBITO"})
+        pair_counts["LOBITO"] += 1
+
+    while pair_counts["ESPACIO_LIBRE"] < target_per_pair_class:
+        dl = rng_pair.uniform(25.5, 180.0)
+        dh = max(25.5, min(180.0, dl + rng_pair.uniform(-8.0, 11.5)))
+        dl = round(dl / 0.25) * 0.25
+        dh = round(dh / 0.25) * 0.25
+        pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "ESPACIO_LIBRE"})
+        pair_counts["ESPACIO_LIBRE"] += 1
+
+    while pair_counts["SALIDA"] < target_per_pair_class:
+        base = rng_pair.uniform(186.0, 250.0)
+        dl = round(max(185.5, min(250.0, base + rng_pair.gauss(0.0, 1.8))) / 0.25) * 0.25
+        dh = round(max(185.5, min(250.0, base + rng_pair.gauss(0.0, 1.8))) / 0.25) * 0.25
+        pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "SALIDA"})
+        pair_counts["SALIDA"] += 1
+
+    rng_pair.shuffle(pair_rows)
+    pair_csv_path = os.path.join(out_dir, "orquitas_dataset_par_coaxial.csv")
+    with open(pair_csv_path, mode="w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["dist_low", "dist_high", "class_label"])
+        writer.writeheader()
+        writer.writerows(pair_rows)
+    print(f"  [OK] Guardado {pair_csv_path} ({len(pair_rows)} filas, {pair_counts})")
+
     supervisor.simulationQuit(0)
 
 

@@ -189,6 +189,160 @@ public class SimulatedDatasetTrainTest {
         assertTrue(best5.getAccuracy() >= 78.0, "El esquema de 5 clases debe superar 78% de accuracy");
     }
 
+    @Test
+    public void testTrainNeurophOnCoaxialPairDataset() throws Exception {
+        File csvFile = new File("../keiko-sim/data/datasets/orquitas_dataset_par_coaxial.csv");
+        assertTrue(csvFile.exists(), "Debe existir el dataset por par coaxial (dist_low, dist_high)");
+
+        String csvContent = Files.readString(csvFile.toPath(), StandardCharsets.UTF_8);
+        DatasetParser.CsvInspectionResult inspection = DatasetParser.inspectCsv(csvContent, true);
+        assertEquals(3, inspection.getColumnCount(), "Debe tener 2 columnas (dist_low, dist_high) + 1 de etiqueta");
+
+        List<String> pairClasses = List.of("BLOQUEO", "ESPACIO_LIBRE", "LOBITO", "SALIDA");
+
+        DatasetMetadata meta = new DatasetMetadata();
+        meta.setId("sim-coaxial-pair");
+        meta.setName("Orquitas Coaxial Pair (2 inputs -> 4 classes)");
+        meta.setCsvContent(csvContent);
+        meta.setInputColumns(List.of(0, 1));
+        meta.setOutputColumns(List.of(2));
+        meta.setClassLabels(pairClasses);
+        meta.setTaskType(TaskType.CLASSIFICATION);
+        meta.setHasHeader(true);
+        meta.setNumRows(inspection.getRowCount());
+
+        List<ColumnConfig> configs = new ArrayList<>();
+        configs.add(new ColumnConfig(0, "dist_low", ColumnRole.INPUT, NormalizationType.MIN_MAX_0_1));
+        configs.add(new ColumnConfig(1, "dist_high", ColumnRole.INPUT, NormalizationType.MIN_MAX_0_1));
+        configs.add(new ColumnConfig(2, "class_label", ColumnRole.OUTPUT, NormalizationType.NONE));
+        meta.setColumnConfigs(configs);
+
+        DatasetParser.SplitResult split = DatasetParser.parseAndSplit(csvContent, meta, 0.70, 42L);
+
+        List<List<Integer>> candidateTopologies = List.of(
+                List.of(16),
+                List.of(24),
+                List.of(16, 12),
+                List.of(24, 16)
+        );
+
+        EvaluationMetrics bestMetrics = null;
+        NeuralNetwork<?> bestNet = null;
+        String bestTopo = "";
+
+        System.out.println("\n================================================================================");
+        System.out.println("  ENTRENANDO RED NEURONAL POR PAR COAXIAL (d_bajo, d_alto -> 4 CLASES)");
+        System.out.println("  Clases: " + pairClasses + " | Umbral BLOQUEO: [2.0 .. 18.0 cm]");
+        System.out.println("================================================================================");
+
+        for (List<Integer> hidden : candidateTopologies) {
+            NetworkConfig netConfig = new NetworkConfig();
+            netConfig.setInputNeurons(2);
+            netConfig.setOutputNeurons(4);
+            netConfig.setHiddenNeurons(hidden);
+            netConfig.setTransferFunction("SIGMOID");
+            netConfig.setLearningRate(0.35);
+            netConfig.setMomentum(0.6);
+            netConfig.setMaxIterations(1600);
+            netConfig.setMaxError(0.002);
+
+            TrainingTask task = new TrainingTask();
+            task.setTaskId("pair-" + netConfig.getTopologySummary());
+            task.setNetworkConfig(netConfig);
+            task.setTrainRatio(0.70);
+            task.setSplitSeed(42L);
+            task.setPatience(1000);
+
+            NeurophTrainer trainer = new NeurophTrainer();
+            NeurophTrainer.TrainingResult trainingResult = trainer.train(task, split.getTrainSet(), (epoch, err) -> {});
+
+            EvaluationMetrics metrics = ModelEvaluator.evaluate(
+                    trainingResult.getNeuralNetwork(),
+                    split.getTestSamples(),
+                    meta,
+                    trainingResult.getDurationSeconds(),
+                    trainingResult.getIterations(),
+                    trainingResult.getFinalError()
+            );
+
+            System.out.printf("    Topologia %-12s -> Accuracy: %6.2f%% | F1: %.4f | RMSE: %.5f | Iter: %d%n",
+                    netConfig.getTopologySummary(),
+                    metrics.getAccuracy(),
+                    metrics.getF1Score(),
+                    metrics.getRmse(),
+                    trainingResult.getIterations());
+
+            if (bestMetrics == null || metrics.getF1Score() > bestMetrics.getF1Score()
+                    || (Math.abs(metrics.getF1Score() - bestMetrics.getF1Score()) < 1e-4 && metrics.getAccuracy() > bestMetrics.getAccuracy())) {
+                bestMetrics = metrics;
+                bestNet = trainingResult.getNeuralNetwork();
+                bestTopo = netConfig.getTopologySummary();
+            }
+        }
+
+        assertNotNull(bestNet);
+        System.out.printf("  * CAMPEON PAR COAXIAL: Topologia %s (Accuracy=%.2f%%, F1=%.4f)%n",
+                bestTopo, bestMetrics.getAccuracy(), bestMetrics.getF1Score());
+        System.out.printf("  * Matriz de Confusion:%n%s%n", java.util.Arrays.deepToString(bestMetrics.getConfusionMatrix()));
+        System.out.println("================================================================================\n");
+
+        File pairNnet = new File("../keiko-sim/data/models/orquitas_par_coaxial_neuroph.nnet");
+        File prodNnet = new File("../keiko-sim/data/models/orquitas_production_champion.nnet");
+        bestNet.save(pairNnet.getAbsolutePath());
+        Files.copy(pairNnet.toPath(), prodNnet.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+        exportNeurophWeightsToJson(bestNet, pairClasses, new File("../keiko-sim/data/models/orquitas_par_coaxial_weights.json"));
+
+        assertTrue(bestMetrics.getAccuracy() >= 95.0, "La red por par coaxial debe superar 95% de accuracy");
+    }
+
+    private void exportNeurophWeightsToJson(NeuralNetwork<?> net, List<String> classes, File jsonFile) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append("  \"min_cm\": 2.0,\n");
+        sb.append("  \"max_cm\": 250.0,\n");
+        sb.append("  \"classes\": [");
+        for (int i = 0; i < classes.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append("\"").append(classes.get(i)).append("\"");
+        }
+        sb.append("],\n  \"layers\": [\n");
+
+        for (int l = 1; l < net.getLayersCount(); l++) {
+            org.neuroph.core.Layer prevLayer = net.getLayerAt(l - 1);
+            org.neuroph.core.Layer currLayer = net.getLayerAt(l);
+            List<org.neuroph.core.Neuron> prevNeurons = prevLayer.getNeurons();
+            List<org.neuroph.core.Neuron> currNeurons = currLayer.getNeurons();
+
+            if (l > 1) sb.append(",\n");
+            sb.append("    [\n");
+            boolean firstNeuron = true;
+            for (org.neuroph.core.Neuron neuron : currNeurons) {
+                if (neuron instanceof org.neuroph.nnet.comp.neuron.BiasNeuron) {
+                    continue;
+                }
+                if (!firstNeuron) sb.append(",\n");
+                firstNeuron = false;
+
+                double bias = 0.0;
+                List<Double> wList = new ArrayList<>();
+                for (org.neuroph.core.Connection conn : neuron.getInputConnections()) {
+                    org.neuroph.core.Neuron from = conn.getFromNeuron();
+                    double w = conn.getWeight().getValue();
+                    if (from instanceof org.neuroph.nnet.comp.neuron.BiasNeuron) {
+                        bias += w;
+                    } else if (prevNeurons.contains(from)) {
+                        wList.add(w);
+                    }
+                }
+                sb.append("      {\"weights\": ").append(wList.toString()).append(", \"bias\": ").append(bias).append("}");
+            }
+            sb.append("\n    ]");
+        }
+        sb.append("\n  ]\n}\n");
+        Files.writeString(jsonFile.toPath(), sb.toString(), StandardCharsets.UTF_8);
+    }
+
     private EvaluationMetrics benchmarkScheme(
             String schemeTitle,
             String csvPath,
