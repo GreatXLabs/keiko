@@ -26,11 +26,19 @@ public class PlanificadorNavegacion {
     private static final double VEL_GIRO_AMPLIO = 5.0;
     private static final double SESGO_GIRO_ANTIBUCLE = 0.4;
 
+    // Alineacion proactiva al estrecho de salida (apertura de 30 cm).
+    private static final double VEL_RETRO_ALINEACION_SALIDA = -3.8;
+    private static final double VEL_RETRO_PINZADO_SALIDA = -4.0;
+    private static final double VEL_GIRO_ALINEACION_SALIDA = 4.4;
+
     private static final int PASOS_RETRO_ARCO_NORMAL = 6;
     private static final int PASOS_RETRO_ARCO_TOTAL = 10;
     private static final int PASOS_RETRO_ARCO_ANTIBUCLE = 12;
     private static final int PASOS_GIRO_BLOQUEO = 12;
     private static final int PASOS_GIRO_ANTIBUCLE = 16;
+    private static final int PASOS_RETRO_ALINEACION_SALIDA = 5;
+    private static final int PASOS_RETRO_PINZADO_SALIDA = 8;
+    private static final int PASOS_GIRO_ALINEACION_SALIDA = 6;
 
     private final GestorEstomago gestorEstomago;
     private volatile EstadoRobot estado = EstadoRobot.BUSQUEDA;
@@ -43,6 +51,7 @@ public class PlanificadorNavegacion {
     private int direccionGiroComprometido = 1; // +1 = girar a derecha (vL > vR), -1 = girar a izquierda (vL < vR)
     private double velGiroComprometido = VEL_GIRO_COMPROMETIDO;
     private double sesgoGiroComprometido = 0.0;
+    private boolean giroAlineacionSalida = false;
     private int ultimoLadoBloqueado = 0;       // -1 = izquierda, +1 = derecha
     private int ciclosMismoLadoBloqueado = 0;
     private int ciclosDesdeUltimoBloqueo = HORIZONTE_OLVIDO_OSCILACIONES;
@@ -86,7 +95,7 @@ public class PlanificadorNavegacion {
         // despejado de bloqueos y engancha un LOBITO (en BUSQUEDA) o la SALIDA (en ESCAPE),
         // cancela el resto del giro para aprovechar el objetivo inmediatamente.
         // ---------------------------------------------------------------------
-        if (pasosRetrocesoRestantes == 0 && pasosGiroComprometido > 0) {
+        if (pasosRetrocesoRestantes == 0 && pasosGiroComprometido > 0 && !giroAlineacionSalida) {
             if (estado != EstadoRobot.ESCAPE && !bCen && ("LOBITO".equals(cen) || "LOBITO".equals(izq) || "LOBITO".equals(der))) {
                 pasosGiroComprometido = 0;
             } else if (estado == EstadoRobot.ESCAPE && !bCen && ("SALIDA".equals(cen) || "SALIDA".equals(izq) || "SALIDA".equals(der))) {
@@ -150,15 +159,27 @@ public class PlanificadorNavegacion {
             boolean sCen = "SALIDA".equals(cen);
             boolean sDer = "SALIDA".equals(der);
 
-            // Caso 4a: El sensor central ya enfila el hueco de salida de 30 cm
+            // Caso 4a: El sensor central ya enfila el hueco de salida de 30 cm.
+            // Protocolo de alineacion proactiva: centrar el chasis y desenganchar
+            // las jambas con micro-retrocesos en lugar de empujar contra el borde.
             if (sCen) {
-                if (bIzq && !bDer) {
-                    return new ComandoRobot(4.6, 3.6, EstadoRobot.ESCAPE);
-                } else if (bDer && !bIzq) {
-                    return new ComandoRobot(3.6, 4.6, EstadoRobot.ESCAPE);
-                } else {
-                    return new ComandoRobot(4.4, 4.4, EstadoRobot.ESCAPE);
+                if (bIzq && bDer) {
+                    iniciarRetrocesoArco(VEL_RETRO_PINZADO_SALIDA, VEL_RETRO_PINZADO_SALIDA, PASOS_RETRO_PINZADO_SALIDA);
+                    return new ComandoRobot(VEL_RETRO_PINZADO_SALIDA, VEL_RETRO_PINZADO_SALIDA, EstadoRobot.ESCAPE);
                 }
+                if (bDer) {
+                    iniciarRetrocesoArco(VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA, PASOS_RETRO_ALINEACION_SALIDA);
+                    iniciarGiroComprometido(-1, PASOS_GIRO_ALINEACION_SALIDA, VEL_GIRO_ALINEACION_SALIDA, 0.0);
+                    giroAlineacionSalida = true;
+                    return new ComandoRobot(VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA, EstadoRobot.ESCAPE);
+                }
+                if (bIzq) {
+                    iniciarRetrocesoArco(VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA, PASOS_RETRO_ALINEACION_SALIDA);
+                    iniciarGiroComprometido(1, PASOS_GIRO_ALINEACION_SALIDA, VEL_GIRO_ALINEACION_SALIDA, 0.0);
+                    giroAlineacionSalida = true;
+                    return new ComandoRobot(VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA, EstadoRobot.ESCAPE);
+                }
+                return new ComandoRobot(VEL_AVANCE_ARCO, VEL_AVANCE_ARCO, EstadoRobot.ESCAPE);
             }
 
             // Caso 4b: El sensor izquierdo ve la SALIDA (>185 cm), aunque centro o derecha vean pared
@@ -402,6 +423,7 @@ public class PlanificadorNavegacion {
         direccionGiroComprometido = direccion;
         velGiroComprometido = velocidad;
         sesgoGiroComprometido = sesgo;
+        giroAlineacionSalida = false;
     }
 
     // Retroceso en arco normal (6 ciclos) seguido de pivote, para despejar trompa y cola.
@@ -467,6 +489,7 @@ public class PlanificadorNavegacion {
         this.estado = EstadoRobot.ESCAPE;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
+        this.giroAlineacionSalida = false;
         LOGGER.info("MUTACION CONDUCTUAL ACTIVADA: Modo ESCAPE.");
     }
 
@@ -480,5 +503,6 @@ public class PlanificadorNavegacion {
         this.estado = nuevoEstado;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
+        this.giroAlineacionSalida = false;
     }
 }

@@ -25,11 +25,12 @@ public class NeurophInferenceTest {
 
     @Test
     public void testCoaxialPairClassificationTightBlockageThreshold() {
-        // Bloqueo cerrado (<= 18 cm): pared u obstáculo en el radio mínimo de rotación
-        assertEquals("BLOQUEO", classifier.clasificarPar(10.0, 10.5));
-        assertEquals("BLOQUEO", classifier.clasificarPar(16.5, 17.0));
+        // Bloqueo cerrado (<= 10 cm): pared u obstáculo en el radio mínimo de rotación
+        assertEquals("BLOQUEO", classifier.clasificarPar(8.0, 8.5));
+        assertEquals("BLOQUEO", classifier.clasificarPar(9.5, 10.0));
 
-        // A 26 cm (> 18 cm) ya es ESPACIO_LIBRE para permitir acercarse a las paredes y escanear
+        // A partir de 11.5 cm ya es ESPACIO_LIBRE para permitir navegar pegado a las paredes
+        assertEquals("ESPACIO_LIBRE", classifier.clasificarPar(15.0, 15.5));
         assertEquals("ESPACIO_LIBRE", classifier.clasificarPar(26.0, 26.5));
         assertEquals("ESPACIO_LIBRE", classifier.clasificarPar(95.0, 96.0));
 
@@ -43,8 +44,8 @@ public class NeurophInferenceTest {
 
     @Test
     public void testMixed3PairPerceptionAndPlannerEscapeCase() throws Exception {
-        // Caso planteado: el par izquierdo ve SALIDA (> 210 cm), pero centro y derecha ven pared cerca (12 cm)
-        VectorSensores vector = new VectorSensores(215.0, 12.0, 11.5, 218.0, 12.5, 12.0);
+        // Caso planteado: el par izquierdo ve SALIDA (> 210 cm), pero centro y derecha ven pared cerca (<= 10 cm)
+        VectorSensores vector = new VectorSensores(215.0, 9.0, 8.5, 218.0, 9.5, 9.0);
         String[] pares = classifier.clasificarPares(vector);
 
         assertArrayEquals(new String[]{"SALIDA", "BLOQUEO", "BLOQUEO"}, pares,
@@ -64,8 +65,8 @@ public class NeurophInferenceTest {
 
     @Test
     public void testFullFrontBlockageTriggersCommittedReverseAndTurn() throws Exception {
-        // Pared frontal tapando los 3 sectores a <= 18 cm: [BLOQUEO, BLOQUEO, BLOQUEO]
-        VectorSensores muroFrontal = new VectorSensores(11.0, 10.0, 11.5, 11.2, 10.5, 11.8);
+        // Pared frontal tapando los 3 sectores a <= 10 cm: [BLOQUEO, BLOQUEO, BLOQUEO]
+        VectorSensores muroFrontal = new VectorSensores(8.0, 7.5, 8.2, 8.5, 8.0, 8.8);
         String[] pares = classifier.clasificarPares(muroFrontal);
         assertArrayEquals(new String[]{"BLOQUEO", "BLOQUEO", "BLOQUEO"}, pares);
 

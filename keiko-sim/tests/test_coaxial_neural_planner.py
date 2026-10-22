@@ -16,9 +16,10 @@ class TestCoaxialNeuralPlanner(unittest.TestCase):
 
     def test_classifier_loads_real_neuroph_weights_and_classifies_all_four_classes(self):
         self.assertGreaterEqual(len(self.clf.layers), 2)
-        self.assertEqual(self.clf.classify_pair(11.0, 11.5), "BLOQUEO")
-        self.assertEqual(self.clf.classify_pair(16.0, 16.5), "BLOQUEO")
-        self.assertEqual(self.clf.classify_pair(20.0, 20.5), "ESPACIO_LIBRE")
+        # Bloqueo cerrado a <= 10 cm; a partir de 11.5 cm el par ya es ESPACIO_LIBRE
+        self.assertEqual(self.clf.classify_pair(8.0, 8.5), "BLOQUEO")
+        self.assertEqual(self.clf.classify_pair(9.5, 10.0), "BLOQUEO")
+        self.assertEqual(self.clf.classify_pair(15.0, 15.5), "ESPACIO_LIBRE")
         self.assertEqual(self.clf.classify_pair(65.0, 66.0), "ESPACIO_LIBRE")
         self.assertEqual(self.clf.classify_pair(16.0, 60.0), "LOBITO")
         self.assertEqual(self.clf.classify_pair(13.0, 29.0), "LOBITO")
@@ -30,8 +31,8 @@ class TestCoaxialNeuralPlanner(unittest.TestCase):
 
     def test_planner_frontal_block_commits_reverse_then_turn(self):
         readings = {
-            "us_low_left": 11.0, "us_low_center": 10.5, "us_low_right": 11.2,
-            "us_high_left": 11.5, "us_high_center": 11.0, "us_high_right": 11.8,
+            "us_low_left": 8.0, "us_low_center": 7.5, "us_low_right": 8.2,
+            "us_high_left": 8.5, "us_high_center": 8.0, "us_high_right": 8.8,
         }
         classes = self.clf.classify_3_pairs(readings)
         self.assertEqual(classes, ["BLOQUEO", "BLOQUEO", "BLOQUEO"])
@@ -121,13 +122,39 @@ class TestCoaxialNeuralPlanner(unittest.TestCase):
             self.assertLess(vl * vr, 0.0)
             self.assertGreater(vl * direction, 0.0)
 
-    def test_escape_doorway_with_blocked_jambs_keeps_forward_progress(self):
+    def test_escape_doorway_centered_shoots_straight_through_opening(self):
+        self.planner.activate_escape_mode()
+        vl, vr, state, action = self.planner.evaluate(["ESPACIO_LIBRE", "SALIDA", "ESPACIO_LIBRE"])
+        self.assertEqual((vl, vr), (4.8, 4.8))
+        self.assertEqual(state, "ESCAPE")
+        self.assertEqual(action, "ESCAPE_SALIDA_DIRECTA")
+
+    def test_escape_doorway_right_jamb_micro_reverses_then_squares_up_left(self):
+        self.planner.activate_escape_mode()
+        pairs = ["ESPACIO_LIBRE", "SALIDA", "BLOQUEO"]
+        for _ in range(5):
+            vl, vr, state, action = self.planner.evaluate(pairs)
+            self.assertEqual((vl, vr), (-3.8, -3.8))
+        for _ in range(6):
+            vl, vr, state, action = self.planner.evaluate(pairs)
+            self.assertEqual((vl, vr), (-4.4, 4.4))
+
+    def test_escape_doorway_left_jamb_micro_reverses_then_squares_up_right(self):
+        self.planner.activate_escape_mode()
+        pairs = ["BLOQUEO", "SALIDA", "ESPACIO_LIBRE"]
+        for _ in range(5):
+            vl, vr, state, action = self.planner.evaluate(pairs)
+            self.assertEqual((vl, vr), (-3.8, -3.8))
+        for _ in range(6):
+            vl, vr, state, action = self.planner.evaluate(pairs)
+            self.assertEqual((vl, vr), (4.4, -4.4))
+
+    def test_escape_doorway_pinched_between_jambs_backs_straight_out(self):
         self.planner.activate_escape_mode()
         pairs = ["BLOQUEO", "SALIDA", "BLOQUEO"]
-        for _ in range(40):
+        for _ in range(8):
             vl, vr, state, action = self.planner.evaluate(pairs)
-            self.assertGreater(vl, 0.0)
-            self.assertGreater(vr, 0.0)
+            self.assertEqual((vl, vr), (-4.0, -4.0))
 
     def test_escape_mode_preserves_forward_progress(self):
         self.planner.activate_escape_mode()

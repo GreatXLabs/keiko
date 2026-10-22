@@ -90,11 +90,19 @@ VEL_GIRO_COMPROMETIDO = 4.6
 VEL_GIRO_AMPLIO = 5.0
 SESGO_GIRO_ANTIBUCLE = 0.4
 
+# Alineación proactiva al estrecho de salida (apertura de 30 cm).
+VEL_RETRO_ALINEACION_SALIDA = -3.8
+VEL_RETRO_PINZADO_SALIDA = -4.0
+VEL_GIRO_ALINEACION_SALIDA = 4.4
+
 PASOS_RETRO_ARCO_NORMAL = 6
 PASOS_RETRO_ARCO_TOTAL = 10
 PASOS_RETRO_ARCO_ANTIBUCLE = 12
 PASOS_GIRO_BLOQUEO = 12
 PASOS_GIRO_ANTIBUCLE = 16
+PASOS_RETRO_ALINEACION_SALIDA = 5
+PASOS_RETRO_PINZADO_SALIDA = 8
+PASOS_GIRO_ALINEACION_SALIDA = 6
 
 
 class CoaxialNavigationPlanner:
@@ -112,6 +120,7 @@ class CoaxialNavigationPlanner:
         self.turn_dir = 1          # +1 = giro a derecha (vL > vR), -1 = giro a izquierda (vL < vR)
         self.turn_speed = VEL_GIRO_COMPROMETIDO
         self.turn_bias = 0.0
+        self.alignment_turn = False
         self.last_blocked_side = 0 # -1 = izquierda, +1 = derecha
         self.same_side_block_cycles = 0
         self.cycles_since_block = HORIZONTE_OLVIDO_OSCILACIONES
@@ -125,6 +134,7 @@ class CoaxialNavigationPlanner:
         self.state = "ESCAPE"
         self.reverse_steps_left = 0
         self.turn_steps_left = 0
+        self.alignment_turn = False
 
     def evaluate(self, pairs, captures_count=0):
         """
@@ -145,7 +155,7 @@ class CoaxialNavigationPlanner:
         b_der = (der == "BLOQUEO")
 
         # 1. Interrupción oportunista de giro comprometido si engancha objetivo con el centro libre
-        if self.reverse_steps_left == 0 and self.turn_steps_left > 0:
+        if self.reverse_steps_left == 0 and self.turn_steps_left > 0 and not self.alignment_turn:
             if self.state != "ESCAPE" and not b_cen and ("LOBITO" in (izq, cen, der)):
                 self.turn_steps_left = 0
             elif self.state == "ESCAPE" and not b_cen and ("SALIDA" in (izq, cen, der)):
@@ -196,12 +206,29 @@ class CoaxialNavigationPlanner:
             s_cen = (cen == "SALIDA")
             s_der = (der == "SALIDA")
 
+            # Protocolo de alineación proactiva: centrar el chasis y desenganchar
+            # las jambas con micro-retrocesos en lugar de empujar contra el borde.
             if s_cen:
-                if b_izq and not b_der:
-                    return 4.6, 3.6, "ESCAPE", "ESCAPE_SALIDA_CORR_DER"
-                if b_der and not b_izq:
-                    return 3.6, 4.6, "ESCAPE", "ESCAPE_SALIDA_CORR_IZQ"
-                return 4.4, 4.4, "ESCAPE", "ESCAPE_SALIDA_DIRECTA"
+                if b_izq and b_der:
+                    self._start_arc_reverse(
+                        VEL_RETRO_PINZADO_SALIDA, VEL_RETRO_PINZADO_SALIDA, PASOS_RETRO_PINZADO_SALIDA)
+                    return (VEL_RETRO_PINZADO_SALIDA, VEL_RETRO_PINZADO_SALIDA,
+                            "ESCAPE", "ESCAPE_PINZADO_RETROCESO_RECTO")
+                if b_der:
+                    self._start_arc_reverse(
+                        VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA, PASOS_RETRO_ALINEACION_SALIDA)
+                    self._start_committed_turn(-1, PASOS_GIRO_ALINEACION_SALIDA, VEL_GIRO_ALINEACION_SALIDA)
+                    self.alignment_turn = True
+                    return (VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA,
+                            "ESCAPE", "ESCAPE_ALINEACION_MICRO_RETROCESO_DER")
+                if b_izq:
+                    self._start_arc_reverse(
+                        VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA, PASOS_RETRO_ALINEACION_SALIDA)
+                    self._start_committed_turn(1, PASOS_GIRO_ALINEACION_SALIDA, VEL_GIRO_ALINEACION_SALIDA)
+                    self.alignment_turn = True
+                    return (VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA,
+                            "ESCAPE", "ESCAPE_ALINEACION_MICRO_RETROCESO_IZQ")
+                return VEL_AVANCE_ARCO, VEL_AVANCE_ARCO, "ESCAPE", "ESCAPE_SALIDA_DIRECTA"
 
             if s_izq:
                 if b_cen:
@@ -386,6 +413,7 @@ class CoaxialNavigationPlanner:
         self.turn_dir = direction
         self.turn_speed = speed
         self.turn_bias = bias
+        self.alignment_turn = False
 
     def _start_arc_reverse_and_pivot(self, turn_dir, turn_steps, state):
         self._start_arc_reverse(
