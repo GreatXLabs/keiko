@@ -76,8 +76,8 @@ public class ManejadorCliente implements Runnable {
                 LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico.");
                 return;
             }
-            String clase = clasificador.clasificar(sensores);
-            ComandoRobot cmd = planificador.evaluar(sensores, clase);
+            String[] pares = clasificador.clasificarPares(sensores);
+            ComandoRobot cmd = planificador.evaluarPares(sensores, pares);
             enviarMensaje(MensajeProtocolo.crearComando(cmd));
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "[TELEMETRIA] Error al procesar: " + e.getMessage());

@@ -302,11 +302,10 @@ def main():
                 dist_to_robot = math.hypot(rel_x, rel_y)
                 dz = abs(m_pos[2] - r_pos[2])
 
-                # Contacto frontal: tocar con cualquier parte frontal del chasis (paragolpes, ruedas delanteras)
-                front_contact = (-0.02 <= local_fwd <= 0.28) and (abs(local_lat) <= 0.18) and (dz <= 0.12)
-                dist_contact = (dist_to_robot < 0.26) and (local_fwd > -0.05) and (abs(local_lat) <= 0.16)
+                # Contacto físico real con la boca de captura frontal del chasis (25.7x15.0 cm)
+                front_contact = (-0.02 <= local_fwd <= 0.20) and (abs(local_lat) <= 0.12) and (dz <= 0.12)
 
-                if front_contact or dist_contact:
+                if front_contact:
                     m_data["captured"] = True
                     captures_count += 1
 
@@ -446,25 +445,7 @@ def main():
                             if len(parts) >= 3:
                                 current_server_state = parts[2]
 
-                            # BARRERA VIRTUAL LOCAL: embudo estrecho y direccional sobre el
-                            # vano de salida. Bloquea solo el cruce prematuro del estrecho,
-                            # no la proximidad a la pared (evita trampas con canicas cercanas).
-                            dx = rx - exit_pos[0]
-                            dy = ry - exit_pos[1]
-                            along_exit = dx * exit_dir[0] + dy * exit_dir[1]   # >0 fuera, <0 dentro
-                            cross_exit = -dx * exit_dir[1] + dy * exit_dir[0]  # desviación lateral del vano
-                            if captures_count < 3 and along_exit > -0.35 and abs(cross_exit) < 0.25:
-                                inward_yaw = math.atan2(-exit_dir[1], -exit_dir[0])
-                                diff_in = (inward_yaw - yaw + math.pi) % (2 * math.pi) - math.pi
-                                if abs(diff_in) > 0.25:
-                                    vl_cmd = -4.8 if diff_in > 0 else 4.8
-                                    vr_cmd = 4.8 if diff_in > 0 else -4.8
-                                else:
-                                    vl_cmd, vr_cmd = 3.5, 3.5
-                                last_action_desc = "BARRERA_SALIDA"
-                            else:
-                                last_action_desc = f"CMD_SERVER({current_server_state})"
-
+                            last_action_desc = f"CMD_SERVER({current_server_state})"
                             set_drive_velocities(vl_cmd, vr_cmd)
                             last_command_sim_time = sim_time
                             if in_failsafe:

@@ -189,7 +189,7 @@ class SonarVisualizer:
             if is_front and not is_high and pair_name and (pair_name in readings):
                 d_high = readings[pair_name]
                 delta_h_l = d_high - dist_cm
-                if dist_cm < 60.0 and delta_h_l > 5.0:
+                if dist_cm <= 32.0 and delta_h_l >= 15.0:
                     is_marble = True
                     any_marble_seen = True
                     active_target_dist = dist_cm
@@ -293,10 +293,10 @@ class SonarVisualizer:
         delta_r = d_hr - d_lr
         delta_c = (d_hc - d_lc) if (d_lc is not None and d_hc is not None) else None
 
-        # Detección y clasificación física
-        marble_l = (d_ll < 60.0) and (delta_l > 5.0)
-        marble_r = (d_lr < 60.0) and (delta_r > 5.0)
-        marble_c = (d_lc is not None) and (d_lc < 60.0) and (delta_c is not None and delta_c > 5.0)
+        # Detección y clasificación física acústica (canica 16 mm: haz bajo choca, haz alto pasa de largo)
+        marble_l = (d_ll <= 30.0) and (delta_l >= 15.0)
+        marble_r = (d_lr <= 30.0) and (delta_r >= 15.0)
+        marble_c = (d_lc is not None) and (d_lc <= 30.0) and (delta_c is not None and delta_c >= 15.0)
 
         def make_bar(dist_cm, max_bars=16):
             filled = int(min(dist_cm, 200.0) / 200.0 * max_bars)

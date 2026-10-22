@@ -48,7 +48,7 @@ class UltrasonicPhysicsModel:
         self,
         mode="realistic",
         max_marble_range_cm=32.0,
-        marble_cone_deg=9.5,
+        marble_cone_deg=14.0,
         specular_crit_deg=42.0,
         seed=None,
     ):
