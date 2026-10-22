@@ -11,18 +11,46 @@ import java.util.logging.Logger;
 public class PlanificadorNavegacion {
     private static final Logger LOGGER = Logger.getLogger(PlanificadorNavegacion.class.getName());
 
+    // 150 ciclos a 32 ms por ciclo ~ 4.8 s: cubre el cruce completo de la bahia.
+    private static final int HORIZONTE_OLVIDO_OSCILACIONES = 150;
+    private static final int UMBRAL_OSCILACIONES_ANTIBUCLE = 2;
+    private static final int TAM_HISTORIAL_LADOS = 6;
+
+    private static final double VEL_AVANCE_ARCO = 4.8;
+    private static final double VEL_ARCO_LENTA = 2.0;
+    private static final double VEL_RETRO_ARCO_RAPIDA = -4.2;
+    private static final double VEL_RETRO_ARCO_NORMAL = -2.6;
+    private static final double VEL_RETRO_ARCO_BLOQUEO = -2.4;
+    private static final double VEL_RETRO_ARCO_ANTIBUCLE = -2.0;
+    private static final double VEL_GIRO_COMPROMETIDO = 4.6;
+    private static final double VEL_GIRO_AMPLIO = 5.0;
+    private static final double SESGO_GIRO_ANTIBUCLE = 0.4;
+
+    private static final int PASOS_RETRO_ARCO_NORMAL = 6;
+    private static final int PASOS_RETRO_ARCO_TOTAL = 10;
+    private static final int PASOS_RETRO_ARCO_ANTIBUCLE = 12;
+    private static final int PASOS_GIRO_BLOQUEO = 12;
+    private static final int PASOS_GIRO_ANTIBUCLE = 16;
+
     private final GestorEstomago gestorEstomago;
     private volatile EstadoRobot estado = EstadoRobot.BUSQUEDA;
 
     // Estado interno para maniobras comprometidas (marcha atras, giros y anti-bucle)
     private int pasosRetrocesoRestantes = 0;
+    private double velRetrocesoIzq = VEL_RETRO_ARCO_RAPIDA;
+    private double velRetrocesoDer = VEL_RETRO_ARCO_RAPIDA;
     private int pasosGiroComprometido = 0;
     private int direccionGiroComprometido = 1; // +1 = girar a derecha (vL > vR), -1 = girar a izquierda (vL < vR)
+    private double velGiroComprometido = VEL_GIRO_COMPROMETIDO;
+    private double sesgoGiroComprometido = 0.0;
     private int ultimoLadoBloqueado = 0;       // -1 = izquierda, +1 = derecha
     private int ciclosMismoLadoBloqueado = 0;
-    private int ciclosDesdeUltimoBloqueo = 100;
+    private int ciclosDesdeUltimoBloqueo = HORIZONTE_OLVIDO_OSCILACIONES;
     private int contadorOscilaciones = 0;
     private int contadorCiclos = 0;
+    private final int[] historialLados = new int[TAM_HISTORIAL_LADOS];
+    private int indiceHistorialLados = 0;
+    private int entradasHistorialLados = 0;
 
     // Inicializa el planificador evaluando si el estomago ya posee capturas suficientes para escape.
     public PlanificadorNavegacion(GestorEstomago gestorEstomago) {
@@ -68,42 +96,49 @@ public class PlanificadorNavegacion {
 
         // ---------------------------------------------------------------------
         // 2. EJECUCION DE MANIOBRA COMPROMETIDA ACTIVA (MARCHA ATRAS O GIRO)
+        // El retroceso puede ser en arco asimetrico para que la cola siga la estela
+        // libre en lugar de barrer lateralmente contra un obstaculo.
         // ---------------------------------------------------------------------
         if (pasosRetrocesoRestantes > 0) {
             pasosRetrocesoRestantes--;
             EstadoRobot est = (estado == EstadoRobot.ESCAPE) ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
-            return new ComandoRobot(-4.4, -4.4, est);
+            return new ComandoRobot(velRetrocesoIzq, velRetrocesoDer, est);
         }
         if (pasosGiroComprometido > 0) {
             pasosGiroComprometido--;
             EstadoRobot est = (estado == EstadoRobot.ESCAPE) ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
-            double vGiro = 4.6;
             if (direccionGiroComprometido >= 0) {
-                return new ComandoRobot(vGiro, -vGiro, est);
-            } else {
-                return new ComandoRobot(-vGiro, vGiro, est);
+                return new ComandoRobot(velGiroComprometido, -velGiroComprometido + sesgoGiroComprometido, est);
             }
+            return new ComandoRobot(-velGiroComprometido + sesgoGiroComprometido, velGiroComprometido, est);
         }
 
         // ---------------------------------------------------------------------
         // 3. DETECCION DE ENCIERRO FRONTAL TOTAL ([BLOQUEO, BLOQUEO, BLOQUEO] o [BLOQUEO, *, BLOQUEO])
         // Todos los sensores ven pared/obstaculo <= 18 cm o esta encerrado en esquina:
-        // retroceder para despegar la trompa y luego girar amplio sin chocar.
+        // retroceder en arco asimetrico para despegar trompa y cola antes de girar amplio.
         // ---------------------------------------------------------------------
-        if ((bIzq && bCen && bDer) || (bIzq && bDer)) {
+        // En ESCAPE, si el centro ve SALIDA el robot ya enfila el hueco: avanzar aunque
+        // las jambas laterales aparezcan como BLOQUEO (apertura de solo 30 cm).
+        boolean salidaFrontalEnEscape = estado == EstadoRobot.ESCAPE && "SALIDA".equals(cen);
+        if (!salidaFrontalEnEscape && ((bIzq && bCen && bDer) || (bIzq && bDer))) {
             contadorOscilaciones++;
-            boolean bucle = contadorOscilaciones >= 3;
-            pasosRetrocesoRestantes = bucle ? 10 : 6;
-            pasosGiroComprometido = bucle ? 14 : 9;
-            if (bucle) {
-                contadorOscilaciones = 0;
-            }
+            boolean bucle = contadorOscilaciones >= UMBRAL_OSCILACIONES_ANTIBUCLE || esPatronAlternante();
+            int pasosRetroceso = bucle ? PASOS_RETRO_ARCO_ANTIBUCLE : PASOS_RETRO_ARCO_TOTAL;
+            iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_BLOQUEO, pasosRetroceso);
             // En ESCAPE preferir sentido consistente de barrido perimetral (+1 horario);
             // en BUSQUEDA alejarse del ultimo lado bloqueado.
-            direccionGiroComprometido = (estado == EstadoRobot.ESCAPE) ? 1 : (ultimoLadoBloqueado <= 0 ? 1 : -1);
+            int dir = (estado == EstadoRobot.ESCAPE) ? 1 : (ultimoLadoBloqueado <= 0 ? 1 : -1);
+            if (bucle) {
+                contadorOscilaciones = 0;
+                reiniciarHistorialLados();
+                iniciarGiroComprometido(dir, PASOS_GIRO_ANTIBUCLE, VEL_GIRO_AMPLIO, SESGO_GIRO_ANTIBUCLE);
+            } else {
+                iniciarGiroComprometido(dir, PASOS_GIRO_BLOQUEO, VEL_GIRO_AMPLIO, 0.0);
+            }
             ciclosDesdeUltimoBloqueo = 0;
             EstadoRobot est = (estado == EstadoRobot.ESCAPE) ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
-            return new ComandoRobot(-4.4, -4.4, est);
+            return new ComandoRobot(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_BLOQUEO, est);
         }
 
         // ---------------------------------------------------------------------
@@ -128,47 +163,67 @@ public class PlanificadorNavegacion {
 
             // Caso 4b: El sensor izquierdo ve la SALIDA (>185 cm), aunque centro o derecha vean pared
             if (sIzq) {
-                if (bCen || bDer) {
-                    return new ComandoRobot(-4.2, 4.2, EstadoRobot.ESCAPE);
-                } else {
-                    return new ComandoRobot(2.4, 4.6, EstadoRobot.ESCAPE);
+                if (bCen) {
+                    return iniciarRetrocesoArcoYPivote(-1, 7, EstadoRobot.ESCAPE);
                 }
+                if (bDer) {
+                    registrarBloqueoLateral(1);
+                    if (debeActivarAntiBucle()) {
+                        return activarManiobraAntiBucle(-1, EstadoRobot.ESCAPE);
+                    }
+                    return new ComandoRobot(VEL_ARCO_LENTA, VEL_AVANCE_ARCO, EstadoRobot.ESCAPE);
+                }
+                return new ComandoRobot(2.4, 4.6, EstadoRobot.ESCAPE);
             }
 
             // Caso 4c: El sensor derecho ve la SALIDA (>185 cm), aunque centro o izquierda vean pared
             if (sDer) {
-                if (bCen || bIzq) {
-                    return new ComandoRobot(4.2, -4.2, EstadoRobot.ESCAPE);
-                } else {
-                    return new ComandoRobot(4.6, 2.4, EstadoRobot.ESCAPE);
+                if (bCen) {
+                    return iniciarRetrocesoArcoYPivote(1, 7, EstadoRobot.ESCAPE);
                 }
+                if (bIzq) {
+                    registrarBloqueoLateral(-1);
+                    if (debeActivarAntiBucle()) {
+                        return activarManiobraAntiBucle(1, EstadoRobot.ESCAPE);
+                    }
+                    return new ComandoRobot(VEL_AVANCE_ARCO, VEL_ARCO_LENTA, EstadoRobot.ESCAPE);
+                }
+                return new ComandoRobot(4.6, 2.4, EstadoRobot.ESCAPE);
             }
 
-            // Caso 4d: Aún no ve SALIDA; manejo de bloqueos en ESCAPE siguiendo el perimetro
+            // Caso 4d: Aún no ve SALIDA; manejo de bloqueos en ESCAPE siguiendo el perimetro.
+            // Los bloqueos laterales se resuelven con arco hacia adelante; centro bloqueado
+            // o encierro exigen retroceso en arco antes de pivotar.
             if (bIzq && bCen) {
                 registrarBloqueoLateral(-1);
-                pasosGiroComprometido = 6;
-                direccionGiroComprometido = 1;
-                return new ComandoRobot(4.6, -4.6, EstadoRobot.ESCAPE);
+                if (debeActivarAntiBucle()) {
+                    return activarManiobraAntiBucle(1, EstadoRobot.ESCAPE);
+                }
+                return iniciarRetrocesoArcoYPivote(1, 7, EstadoRobot.ESCAPE);
             }
             if (bCen && bDer) {
                 registrarBloqueoLateral(1);
-                pasosGiroComprometido = 6;
-                direccionGiroComprometido = -1;
-                return new ComandoRobot(-4.6, 4.6, EstadoRobot.ESCAPE);
+                if (debeActivarAntiBucle()) {
+                    return activarManiobraAntiBucle(-1, EstadoRobot.ESCAPE);
+                }
+                return iniciarRetrocesoArcoYPivote(-1, 7, EstadoRobot.ESCAPE);
             }
             if (bCen) {
-                pasosGiroComprometido = 7;
-                direccionGiroComprometido = 1;
-                return new ComandoRobot(4.6, -4.6, EstadoRobot.ESCAPE);
+                return iniciarRetrocesoArcoYPivote(1, 7, EstadoRobot.ESCAPE);
             }
             if (bIzq) {
                 registrarBloqueoLateral(-1);
-                return new ComandoRobot(4.4, 2.6, EstadoRobot.ESCAPE);
+                if (debeActivarAntiBucle()) {
+                    return activarManiobraAntiBucle(1, EstadoRobot.ESCAPE);
+                }
+                return new ComandoRobot(VEL_AVANCE_ARCO, VEL_ARCO_LENTA, EstadoRobot.ESCAPE);
             }
             if (bDer) {
                 registrarBloqueoLateral(1);
-                return new ComandoRobot(2.6, 4.4, EstadoRobot.ESCAPE);
+                if (debeActivarAntiBucle()) {
+                    return activarManiobraAntiBucle(-1, EstadoRobot.ESCAPE);
+                }
+                return new ComandoRobot(VEL_ARCO_LENTA, VEL_AVANCE_ARCO, EstadoRobot.ESCAPE);
             }
 
             double bias = ((contadorCiclos / 45) % 2 == 0) ? 0.35 : -0.35;
@@ -184,19 +239,17 @@ public class PlanificadorNavegacion {
         boolean sDer = "SALIDA".equals(der);
 
         if (sCen || (sIzq && sDer)) {
-            pasosGiroComprometido = 9;
-            direccionGiroComprometido = (ultimoLadoBloqueado <= 0) ? 1 : -1;
-            return new ComandoRobot(4.6 * direccionGiroComprometido, -4.6 * direccionGiroComprometido, EstadoRobot.BUSQUEDA);
+            int dir = (ultimoLadoBloqueado <= 0) ? 1 : -1;
+            iniciarGiroComprometido(dir, 9);
+            return new ComandoRobot(VEL_GIRO_COMPROMETIDO * dir, -VEL_GIRO_COMPROMETIDO * dir, EstadoRobot.BUSQUEDA);
         }
         if (sIzq) {
-            pasosGiroComprometido = 6;
-            direccionGiroComprometido = 1;
-            return new ComandoRobot(4.6, -4.6, EstadoRobot.BUSQUEDA);
+            iniciarGiroComprometido(1, 6);
+            return new ComandoRobot(VEL_GIRO_COMPROMETIDO, -VEL_GIRO_COMPROMETIDO, EstadoRobot.BUSQUEDA);
         }
         if (sDer) {
-            pasosGiroComprometido = 6;
-            direccionGiroComprometido = -1;
-            return new ComandoRobot(-4.6, 4.6, EstadoRobot.BUSQUEDA);
+            iniciarGiroComprometido(-1, 6);
+            return new ComandoRobot(-VEL_GIRO_COMPROMETIDO, VEL_GIRO_COMPROMETIDO, EstadoRobot.BUSQUEDA);
         }
 
         // Prioridad 5b: Deteccion y aproximacion de presas (LOBITO)
@@ -233,85 +286,139 @@ public class PlanificadorNavegacion {
         // Prioridad 5c: Esquive y deflexion de bloqueos (<= 22 cm)
         if (bIzq && bCen) {
             registrarBloqueoLateral(-1);
-            if (ciclosMismoLadoBloqueado >= 5 || contadorOscilaciones >= 3) {
-                iniciarDesatascoAntiBucle(1);
-                return new ComandoRobot(-4.4, -4.4, EstadoRobot.BUSQUEDA);
+            if (ciclosMismoLadoBloqueado >= 5 || debeActivarAntiBucle()) {
+                return activarManiobraAntiBucle(1, EstadoRobot.BUSQUEDA);
             }
-            pasosGiroComprometido = 6;
-            direccionGiroComprometido = 1;
-            return new ComandoRobot(4.8, -4.8, EstadoRobot.BUSQUEDA);
+            return iniciarRetrocesoArcoYPivote(1, 7, EstadoRobot.BUSQUEDA);
         }
 
         if (bCen && bDer) {
             registrarBloqueoLateral(1);
-            if (ciclosMismoLadoBloqueado >= 5 || contadorOscilaciones >= 3) {
-                iniciarDesatascoAntiBucle(-1);
-                return new ComandoRobot(-4.4, -4.4, EstadoRobot.BUSQUEDA);
+            if (ciclosMismoLadoBloqueado >= 5 || debeActivarAntiBucle()) {
+                return activarManiobraAntiBucle(-1, EstadoRobot.BUSQUEDA);
             }
-            pasosGiroComprometido = 6;
-            direccionGiroComprometido = -1;
-            return new ComandoRobot(-4.8, 4.8, EstadoRobot.BUSQUEDA);
+            return iniciarRetrocesoArcoYPivote(-1, 7, EstadoRobot.BUSQUEDA);
         }
 
         if (bCen) {
             int dir = (ultimoLadoBloqueado <= 0) ? 1 : -1;
-            pasosGiroComprometido = 14;
-            direccionGiroComprometido = dir;
-            return new ComandoRobot(4.8 * dir, -4.8 * dir, EstadoRobot.BUSQUEDA);
+            return iniciarRetrocesoArcoYPivote(dir, 14, EstadoRobot.BUSQUEDA);
         }
 
         if (bIzq) {
             registrarBloqueoLateral(-1);
-            if (ciclosMismoLadoBloqueado >= 4 || contadorOscilaciones >= 3) {
-                iniciarDesatascoAntiBucle(1);
-                return new ComandoRobot(-4.4, -4.4, EstadoRobot.BUSQUEDA);
+            if (ciclosMismoLadoBloqueado >= 4 || debeActivarAntiBucle()) {
+                return activarManiobraAntiBucle(1, EstadoRobot.BUSQUEDA);
             }
-            pasosGiroComprometido = 12;
-            direccionGiroComprometido = 1;
-            return new ComandoRobot(4.8, -4.8, EstadoRobot.BUSQUEDA);
+            return new ComandoRobot(VEL_AVANCE_ARCO, VEL_ARCO_LENTA, EstadoRobot.BUSQUEDA);
         }
 
         if (bDer) {
             registrarBloqueoLateral(1);
-            if (ciclosMismoLadoBloqueado >= 4 || contadorOscilaciones >= 3) {
-                iniciarDesatascoAntiBucle(-1);
-                return new ComandoRobot(-4.4, -4.4, EstadoRobot.BUSQUEDA);
+            if (ciclosMismoLadoBloqueado >= 4 || debeActivarAntiBucle()) {
+                return activarManiobraAntiBucle(-1, EstadoRobot.BUSQUEDA);
             }
-            pasosGiroComprometido = 12;
-            direccionGiroComprometido = -1;
-            return new ComandoRobot(-4.8, 4.8, EstadoRobot.BUSQUEDA);
+            return new ComandoRobot(VEL_ARCO_LENTA, VEL_AVANCE_ARCO, EstadoRobot.BUSQUEDA);
         }
 
-        if (ciclosDesdeUltimoBloqueo > 30) {
+        if (ciclosDesdeUltimoBloqueo > HORIZONTE_OLVIDO_OSCILACIONES) {
             contadorOscilaciones = 0;
             ciclosMismoLadoBloqueado = 0;
+            ultimoLadoBloqueado = 0;
+            reiniciarHistorialLados();
         }
         double sweep = ((contadorCiclos / 50) % 2 == 0) ? 0.55 : -0.55;
         return new ComandoRobot(4.8 + sweep, 4.8 - sweep, EstadoRobot.BUSQUEDA);
     }
 
+    // Registra un bloqueo lateral y alimenta la memoria anti-bucle compartida.
     private void registrarBloqueoLateral(int lado) {
+        if (ciclosDesdeUltimoBloqueo >= HORIZONTE_OLVIDO_OSCILACIONES) {
+            contadorOscilaciones = 0;
+            ciclosMismoLadoBloqueado = 0;
+            ultimoLadoBloqueado = 0;
+            reiniciarHistorialLados();
+        }
         if (ultimoLadoBloqueado == lado) {
             ciclosMismoLadoBloqueado++;
         } else {
             ciclosMismoLadoBloqueado = 1;
-            if (ultimoLadoBloqueado != 0 && ciclosDesdeUltimoBloqueo < 22) {
+            if (ultimoLadoBloqueado != 0) {
                 contadorOscilaciones++;
             }
-        }
-        if (ciclosDesdeUltimoBloqueo >= 30) {
-            contadorOscilaciones = 0;
+            registrarEnHistorial(lado);
         }
         ultimoLadoBloqueado = lado;
         ciclosDesdeUltimoBloqueo = 0;
     }
 
-    private void iniciarDesatascoAntiBucle(int dirPreferida) {
+    private void reiniciarHistorialLados() {
+        indiceHistorialLados = 0;
+        entradasHistorialLados = 0;
+    }
+
+    private void registrarEnHistorial(int lado) {
+        historialLados[indiceHistorialLados] = lado;
+        indiceHistorialLados = (indiceHistorialLados + 1) % historialLados.length;
+        if (entradasHistorialLados < historialLados.length) {
+            entradasHistorialLados++;
+        }
+    }
+
+    // Un historial que alterna izquierda/derecha cada pocos ciclos es un limit cycle.
+    private boolean esPatronAlternante() {
+        if (entradasHistorialLados < 3) {
+            return false;
+        }
+        int anterior = 0;
+        for (int i = 0; i < entradasHistorialLados; i++) {
+            int posicion = (indiceHistorialLados - 1 - i + historialLados.length * 2) % historialLados.length;
+            int actual = historialLados[posicion];
+            if (actual == 0 || actual == anterior) {
+                return false;
+            }
+            anterior = actual;
+        }
+        return true;
+    }
+
+    private boolean debeActivarAntiBucle() {
+        return contadorOscilaciones >= UMBRAL_OSCILACIONES_ANTIBUCLE || esPatronAlternante();
+    }
+
+    private void iniciarRetrocesoArco(double vIzq, double vDer, int pasos) {
+        // El ciclo actual ya devuelve el primer retroceso, por eso se descuenta uno.
+        pasosRetrocesoRestantes = pasos - 1;
+        velRetrocesoIzq = vIzq;
+        velRetrocesoDer = vDer;
+    }
+
+    private void iniciarGiroComprometido(int direccion, int pasos) {
+        iniciarGiroComprometido(direccion, pasos, VEL_GIRO_COMPROMETIDO, 0.0);
+    }
+
+    private void iniciarGiroComprometido(int direccion, int pasos, double velocidad, double sesgo) {
+        pasosGiroComprometido = pasos;
+        direccionGiroComprometido = direccion;
+        velGiroComprometido = velocidad;
+        sesgoGiroComprometido = sesgo;
+    }
+
+    // Retroceso en arco normal (6 ciclos) seguido de pivote, para despejar trompa y cola.
+    private ComandoRobot iniciarRetrocesoArcoYPivote(int direccionGiro, int pasosGiro, EstadoRobot estadoComando) {
+        iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_NORMAL, PASOS_RETRO_ARCO_NORMAL);
+        iniciarGiroComprometido(direccionGiro, pasosGiro);
+        return new ComandoRobot(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_NORMAL, estadoComando);
+    }
+
+    // Maniobra anti-bucle en dos fases: retroceso profundo en arco y giro amplio asimetrico.
+    private ComandoRobot activarManiobraAntiBucle(int direccion, EstadoRobot estadoComando) {
         contadorOscilaciones = 0;
         ciclosMismoLadoBloqueado = 0;
-        pasosRetrocesoRestantes = 9;
-        pasosGiroComprometido = 13;
-        direccionGiroComprometido = dirPreferida;
+        reiniciarHistorialLados();
+        iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_ANTIBUCLE, PASOS_RETRO_ARCO_ANTIBUCLE);
+        iniciarGiroComprometido(direccion, PASOS_GIRO_ANTIBUCLE, VEL_GIRO_AMPLIO, SESGO_GIRO_ANTIBUCLE);
+        return new ComandoRobot(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_ANTIBUCLE, estadoComando);
     }
 
     // RF-07: Sobrecarga compatible que traduce una etiqueta global a terna [IZQ, CENTRO, DER] y delega.

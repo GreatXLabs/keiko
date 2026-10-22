@@ -17,7 +17,8 @@ class TestCoaxialNeuralPlanner(unittest.TestCase):
     def test_classifier_loads_real_neuroph_weights_and_classifies_all_four_classes(self):
         self.assertGreaterEqual(len(self.clf.layers), 2)
         self.assertEqual(self.clf.classify_pair(11.0, 11.5), "BLOQUEO")
-        self.assertEqual(self.clf.classify_pair(20.0, 20.5), "BLOQUEO")
+        self.assertEqual(self.clf.classify_pair(16.0, 16.5), "BLOQUEO")
+        self.assertEqual(self.clf.classify_pair(20.0, 20.5), "ESPACIO_LIBRE")
         self.assertEqual(self.clf.classify_pair(65.0, 66.0), "ESPACIO_LIBRE")
         self.assertEqual(self.clf.classify_pair(16.0, 60.0), "LOBITO")
         self.assertEqual(self.clf.classify_pair(13.0, 29.0), "LOBITO")
@@ -57,12 +58,91 @@ class TestCoaxialNeuralPlanner(unittest.TestCase):
         triggered_anti_snag = False
         for _ in range(50):
             vl, vr, state, action = self.planner.evaluate(pairs, captures_count=0)
-            if "ANTIBUCLE_RETROCESO" in action:
+            if "ANTIBUCLE_ESCAPE" in action:
                 triggered_anti_snag = True
                 self.assertLess(vl, 0.0)
                 self.assertLess(vr, 0.0)
                 break
         self.assertTrue(triggered_anti_snag)
+
+    def test_lateral_evasion_uses_forward_arc(self):
+        vl, vr, state, action = self.planner.evaluate(["BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"])
+        self.assertEqual((vl, vr), (4.8, 2.0))
+
+        planner = CoaxialNavigationPlanner()
+        vl, vr, state, action = planner.evaluate(["ESPACIO_LIBRE", "ESPACIO_LIBRE", "BLOQUEO"])
+        self.assertEqual((vl, vr), (2.0, 4.8))
+
+    def test_oscillations_separated_by_sixty_cycles_trigger_anti_loop(self):
+        free = ["ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"]
+        self.planner.evaluate(["BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"])
+        for _ in range(60):
+            self.planner.evaluate(free)
+        self.planner.evaluate(["ESPACIO_LIBRE", "ESPACIO_LIBRE", "BLOQUEO"])
+        for _ in range(60):
+            self.planner.evaluate(free)
+
+        vl, vr, state, action = self.planner.evaluate(["BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"])
+        self.assertEqual((vl, vr), (-4.2, -2.0))
+        for _ in range(11):
+            vl, vr, state, action = self.planner.evaluate(free)
+            self.assertLess(vl, 0.0)
+            self.assertLess(vr, 0.0)
+        for _ in range(16):
+            vl, vr, state, action = self.planner.evaluate(free)
+            self.assertEqual((vl, vr), (5.0, -4.6))
+        vl, vr, state, action = self.planner.evaluate(free)
+        self.assertGreater(vl, 0.0)
+        self.assertGreater(vr, 0.0)
+
+    def test_stale_side_memory_is_forgotten_after_horizon(self):
+        free = ["ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"]
+        self.planner.evaluate(["BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"])
+        for _ in range(160):
+            self.planner.evaluate(free)
+        self.planner.evaluate(["ESPACIO_LIBRE", "ESPACIO_LIBRE", "BLOQUEO"])
+
+        vl, vr, state, action = self.planner.evaluate(["BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"])
+        self.assertGreater(vl, 0.0)
+        self.assertGreater(vr, 0.0)
+
+    def test_center_blocked_backs_up_six_steps_before_pivoting(self):
+        cases = [
+            (["BLOQUEO", "BLOQUEO", "ESPACIO_LIBRE"], 1),
+            (["ESPACIO_LIBRE", "BLOQUEO", "BLOQUEO"], -1),
+            (["ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"], 1),
+        ]
+        for pairs, direction in cases:
+            planner = CoaxialNavigationPlanner()
+            for _ in range(6):
+                vl, vr, state, action = planner.evaluate(pairs)
+                self.assertEqual((vl, vr), (-4.2, -2.6))
+            vl, vr, state, action = planner.evaluate(["ESPACIO_LIBRE"] * 3)
+            self.assertLess(vl * vr, 0.0)
+            self.assertGreater(vl * direction, 0.0)
+
+    def test_escape_doorway_with_blocked_jambs_keeps_forward_progress(self):
+        self.planner.activate_escape_mode()
+        pairs = ["BLOQUEO", "SALIDA", "BLOQUEO"]
+        for _ in range(40):
+            vl, vr, state, action = self.planner.evaluate(pairs)
+            self.assertGreater(vl, 0.0)
+            self.assertGreater(vr, 0.0)
+
+    def test_escape_mode_preserves_forward_progress(self):
+        self.planner.activate_escape_mode()
+        vl, vr, state, action = self.planner.evaluate(["SALIDA", "ESPACIO_LIBRE", "ESPACIO_LIBRE"])
+        self.assertGreater(vl, 0.0)
+        self.assertGreater(vr, 0.0)
+        self.assertGreater(vr, vl)
+
+        vl, vr, state, action = self.planner.evaluate(["ESPACIO_LIBRE", "SALIDA", "ESPACIO_LIBRE"])
+        self.assertGreater(vl, 0.0)
+        self.assertGreater(vr, 0.0)
+
+        vl, vr, state, action = self.planner.evaluate(["SALIDA", "ESPACIO_LIBRE", "BLOQUEO"])
+        self.assertGreater(vl, 0.0)
+        self.assertGreater(vr, 0.0)
 
     def test_planner_pursues_marble_left_center_right_in_search_mode(self):
         # Left marble

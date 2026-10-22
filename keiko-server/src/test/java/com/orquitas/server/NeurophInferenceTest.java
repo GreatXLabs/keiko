@@ -58,8 +58,8 @@ public class NeurophInferenceTest {
 
         ComandoRobot cmd = planner.evaluarPares(vector, pares);
         assertEquals(EstadoRobot.ESCAPE, cmd.getEstado());
-        assertTrue(cmd.getVLeft() < 0.0 && cmd.getVRight() > 0.0,
-                "Con [SALIDA, BLOQUEO, BLOQUEO] en ESCAPE debe rotar en el lugar hacia la izquierda sin avanzar contra la pared");
+        assertTrue(cmd.getVLeft() < 0.0 && cmd.getVRight() < 0.0,
+                "Con [SALIDA, BLOQUEO, BLOQUEO] en ESCAPE debe retroceder en arco para alinear la salida sin barrer la cola");
     }
 
     @Test
@@ -74,14 +74,14 @@ public class NeurophInferenceTest {
         GestorEstomago gestor = new GestorEstomago(tempEstomago);
         PlanificadorNavegacion planner = new PlanificadorNavegacion(gestor);
 
-        // Paso 1..7: retroceso comprometido para despegar la trompa del muro
-        for (int i = 0; i < 7; i++) {
+        // Pasos 1..10: retroceso en arco para separar la trompa y la cola del muro
+        for (int i = 0; i < 10; i++) {
             ComandoRobot c = planner.evaluarPares(muroFrontal, pares);
             assertTrue(c.getVLeft() < 0.0 && c.getVRight() < 0.0,
                     "Debe retroceder en el paso " + i + " para despegarse del muro frontal");
         }
 
-        // Paso 8: una vez completado el retroceso, ejecuta el giro comprometido
+        // Paso 11: una vez completado el retroceso, ejecuta el giro comprometido
         VectorSensores despejado = new VectorSensores(35.0, 35.0, 35.0, 35.0, 35.0, 35.0);
         String[] paresLibres = classifier.clasificarPares(despejado);
         ComandoRobot giro = planner.evaluarPares(despejado, paresLibres);
