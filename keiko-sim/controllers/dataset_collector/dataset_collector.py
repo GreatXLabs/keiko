@@ -87,12 +87,12 @@ def generate_pair_dataset(rows_9, out_dir):
     """Genera el dataset por par coaxial (dist_low, dist_high -> 4 clases con umbral cerrado)."""
     # -------------------------------------------------------------------------
     # DATASET POR PAR COAXIAL (dist_low, dist_high -> 4 CLASES CON UMBRAL CERRADO)
-    # Clases: BLOQUEO (2..16 cm), LOBITO (low<=30 y high-low>=16), ESPACIO_LIBRE (17.5..180 cm), SALIDA (>=185 cm)
+    # Clases: BLOQUEO (2..10 cm), LOBITO (low<=30 y high-low>=16), ESPACIO_LIBRE (11.5..180 cm), SALIDA (>=185 cm)
     # -------------------------------------------------------------------------
     pair_rows = []
     pair_counts = {"BLOQUEO": 0, "LOBITO": 0, "ESPACIO_LIBRE": 0, "SALIDA": 0}
     target_per_pair_class = 600
-    # Reservar la mitad del cupo a muestras uniformes para cubrir los bordes 16/17.5 y 180/185 cm.
+    # Reservar la mitad del cupo a muestras uniformes para cubrir los bordes 10/11.5 y 180/185 cm.
     real_samples_per_class = target_per_pair_class // 2
 
     # 1. Extraer pares reales medidos en Webots de las filas recolectadas
@@ -108,11 +108,11 @@ def generate_pair_dataset(rows_9, out_dir):
             delta = dh - dl
             if dl <= 30.0 and delta >= 16.0 and dh >= 30.0:
                 p_lbl = "LOBITO"
-            elif dl <= 16.0 and dh <= 16.0 and abs(delta) <= 8.0:
+            elif dl <= 10.0 and dh <= 10.0 and abs(delta) <= 6.0:
                 p_lbl = "BLOQUEO"
             elif dl >= 185.0 and dh >= 185.0 and abs(delta) <= 18.0:
                 p_lbl = "SALIDA"
-            elif 17.5 <= dl <= 180.0 and 17.5 <= dh <= 180.0 and abs(delta) <= 12.0:
+            elif 11.5 <= dl <= 180.0 and 11.5 <= dh <= 180.0:
                 p_lbl = "ESPACIO_LIBRE"
             else:
                 continue
@@ -131,8 +131,8 @@ def generate_pair_dataset(rows_9, out_dir):
         pair_counts["SALIDA"] += 1
 
     while pair_counts["BLOQUEO"] < target_per_pair_class:
-        dl = rng_pair.uniform(2.0, 16.0)
-        dh = max(2.0, min(16.0, dl + rng_pair.uniform(-5.0, 7.0)))
+        dl = rng_pair.uniform(2.0, 10.0)
+        dh = max(2.0, min(10.0, dl + rng_pair.uniform(-3.0, 3.0)))
         dl = round(dl / 0.25) * 0.25
         dh = round(dh / 0.25) * 0.25
         pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "BLOQUEO"})
@@ -146,8 +146,8 @@ def generate_pair_dataset(rows_9, out_dir):
         pair_counts["LOBITO"] += 1
 
     while pair_counts["ESPACIO_LIBRE"] < target_per_pair_class:
-        dl = rng_pair.uniform(17.5, 180.0)
-        dh = max(17.5, min(180.0, dl + rng_pair.uniform(-8.0, 11.5)))
+        dl = rng_pair.uniform(11.5, 180.0)
+        dh = max(11.5, min(180.0, dl + rng_pair.uniform(-8.0, 11.5)))
         dl = round(dl / 0.25) * 0.25
         dh = round(dh / 0.25) * 0.25
         pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "ESPACIO_LIBRE"})

@@ -232,7 +232,7 @@ public class SimulatedDatasetTrainTest {
 
         System.out.println("\n================================================================================");
         System.out.println("  ENTRENANDO RED NEURONAL POR PAR COAXIAL (d_bajo, d_alto -> 4 CLASES)");
-        System.out.println("  Clases: " + pairClasses + " | Umbral BLOQUEO: [2.0 .. 16.0 cm]");
+        System.out.println("  Clases: " + pairClasses + " | Umbral BLOQUEO: [2.0 .. 10.0 cm]");
         System.out.println("================================================================================");
 
         for (List<Integer> hidden : candidateTopologies) {
