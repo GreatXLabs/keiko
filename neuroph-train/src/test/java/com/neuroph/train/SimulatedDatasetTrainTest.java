@@ -190,7 +190,7 @@ public class SimulatedDatasetTrainTest {
     }
 
     @Test
-    public void testTrainNeurophOnCoaxialPairDataset() throws Exception {
+    public void benchmarkCoaxialPairDataset() throws Exception {
         File csvFile = new File("../keiko-sim/data/datasets/orquitas_dataset_par_coaxial.csv");
         assertTrue(csvFile.exists(), "Debe existir el dataset por par coaxial (dist_low, dist_high)");
 
@@ -232,7 +232,7 @@ public class SimulatedDatasetTrainTest {
 
         System.out.println("\n================================================================================");
         System.out.println("  ENTRENANDO RED NEURONAL POR PAR COAXIAL (d_bajo, d_alto -> 4 CLASES)");
-        System.out.println("  Clases: " + pairClasses + " | Umbral BLOQUEO: [2.0 .. 18.0 cm]");
+        System.out.println("  Clases: " + pairClasses + " | Umbral BLOQUEO: [2.0 .. 16.0 cm]");
         System.out.println("================================================================================");
 
         for (List<Integer> hidden : candidateTopologies) {
