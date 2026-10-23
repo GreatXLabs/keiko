@@ -46,7 +46,7 @@ def is_point_inside_arena(x, y, b, a, y_back, margin=0.12, d_sin2=0.0, d_sin3=0.
     p_dist = math.hypot(x, dy)
     return p_dist < (b_dist - margin)
 
-def generate_random_scenario(seed=None, num_obstacles=None, cluster_marbles=False, controller_name="robot_client"):
+def generate_random_scenario(seed=None, num_obstacles=None, cluster_marbles=False, controller_name="robot_client", include_capote=None):
     if seed is not None:
         random.seed(seed)
 
@@ -162,7 +162,8 @@ def generate_random_scenario(seed=None, num_obstacles=None, cluster_marbles=Fals
         controller_name=controller_name,
         map_name=map_config_name,
         sensor_config="trisector_front_6",
-        exit_wall="north"
+        exit_wall="north",
+        include_capote=include_capote
     )
 
     return wbt_str, {
@@ -178,6 +179,7 @@ def main():
     parser.add_argument("--seed", type=int, default=None, help="Semilla aleatoria")
     parser.add_argument("--obstacles", type=int, default=None, help="Cantidad de obstáculos (1 a 5)")
     parser.add_argument("--clusters", action="store_true", help="Generar canicas contiguas pegadas (stress test)")
+    parser.add_argument("--capote", action="store_true", help="Incluir carcasa exterior 'Capote' 3D")
     parser.add_argument("--client", action="store_true", help="Usar controlador robot_client")
     parser.add_argument("--output", type=str, default=os.path.join(WORLDS_DIR, "bahia_de_caza_random_client.wbt"))
     args = parser.parse_args()
@@ -187,7 +189,8 @@ def main():
         seed=args.seed,
         num_obstacles=args.obstacles,
         cluster_marbles=args.clusters,
-        controller_name=controller
+        controller_name=controller,
+        include_capote=args.capote or None
     )
 
     with open(args.output, "w", encoding="utf-8") as f:
