@@ -83,12 +83,13 @@ TAM_HISTORIAL_LADOS = 6
 VEL_AVANCE_ARCO = 4.8
 VEL_ARCO_LENTA = 2.0
 VEL_RETRO_ARCO_RAPIDA = -4.2
-VEL_RETRO_ARCO_NORMAL = -2.6
-VEL_RETRO_ARCO_BLOQUEO = -2.4
-VEL_RETRO_ARCO_ANTIBUCLE = -2.0
+VEL_RETRO_ARCO_NORMAL = -4.2
+VEL_RETRO_ARCO_BLOQUEO = -4.2
+VEL_RETRO_ARCO_ANTIBUCLE = -4.2
 VEL_GIRO_COMPROMETIDO = 4.6
 VEL_GIRO_AMPLIO = 5.0
-SESGO_GIRO_ANTIBUCLE = 0.4
+SESGO_GIRO_NORMAL = -1.6
+SESGO_GIRO_ANTIBUCLE = -2.0
 
 # Alineación proactiva al estrecho de salida (apertura de 30 cm).
 VEL_RETRO_ALINEACION_SALIDA = -3.8
@@ -173,9 +174,9 @@ class CoaxialNavigationPlanner:
             self.turn_steps_left -= 1
             est = "ESCAPE" if self.state == "ESCAPE" else "BUSQUEDA"
             if self.turn_dir >= 0:
-                return (self.turn_speed, -self.turn_speed + self.turn_bias, est,
+                return (self.turn_speed + self.turn_bias, -self.turn_speed, est,
                         f"MANIOBRA_GIRO_DER({self.turn_steps_left})")
-            return (-self.turn_speed + self.turn_bias, self.turn_speed, est,
+            return (-self.turn_speed, self.turn_speed + self.turn_bias, est,
                     f"MANIOBRA_GIRO_IZQ({self.turn_steps_left})")
 
         # 3. Encierro frontal total ([BLOQUEO, BLOQUEO, BLOQUEO] o esquina [BLOQUEO, *, BLOQUEO]).
@@ -187,7 +188,7 @@ class CoaxialNavigationPlanner:
             is_loop = (self.oscillation_count >= UMBRAL_OSCILACIONES_ANTIBUCLE
                        or self._is_alternating())
             reverse_steps = PASOS_RETRO_ARCO_ANTIBUCLE if is_loop else PASOS_RETRO_ARCO_TOTAL
-            self._start_arc_reverse(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_BLOQUEO, reverse_steps)
+            self._start_arc_reverse(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, reverse_steps)
             turn_dir = 1 if self.state == "ESCAPE" else (1 if self.last_blocked_side <= 0 else -1)
             if is_loop:
                 self.oscillation_count = 0
@@ -195,10 +196,10 @@ class CoaxialNavigationPlanner:
                 self._start_committed_turn(
                     turn_dir, PASOS_GIRO_ANTIBUCLE, VEL_GIRO_AMPLIO, SESGO_GIRO_ANTIBUCLE)
             else:
-                self._start_committed_turn(turn_dir, PASOS_GIRO_BLOQUEO, VEL_GIRO_AMPLIO)
+                self._start_committed_turn(turn_dir, PASOS_GIRO_BLOQUEO, VEL_GIRO_AMPLIO, SESGO_GIRO_NORMAL)
             self.cycles_since_block = 0
             est = "ESCAPE" if self.state == "ESCAPE" else "BUSQUEDA"
-            return VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_BLOQUEO, est, "INICIO_RETROCESO_FRONTAL"
+            return VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, est, "INICIO_RETROCESO_FRONTAL"
 
         # 4. Modo ESCAPE (3 canicas capturadas: busca y cruza SALIDA ignorando canicas)
         if self.state == "ESCAPE":
@@ -228,6 +229,10 @@ class CoaxialNavigationPlanner:
                     self.alignment_turn = True
                     return (VEL_RETRO_ALINEACION_SALIDA, VEL_RETRO_ALINEACION_SALIDA,
                             "ESCAPE", "ESCAPE_ALINEACION_MICRO_RETROCESO_IZQ")
+                if s_izq and not s_der:
+                    return -1.0, 3.2, "ESCAPE", "ESCAPE_ALINEAR_IZQ"
+                if s_der and not s_izq:
+                    return 3.2, -1.0, "ESCAPE", "ESCAPE_ALINEAR_DER"
                 return VEL_AVANCE_ARCO, VEL_AVANCE_ARCO, "ESCAPE", "ESCAPE_SALIDA_DIRECTA"
 
             if s_izq:
@@ -417,16 +422,16 @@ class CoaxialNavigationPlanner:
 
     def _start_arc_reverse_and_pivot(self, turn_dir, turn_steps, state):
         self._start_arc_reverse(
-            VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_NORMAL, PASOS_RETRO_ARCO_NORMAL)
-        self._start_committed_turn(turn_dir, turn_steps)
-        return VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_NORMAL, state, "RETROCESO_ARCO_Y_PIVOTE"
+            VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, PASOS_RETRO_ARCO_NORMAL)
+        self._start_committed_turn(turn_dir, turn_steps, VEL_GIRO_COMPROMETIDO, SESGO_GIRO_NORMAL)
+        return VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, state, "RETROCESO_ARCO_Y_PIVOTE"
 
     def _activate_anti_loop(self, direction, state):
         self.oscillation_count = 0
         self.same_side_block_cycles = 0
         self._reset_side_history()
         self._start_arc_reverse(
-            VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_ANTIBUCLE, PASOS_RETRO_ARCO_ANTIBUCLE)
+            VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, PASOS_RETRO_ARCO_ANTIBUCLE)
         self._start_committed_turn(
             direction, PASOS_GIRO_ANTIBUCLE, VEL_GIRO_AMPLIO, SESGO_GIRO_ANTIBUCLE)
-        return VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_ANTIBUCLE, state, "ANTIBUCLE_ESCAPE"
+        return VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, state, "ANTIBUCLE_ESCAPE"

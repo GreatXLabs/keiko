@@ -53,7 +53,7 @@ public class PlanificadorNavegacionTest {
                 () -> assertTrue(desatasco.getVLeft() < 0.0, "Fase 1 debe retroceder con la rueda izquierda"),
                 () -> assertTrue(desatasco.getVRight() < 0.0, "Fase 1 debe retroceder con la rueda derecha"),
                 () -> assertEquals(-4.2, desatasco.getVLeft(), 1e-9),
-                () -> assertEquals(-2.0, desatasco.getVRight(), 1e-9)
+                () -> assertEquals(-4.2, desatasco.getVRight(), 1e-9)
         );
 
         // Fase 1 completa: 12 ciclos de retroceso contando el ciclo que disparo la maniobra.
@@ -67,8 +67,8 @@ public class PlanificadorNavegacionTest {
         for (int ciclo = 0; ciclo < 16; ciclo++) {
             ComandoRobot giro = planner.evaluarPares(null, LIBRE);
             assertAll(
-                    () -> assertEquals(5.0, giro.getVLeft(), 1e-9),
-                    () -> assertEquals(-4.6, giro.getVRight(), 1e-9)
+                    () -> assertEquals(3.0, giro.getVLeft(), 1e-9),
+                    () -> assertEquals(-5.0, giro.getVRight(), 1e-9)
             );
         }
 
@@ -216,7 +216,7 @@ public class PlanificadorNavegacionTest {
             ComandoRobot retroceso = planner.evaluarPares(null, pares);
             assertAll(
                     () -> assertEquals(-4.2, retroceso.getVLeft(), 1e-9),
-                    () -> assertEquals(-2.6, retroceso.getVRight(), 1e-9)
+                    () -> assertEquals(-4.2, retroceso.getVRight(), 1e-9)
             );
         }
         ComandoRobot giro = planner.evaluarPares(null, LIBRE);

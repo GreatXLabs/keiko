@@ -84,14 +84,14 @@ class TestCoaxialNeuralPlanner(unittest.TestCase):
             self.planner.evaluate(free)
 
         vl, vr, state, action = self.planner.evaluate(["BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"])
-        self.assertEqual((vl, vr), (-4.2, -2.0))
+        self.assertEqual((vl, vr), (-4.2, -4.2))
         for _ in range(11):
             vl, vr, state, action = self.planner.evaluate(free)
             self.assertLess(vl, 0.0)
             self.assertLess(vr, 0.0)
         for _ in range(16):
             vl, vr, state, action = self.planner.evaluate(free)
-            self.assertEqual((vl, vr), (5.0, -4.6))
+            self.assertEqual((vl, vr), (3.0, -5.0))
         vl, vr, state, action = self.planner.evaluate(free)
         self.assertGreater(vl, 0.0)
         self.assertGreater(vr, 0.0)
@@ -117,7 +117,7 @@ class TestCoaxialNeuralPlanner(unittest.TestCase):
             planner = CoaxialNavigationPlanner()
             for _ in range(6):
                 vl, vr, state, action = planner.evaluate(pairs)
-                self.assertEqual((vl, vr), (-4.2, -2.6))
+                self.assertEqual((vl, vr), (-4.2, -4.2))
             vl, vr, state, action = planner.evaluate(["ESPACIO_LIBRE"] * 3)
             self.assertLess(vl * vr, 0.0)
             self.assertGreater(vl * direction, 0.0)
