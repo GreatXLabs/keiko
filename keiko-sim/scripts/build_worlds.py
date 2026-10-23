@@ -892,7 +892,7 @@ DEF ORQUITA Robot {{
   }}
   physics Physics {{
     density -1
-    mass 0.78
+    mass 0.84
     centerOfMass [ 0 0 0.035 ]
   }}
   controller "{controller_name}"

@@ -298,9 +298,16 @@ def main():
                 if p[2] <= 0.02:
                     continue
                 other = robot.getFromId(cp.getNodeId())
-                dname = other.getDef() if other is not None else ""
+                dname = ""
+                curr = other
+                while curr is not None:
+                    d = curr.getDef()
+                    if d and d != "ORQUITA":
+                        dname = d
+                        break
+                    curr = curr.getParentNode()
                 collision_now = True
-                collision_desc = dname if (dname and dname != "ORQUITA") else "MURO/OBSTACULO"
+                collision_desc = dname if dname else "MURO/OBSTACULO"
                 break
         except Exception:
             pass

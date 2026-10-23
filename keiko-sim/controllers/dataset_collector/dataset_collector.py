@@ -86,13 +86,16 @@ def is_inside_semi_ellipse(x, y, margin=0.15):
 def generate_pair_dataset(rows_9, out_dir):
     """Genera el dataset por par coaxial (dist_low, dist_high -> 4 clases con umbral cerrado)."""
     # -------------------------------------------------------------------------
-    # DATASET POR PAR COAXIAL (dist_low, dist_high -> 4 CLASES CON UMBRAL CERRADO)
-    # Clases: BLOQUEO (2..10 cm), LOBITO (low<=30 y high-low>=16), ESPACIO_LIBRE (11.5..180 cm), SALIDA (>=185 cm)
+    # DATASET POR PAR COAXIAL (dist_low, dist_high -> 4 CLASES CON ENVOLVENTE CONTINUA)
+    # Clases:
+    # - BLOQUEO: dl <= 26.0 y dh <= 36.0 con |delta| <= 14.0 (o fail-closed de cualquier residuo no etiquetable)
+    # - LOBITO: dl <= 26.0 y dh >= 40.0 con delta >= 18.0 (presa en suelo, haz alto despejado a pared fondo)
+    # - ESPACIO_LIBRE: 26.25 <= dl <= 180.0 y 26.25 <= dh <= 180.0
+    # - SALIDA: dl >= 185.0 y dh >= 185.0
     # -------------------------------------------------------------------------
     pair_rows = []
     pair_counts = {"BLOQUEO": 0, "LOBITO": 0, "ESPACIO_LIBRE": 0, "SALIDA": 0}
     target_per_pair_class = 600
-    # Reservar la mitad del cupo a muestras uniformes para cubrir los bordes 10/11.5 y 180/185 cm.
     real_samples_per_class = target_per_pair_class // 2
 
     # 1. Extraer pares reales medidos en Webots de las filas recolectadas
@@ -106,59 +109,91 @@ def generate_pair_dataset(rows_9, out_dir):
             if dl is None or dh is None:
                 continue
             delta = dh - dl
-            if dl <= 30.0 and delta >= 16.0 and dh >= 30.0:
-                p_lbl = "LOBITO"
-            elif dl <= 10.0 and dh <= 10.0 and abs(delta) <= 6.0:
+            if dl <= 26.0 and dh <= 36.0 and abs(delta) <= 14.0:
                 p_lbl = "BLOQUEO"
-            elif dl >= 185.0 and dh >= 185.0 and abs(delta) <= 18.0:
+            elif dl <= 26.0 and dh >= 40.0 and delta >= 18.0:
+                p_lbl = "LOBITO"
+            elif dl >= 185.0 and dh >= 185.0:
                 p_lbl = "SALIDA"
-            elif 11.5 <= dl <= 180.0 and 11.5 <= dh <= 180.0:
+            elif 26.25 <= dl <= 180.0 and 26.25 <= dh <= 180.0:
                 p_lbl = "ESPACIO_LIBRE"
             else:
-                continue
+                p_lbl = "BLOQUEO"  # Fail-closed residual para evitar falsos positivos
             if pair_counts[p_lbl] < real_samples_per_class:
                 pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": p_lbl})
                 pair_counts[p_lbl] += 1
 
-    # 2. Completar cobertura uniforme en las 4 regiones físicas para evitar puntos ciegos en [2.0, 250.0] cm
+    # 2. Anclas exactas de frontera física y escala [2.0, 250.0] cm
+    anchors = [
+        (2.0, 2.0, "BLOQUEO"),
+        (26.0, 26.0, "BLOQUEO"),
+        (26.0, 36.0, "BLOQUEO"),
+        (26.0, 20.0, "BLOQUEO"),
+        (12.0, 24.0, "BLOQUEO"),
+        (24.9, 33.1, "BLOQUEO"),
+        (26.25, 26.25, "ESPACIO_LIBRE"),
+        (26.25, 36.0, "ESPACIO_LIBRE"),
+        (30.0, 30.5, "ESPACIO_LIBRE"),
+        (95.0, 96.0, "ESPACIO_LIBRE"),
+        (180.0, 180.0, "ESPACIO_LIBRE"),
+        (14.0, 60.0, "LOBITO"),
+        (14.0, 120.0, "LOBITO"),
+        (24.0, 44.0, "LOBITO"),
+        (185.0, 185.0, "SALIDA"),
+        (220.0, 225.0, "SALIDA"),
+        (250.0, 250.0, "SALIDA"),
+    ]
+    for dl, dh, p_lbl in anchors:
+        if pair_counts[p_lbl] < target_per_pair_class:
+            pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": p_lbl})
+            pair_counts[p_lbl] += 1
+
     rng_pair = random.Random(101)
-    # Anclas exactas de escala [2.0, 250.0] cm (solo si queda cupo en su clase)
-    if pair_counts["BLOQUEO"] < target_per_pair_class:
-        pair_rows.append({"dist_low": 2.0, "dist_high": 2.0, "class_label": "BLOQUEO"})
-        pair_counts["BLOQUEO"] += 1
-    if pair_counts["SALIDA"] < target_per_pair_class:
-        pair_rows.append({"dist_low": 250.0, "dist_high": 250.0, "class_label": "SALIDA"})
-        pair_counts["SALIDA"] += 1
 
     while pair_counts["BLOQUEO"] < target_per_pair_class:
-        dl = rng_pair.uniform(2.0, 10.0)
-        dh = max(2.0, min(10.0, dl + rng_pair.uniform(-3.0, 3.0)))
+        dl = rng_pair.uniform(2.0, 26.0)
+        dh = rng_pair.uniform(max(2.0, dl - 14.0), min(36.0, dl + 14.0))
         dl = round(dl / 0.25) * 0.25
         dh = round(dh / 0.25) * 0.25
         pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "BLOQUEO"})
         pair_counts["BLOQUEO"] += 1
 
     while pair_counts["LOBITO"] < target_per_pair_class:
-        dl = round(rng_pair.uniform(2.25, 30.0) / 0.25) * 0.25
-        min_dh = max(30.0, dl + 16.0)
+        dl = round(rng_pair.uniform(2.25, 26.0) / 0.25) * 0.25
+        min_dh = max(40.0, dl + 18.0)
         dh = round(rng_pair.uniform(min_dh, 250.0) / 0.25) * 0.25
         pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "LOBITO"})
         pair_counts["LOBITO"] += 1
 
     while pair_counts["ESPACIO_LIBRE"] < target_per_pair_class:
-        dl = rng_pair.uniform(11.5, 180.0)
-        dh = max(11.5, min(180.0, dl + rng_pair.uniform(-8.0, 11.5)))
+        if rng_pair.random() < 0.5:
+            dl = rng_pair.uniform(26.25, 50.0)
+            dh = rng_pair.uniform(26.25, 50.0)
+        else:
+            dl = rng_pair.uniform(50.0, 180.0)
+            dh = rng_pair.uniform(50.0, 180.0)
         dl = round(dl / 0.25) * 0.25
         dh = round(dh / 0.25) * 0.25
         pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "ESPACIO_LIBRE"})
         pair_counts["ESPACIO_LIBRE"] += 1
 
     while pair_counts["SALIDA"] < target_per_pair_class:
-        base = rng_pair.uniform(186.0, 250.0)
-        dl = round(max(185.5, min(250.0, base + rng_pair.gauss(0.0, 1.8))) / 0.25) * 0.25
-        dh = round(max(185.5, min(250.0, base + rng_pair.gauss(0.0, 1.8))) / 0.25) * 0.25
+        dl = round(rng_pair.uniform(185.0, 250.0) / 0.25) * 0.25
+        dh = round(rng_pair.uniform(185.0, 250.0) / 0.25) * 0.25
         pair_rows.append({"dist_low": round(dl, 2), "dist_high": round(dh, 2), "class_label": "SALIDA"})
         pair_counts["SALIDA"] += 1
+
+    # Validación estricta de invariantes físicos en todas las muestras generadas
+    for r in pair_rows:
+        dl_v = float(r["dist_low"])
+        dh_v = float(r["dist_high"])
+        lbl_v = r["class_label"]
+        if lbl_v == "LOBITO":
+            assert dl_v <= 26.0 and dh_v >= 40.0 and (dh_v - dl_v) >= 18.0, f"Invariante LOBITO violado: {r}"
+        elif lbl_v == "ESPACIO_LIBRE":
+            assert 26.25 <= dl_v <= 180.0 and 26.25 <= dh_v <= 180.0, f"Invariante ESPACIO_LIBRE violado: {r}"
+        elif lbl_v == "SALIDA":
+            assert dl_v >= 185.0 and dh_v >= 185.0, f"Invariante SALIDA violado: {r}"
 
     rng_pair.shuffle(pair_rows)
     pair_csv_path = os.path.join(out_dir, "orquitas_dataset_par_coaxial.csv")
