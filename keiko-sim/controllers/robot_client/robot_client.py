@@ -196,6 +196,7 @@ def main():
     # penalizable (muro / obstáculo) ocurre a cota de chasis (z > 0.02 m).
     collisions_count = 0
     was_colliding = False
+    last_collision_time = -1.0
 
     # Conexión con el Servidor Central
     sock = None
@@ -506,10 +507,67 @@ def main():
         # -------------------------------------------------------------
         # 8. AUDITORÍA DE COLISIONES FÍSICAS (PENALIZACIÓN REGLAMENTARIA -5 PTS)
         # -------------------------------------------------------------
-        collision_now = any(cp.getPoint()[2] > 0.02 for cp in self_node.getContactPoints(True))
-        if collision_now and not was_colliding:
+        collision_now = False
+        collision_desc = "MURO/OBSTACULO"
+        try:
+            for cp in self_node.getContactPoints(True):
+                p = cp.getPoint()
+                if p[2] <= 0.02:
+                    continue
+                other = robot.getFromId(cp.getNodeId())
+                if other is None:
+                    continue
+
+                # Ignorar contactos internos entre componentes del propio robot (ruedas contra chasis)
+                is_self = False
+                check = other
+                while check is not None:
+                    if check.getId() == self_node.getId():
+                        is_self = True
+                        break
+                    check = check.getParentNode()
+                if is_self:
+                    continue
+
+                dname = ""
+                other_name = ""
+                curr = other
+                while curr is not None:
+                    d = curr.getDef()
+                    if d and d != "ORQUITA":
+                        dname = d
+                        break
+                    try:
+                        nf = curr.getField("name")
+                        if nf and not other_name:
+                            other_name = nf.getSFString()
+                    except Exception:
+                        pass
+                    curr = curr.getParentNode()
+
+                # Ignorar suelo, plataforma exterior de salida y canicas (lobitos)
+                if other_name in ("floor", "exit_platform") or other_name.startswith("lobito"):
+                    continue
+                if dname.startswith("LOBITO") or dname == "EXIT_PLATFORM":
+                    continue
+
+                collision_now = True
+                collision_desc = dname if dname else (other_name if other_name else "MURO/OBSTACULO")
+                break
+        except Exception:
+            collision_now = False
+
+        if collision_now and not was_colliding and (elapsed_sec - last_collision_time >= 0.5):
             collisions_count += 1
-            log_msg(f"[{elapsed_sec:05.1f}s] COLISIÓN REGISTRADA: -5 pts")
+            last_collision_time = elapsed_sec
+            log_msg(f"[{elapsed_sec:05.1f}s] COLISIÓN REGISTRADA: -5 pts (impacto #{collisions_count} con {collision_desc})")
+            log_msg(f"   [INCIDENT DETAIL] Pose=({rx:.2f},{ry:.2f},{math.degrees(yaw):.1f}°) | V=({vl_cmd:.2f},{vr_cmd:.2f}) | FSM={current_server_state} | LOW=[{d_ll:.1f},{d_lc:.1f},{d_lr:.1f}] | HIGH=[{d_hl:.1f},{d_hc:.1f},{d_hr:.1f}]")
+            if sock:
+                try:
+                    sock.sendall(f"EVENT:COLISION,impacto={collisions_count}\n".encode("utf-8"))
+                except Exception as e:
+                    log_msg(f"[ERROR TRANSMISION EVENTO COLISION] {e}")
+                    sock = None
         was_colliding = collision_now
 
         # -------------------------------------------------------------

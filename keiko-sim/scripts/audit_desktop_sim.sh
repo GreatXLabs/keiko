@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SERVER_DIR="${ROOT_DIR}/keiko-server"
 SERVER_JAR="${SERVER_DIR}/target/keiko-server.jar"
-WORLD_FILE="${ROOT_DIR}/keiko-sim/worlds/bahia_de_caza_client.wbt"
+WORLD_FILE="${WORLD_FILE:-${ROOT_DIR}/keiko-sim/worlds/bahia_de_caza_client.wbt}"
 AUDIT_DIR="${ROOT_DIR}/keiko-sim/logs/audit"
 mkdir -p "${AUDIT_DIR}"
 
