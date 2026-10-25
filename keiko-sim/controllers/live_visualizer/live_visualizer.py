@@ -35,6 +35,7 @@ if COMMON_DIR not in sys.path:
     sys.path.insert(0, COMMON_DIR)
 
 from arena_mapper import ArenaMapper
+from collision_audit import find_penalizable_contact, is_new_impact
 from sonar_visualizer import SonarVisualizer
 from ultrasonic_physics import UltrasonicPhysicsModel, SensorBorderFilter
 from coaxial_neural_planner import CoaxialNeuralClassifier, CoaxialNavigationPlanner
@@ -164,10 +165,8 @@ def main():
 
     # 3. Referencias del Supervisor para cinemática y canicas
     self_node = robot.getSelf()
-    # includeDescendants=True: el chasis es mas angosto que las ruedas; sin los
-    # descendientes, los roces laterales rueda-muro no generan contacto y las
-    # colisiones nunca se contabilizan.
-    self_node.enableContactPointsTracking(time_step, True)
+    # Auditoría exclusiva del chasis: excluye ruedas y otros descendientes del robot.
+    self_node.enableContactPointsTracking(time_step, False)
     marbles = {}
     for i in range(1, 4):
         def_name = f"LOBITO_{i}"
@@ -193,7 +192,6 @@ def main():
     captures_count = 0
     collisions_count = 0
     was_colliding = False
-    last_collision_time = -1.0
     step_count = 0
 
     log_msg("[INICIALIZACION] Red Neuronal por Par Coaxial (2->16->4) y Planificador 3-Pares activos (0% GPS).\n")
@@ -290,32 +288,17 @@ def main():
         # -------------------------------------------------------------
         # 4. DETECCIÓN DE COLISIONES FÍSICAS (MURO / OBSTÁCULO)
         # -------------------------------------------------------------
-        collision_now = False
-        collision_desc = ""
-        try:
-            for cp in self_node.getContactPoints(True):
-                p = cp.getPoint()
-                if p[2] <= 0.02:
-                    continue
-                other = robot.getFromId(cp.getNodeId())
-                dname = ""
-                curr = other
-                while curr is not None:
-                    d = curr.getDef()
-                    if d and d != "ORQUITA":
-                        dname = d
-                        break
-                    curr = curr.getParentNode()
-                collision_now = True
-                collision_desc = dname if dname else "MURO/OBSTACULO"
-                break
-        except Exception:
-            pass
+        collision_point = find_penalizable_contact(
+            (cp.getPoint() for cp in self_node.getContactPoints(False)),
+            active_marbles_xy,
+            (rx, ry),
+            exit_dir,
+        )
+        collision_now = collision_point is not None
 
-        if collision_now and not was_colliding and (elapsed_sec - last_collision_time >= 0.5):
+        if is_new_impact(collision_point, was_colliding):
             collisions_count += 1
-            last_collision_time = elapsed_sec
-            log_msg(f"[{elapsed_sec:05.1f}s] COLISIÓN REGISTRADA: -5 pts (impacto #{collisions_count} con {collision_desc})")
+            log_msg(f"[COLISIÓN REGISTRADA: -5 pts] (impacto #{collisions_count} en pos=({collision_point[0]:.2f}, {collision_point[1]:.2f}, {collision_point[2]:.2f}))")
         was_colliding = collision_now
 
         # -------------------------------------------------------------

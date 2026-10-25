@@ -1232,11 +1232,23 @@ DEF ORQUITA Robot {
   contactMaterial "chassis"
   boundingObject Group {
     children [
-      # Colisionador físico de las bandejas del chasis CAD (257mm x 150mm x 60mm, despejado del suelo)
+      # Silueta física del chasis CAD: paragolpes completos y cuerpo central despejado de las ruedas
+      Pose {
+        translation 0.095 0 0.048
+        children [
+          Box { size 0.065 0.150 0.055 }
+        ]
+      }
+      Pose {
+        translation -0.095 0 0.048
+        children [
+          Box { size 0.065 0.150 0.055 }
+        ]
+      }
       Pose {
         translation 0 0 0.048
         children [
-          Box { size 0.257 0.150 0.055 }
+          Box { size 0.125 0.088 0.055 }
         ]
       }
     ]

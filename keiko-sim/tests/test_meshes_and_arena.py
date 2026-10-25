@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import struct
 import unittest
 
@@ -101,6 +102,20 @@ class TestArenaGeometry(unittest.TestCase):
 
         wbt_cap = build_worlds.generate_world("live_visualizer", "standard", "dual_plane_8", "north", include_capote=True)
         self.assertIn("../meshes/orquita_capote.stl", wbt_cap)
+
+    def test_chassis_collision_boxes_follow_cad_and_clear_wheels(self):
+        wbt = build_worlds.generate_world("robot_client", "standard", "trisector_front_6", "north")
+        robot_body = wbt.split('  name "orquita_robot"', 1)[1]
+        boxes = re.findall(
+            r"Pose \{\s+translation ([^\n]+)\s+children \[\s+Box \{ size ([^}]+) \}",
+            robot_body,
+        )
+
+        self.assertEqual(boxes, [
+            ("0.095 0 0.048", "0.065 0.150 0.055"),
+            ("-0.095 0 0.048", "0.065 0.150 0.055"),
+            ("0 0 0.048", "0.125 0.088 0.055"),
+        ])
 
 
 class TestWebotsHeadlessLoad(unittest.TestCase):
