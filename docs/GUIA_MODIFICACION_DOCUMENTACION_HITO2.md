@@ -185,7 +185,7 @@ Para resolver esto, realizar las siguientes correcciones de forma obligatoria:
   10. Se retorna el número total de capturas persistidas.
 - **Cursos de Excepción:**
   - **E1. Fallo de I/O en disco (disco lleno o permisos insuficientes):**
-    - Se captura `IOException`, se emite error en log crítico y no se envía ACK al cliente, requiriendo reintento.
+    - Se captura `IOException`, se emite error en log crítico y la captura no se persiste; el cliente no reintenta el evento.
 
 ---
 
