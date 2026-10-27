@@ -203,7 +203,7 @@ Este documento (`AGENTS.md`) define las reglas de arquitectura y restricciones g
   - Secuencia (flujos normales y alternativos de telemetría, captura y escape).
   - Despliegue (nodos físicos, interfaces de comunicación serie/Bluetooth).
   - Estados (FSM completa con eventos disparadores).
-- Plano técnico de circuito y diseño exterior aprobado por profesor de Tecnología de la Representación.
+- Plano técnico de circuito y diseño exterior aprobado.
 - Documento preliminar de arquitectura Cliente-Servidor y estrategia de red neuronal.
 
 ### Hito 2: Integración Técnica
