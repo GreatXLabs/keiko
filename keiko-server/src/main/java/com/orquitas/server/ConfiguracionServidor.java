@@ -45,6 +45,7 @@ public final class ConfiguracionServidor {
         Map<String, String> mapa = new HashMap<>();
         String[] candidatos = {
             System.getProperty("env.file"),
+            rutaEnvJuntoAlCodigo(),
             ".env",
             "../.env",
             "../../.env"
@@ -87,6 +88,28 @@ public final class ConfiguracionServidor {
             }
         }
         return mapa;
+    }
+
+    // Ubica el .env junto al modulo compilado (target/classes o el jar), sin depender del CWD.
+    private static String rutaEnvJuntoAlCodigo() {
+        try {
+            File code = new File(ConfiguracionServidor.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI());
+            File env = buscarEnvAscendente(code.isFile() ? code.getParentFile() : code);
+            return env != null ? env.getPath() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    // Sube hasta tres niveles buscando un .env.
+    static File buscarEnvAscendente(File inicio) {
+        File dir = inicio;
+        for (int i = 0; i < 3 && dir != null; i++, dir = dir.getParentFile()) {
+            File env = new File(dir, ".env");
+            if (env.isFile()) return env;
+        }
+        return null;
     }
 
     // Obtiene una cadena priorizando entorno de sistema, mapa .env y valor por defecto.
@@ -144,7 +167,7 @@ public final class ConfiguracionServidor {
     // Retorna el objeto File asociado a la ruta del estomago.
     public File getArchivoEstomago() {
         File ruta = new File(rutaArchivoEstomago);
-        // Las rutas relativas se anclan al directorio del .env para no depender del CWD.
+        // Las rutas relativas de la configuracion se anclan al .env para no depender del CWD.
         if (ruta.isAbsolute() || directorioBaseEnv == null) {
             return ruta;
         }

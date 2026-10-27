@@ -80,6 +80,7 @@ def run_map_test(m_info: dict, port: int = 8888) -> dict:
     srv_cmd = [
         "java", "-jar", SERVER_JAR,
         "--port", str(port),
+        "--estomago", ESTOMAGO_FILE,
         "--reset"
     ]
     srv_proc = subprocess.Popen(srv_cmd, cwd=os.path.join(ROOT_DIR, "keiko-server"),
