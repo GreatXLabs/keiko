@@ -16,7 +16,7 @@
  *    Si pasan > 500 ms sin recibir orden o heartbeat del Servidor Cerebro,
  *    se cortan inmediatamente las señales PWM y se frenan los 4 motores en reposo seguro.
  * 7. Sincronización de Máquina de Estados Finita (FSM):
- *    Recepción de COMMAND (vL, vR, estado), STATE_CHANGE (ESCAPE), ACK de captura y HEARTBEAT.
+ *    Recepción de COMMAND (vL, vR, estado), STATE_CHANGE (ESCAPE) y HEARTBEAT.
  * 8. Señalización óptica de estado en tiempo real mediante LED integrado (Pin D13):
  *    - Apagado: Fail-Safe activo / pérdida de enlace.
  *    - Parpadeo lento (1 Hz): Modo BÚSQUEDA activo.
@@ -161,7 +161,6 @@ unsigned long lastSampleMillis = 0;
 unsigned long lastCaptureDebounce = 0;
 bool failSafeActive = true;
 String currentEstado = "BUSQUEDA";
-int capturasConfirmadas = 0;
 String rxBuffer = "";
 
 // Prototipos de funciones auxiliares
@@ -372,7 +371,7 @@ float readUltrasonic(int trigPin, int echoPin) {
 
 /**
  * Interpreta tramas recibidas desde el Servidor Central (RFCOMM/SPP).
- * Soporta COMMAND, STATE_CHANGE, ACK y HEARTBEAT.
+ * Soporta COMMAND, STATE_CHANGE y HEARTBEAT.
  */
 void processIncomingCommand(String cmd) {
   cmd.trim();
@@ -404,13 +403,6 @@ void processIncomingCommand(String cmd) {
     currentEstado.trim();
     lastCommandMillis = millis();
     failSafeActive = false;
-  } else if (cmd.startsWith("ACK:")) {
-    // Confirmación de ingesta persistida en estomago.txt (ej. "ACK:CAPTURA_1")
-    lastCommandMillis = millis();
-    failSafeActive = false;
-    if (cmd.startsWith("ACK:CAPTURA_")) {
-      capturasConfirmadas = cmd.substring(12).toInt();
-    }
   } else if (cmd.equals("HEARTBEAT")) {
     // Latido de enlace para reset de watchdog liveness
     lastCommandMillis = millis();

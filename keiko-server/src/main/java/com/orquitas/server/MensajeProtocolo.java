@@ -10,7 +10,6 @@ public class MensajeProtocolo {
     public static final String PREFIX_COMMAND = "COMMAND:";
     public static final String PREFIX_EVENT = "EVENT:";
     public static final String PREFIX_STATE_CHANGE = "STATE_CHANGE:";
-    public static final String PREFIX_ACK = "ACK:";
     public static final String MSG_HEARTBEAT = "HEARTBEAT";
     public static final String PREFIX_ERROR = "ERROR:";
 
@@ -113,11 +112,6 @@ public class MensajeProtocolo {
     public static String crearComando(ComandoRobot cmd) {
         return String.format(Locale.US, "%s%.2f,%.2f,%s\n",
                 PREFIX_COMMAND, cmd.getVLeft(), cmd.getVRight(), cmd.getEstado().name());
-    }
-
-    // Confirma la persistencia en disco de la captura recibida (RF-02/RF-03).
-    public static String crearAckIngesta(int numeroCaptura) {
-        return String.format("%sCAPTURA_%d\n", PREFIX_ACK, numeroCaptura);
     }
 
     // Crea trama de notificacion de transicion al Modo Escape.

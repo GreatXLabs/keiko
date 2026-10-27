@@ -158,13 +158,9 @@ Para resolver esto, realizar las siguientes correcciones de forma obligatoria:
   2. El cliente transmite la trama: `EVENT:CAPTURA,id=lobito_<N>\n`.
   3. `ManejadorCliente` en el servidor detecta el prefijo `EVENT:`.
   4. Se ejecuta por inclusión el caso de uso **CU-05: Registrar Captura Persistente**.
-  5. `ManejadorCliente` transmite al cliente el acuse de recibo: `ACK:CAPTURA_<num_registrado>\n`.
 - **Cursos Alternativos:**
   - **2a. Trama de evento no reconocida:**
     - El servidor responde `ERROR:COMANDO_DESCONOCIDO\n` y lo asienta en los logs.
-- **Cursos de Excepción:**
-  - **E1. Desconexión durante la transmisión del evento:**
-    - El cliente reintenta enviar el evento tras reconectar el enlace.
 
 ---
 

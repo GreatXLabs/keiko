@@ -98,8 +98,7 @@ public class ManejadorCliente implements Runnable {
             LOGGER.info("[EVENTO RECIBIDO] " + evento);
 
             if (evento.contains("CAPTURA")) {
-                int total = gestorEstomago.registrarCaptura(evento);
-                enviarMensaje(MensajeProtocolo.crearAckIngesta(total));
+                gestorEstomago.registrarCaptura(evento);
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "[EVENTO] Error al registrar captura: " + e.getMessage(), e);
