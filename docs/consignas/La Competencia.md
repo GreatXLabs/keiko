@@ -54,7 +54,10 @@ Estructura con geometría aproximada de **semielipse** (o semicírculo irregular
 | Elemento | Cantidad | Tamaño / Referencia | Disposición y Reglas |
 | :--- | :--- | :--- | :--- |
 | **Lobitos (Canicas)** | 3 (exactas) | 1.6 cm de diámetro | Ubicadas con amplio margen respecto a muros y obstáculos para evitar penalizaciones al recolectar |
-| **Obstáculos** | 2 a 3 (aprox.) | Referencia: borrador de pizarra | Significativamente más grandes que las canicas |
+| **Obstáculos** | 2 (únicamente) | 6 cm × 6 cm (base) / Altura mín.: 6 cm | Impresos en 3D. Sin altura exacta especificada (mínimo garantizado: 6 cm) |
+
+> [!NOTE]
+> Los obstáculos consisten en 2 piezas impresas en 3D con sección de **6 cm × 6 cm**. Si bien no se especificó la cota final de una de sus dimensiones (altura), se confirmó que tendrán una **altura mínima de 6 cm**.
 
 ---
 
