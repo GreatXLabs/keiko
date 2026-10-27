@@ -26,8 +26,8 @@ if ! command -v webots &> /dev/null; then
     fi
 fi
 
-# 2. Compilar Servidor Java si no existe el fat JAR
-if [ ! -f "${SERVER_JAR}" ]; then
+# 2. Compilar Servidor Java si no existe el fat JAR o si hay cambios en el codigo fuente
+if [ ! -f "${SERVER_JAR}" ] || [ -n "$(find "${SERVER_DIR}/src" -newer "${SERVER_JAR}" 2>/dev/null)" ]; then
     echo "📦 [BUILD] Compilando keiko-server.jar con Maven..."
     mvn -f "${SERVER_DIR}/pom.xml" package -DskipTests=true
 fi
@@ -52,7 +52,7 @@ sleep 1.5
 # 4. Iniciar Webots 3D con el cliente Hardware-in-the-Loop
 echo "🚀 [CLIENTE] Iniciando Webots 3D con la Orquita 4WD..."
 if [[ "${1:-}" == "--batch" ]]; then
-    webots --batch --mode=fast --stdout --stderr "${WORLD_FILE}"
+    webots --batch --mode=fast --no-rendering --minimize --stdout --stderr "${WORLD_FILE}"
 else
     webots "${WORLD_FILE}"
 fi

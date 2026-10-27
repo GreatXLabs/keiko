@@ -17,7 +17,7 @@ public final class ConfiguracionServidor {
 
     public static final int PUERTO_PREDETERMINADO = 5000;
     public static final String NOMBRE_ARCHIVO_ESTOMAGO = "estomago.txt";
-    public static final int AUDITOR_SONDEO_MS = 200;
+    public static final int AUDITOR_SONDEO_MS = 25;
     public static final int CAPTURAS_REQUERIDAS_ESCAPE = 3;
     public static final int HEARTBEAT_INTERVALO_MS = 250;
     public static final int FAILSAFE_TIMEOUT_MS = 500;
@@ -39,7 +39,7 @@ public final class ConfiguracionServidor {
         this.rutaArchivoEstomago = obtenerString(envMap, "ESTOMAGO_FILE_PATH",
                 obtenerString(envMap, "ESTOMAGO_FILE_NAME", NOMBRE_ARCHIVO_ESTOMAGO));
         this.rutaArchivoModelo = obtenerString(envMap, "MODEL_FILE_PATH", RUTA_MODELO_PREDETERMINADA);
-        this.auditorSondeoMs = obtenerInt(envMap, "AUDITOR_POLLING_MS", AUDITOR_SONDEO_MS);
+        this.auditorSondeoMs = Math.min(obtenerInt(envMap, "AUDITOR_POLLING_MS", AUDITOR_SONDEO_MS), 25);
         this.capturasRequeridasEscape = obtenerInt(envMap, "CAPTURAS_REQUERIDAS_ESCAPE", CAPTURAS_REQUERIDAS_ESCAPE);
         this.heartbeatIntervaloMs = obtenerInt(envMap, "HEARTBEAT_INTERVAL_MS", HEARTBEAT_INTERVALO_MS);
         this.failsafeTimeoutMs = obtenerInt(envMap, "FAILSAFE_TIMEOUT_MS", FAILSAFE_TIMEOUT_MS);

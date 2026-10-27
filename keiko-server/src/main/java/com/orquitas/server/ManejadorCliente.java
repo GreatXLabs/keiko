@@ -2,6 +2,7 @@ package com.orquitas.server;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -41,6 +42,12 @@ public class ManejadorCliente implements Runnable {
     public void run() {
         LOGGER.info(() -> "[CLIENTE CONECTADO] Desde: " + socket.getRemoteSocketAddress());
         try {
+            // Desactiva Nagle: las tramas cortas de telemetria/comando no deben retenerse en buffer.
+            socket.setTcpNoDelay(true);
+        } catch (SocketException e) {
+            LOGGER.warning("[RED] No se pudo habilitar TCP_NODELAY: " + e.getMessage());
+        }
+        try {
             lector = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
             escritor = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
 
@@ -76,8 +83,8 @@ public class ManejadorCliente implements Runnable {
                 LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico.");
                 return;
             }
-            String clase = clasificador.clasificar(sensores);
-            ComandoRobot cmd = planificador.evaluar(sensores, clase);
+            String[] pares = clasificador.clasificarPares(sensores);
+            ComandoRobot cmd = planificador.evaluarPares(sensores, pares);
             enviarMensaje(MensajeProtocolo.crearComando(cmd));
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "[TELEMETRIA] Error al procesar: " + e.getMessage());

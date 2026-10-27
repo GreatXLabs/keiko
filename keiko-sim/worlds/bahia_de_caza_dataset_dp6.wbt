@@ -2,10 +2,10 @@
 
 WorldInfo {
   info [
-    "Bahia de Caza - Entorno de simulacion 3D para el Proyecto Orquitas (Keiko)",
-    "Pista de 2.4m x 2.4m con muros de 20cm, salida de 30cm, plataforma de escape y presas."
+    "Bahia de Caza - Entorno de simulacion 3D realista para el Proyecto Orquitas (Keiko)",
+    "Semielipse de ~1.80m x 1.20m (~1.70 m2) con muros de carton de 5mm, hueco de salida de 30cm y modelo CAD 3D."
   ]
-  title "Bahia de Caza - Orquitas"
+  title "Bahia de Caza - Orquitas (Semielipse Realista)"
   basicTimeStep 32
   FPS 60
   contactProperties [
@@ -86,8 +86,8 @@ WorldInfo {
 }
 
 Viewpoint {
-  orientation 0 1 0 0.70
-  position -2.6 0 2.2
+  orientation 0 1 0 0.78
+  position -1.9 0 1.65
   follow "orquita_robot"
 }
 
@@ -111,7 +111,7 @@ PointLight {
   location 0 0 2.2
 }
 
-# Suelo Principal de la Bahia de Caza (2.4m x 2.4m x 0.20m - Solido impenetrable)
+# Suelo Único Continuo del Laboratorio y Bahía de Caza (12m x 12m x 0.20m, cota superior Z = 0.0)
 DEF FLOOR Solid {
   translation 0 0 -0.10
   children [
@@ -122,425 +122,730 @@ DEF FLOOR Solid {
         metalness 0.1
       }
       geometry Box {
-        size 2.4 2.4 0.20
+        size 12.0 12.0 0.20
       }
     }
   ]
   name "floor"
   contactMaterial "floor"
   boundingObject Box {
-    size 2.4 2.4 0.20
+    size 12.0 12.0 0.20
   }
 }
 
-# Suelo de Seguridad Perimetral Extendido (10m x 10m a Z=-0.20) - Evita cualquier caida al vacio
-DEF SAFETY_GROUND Solid {
-  translation 0 0.5 -0.20
-  children [
-    Shape {
-      appearance PBRAppearance {
-        baseColor 0.08 0.12 0.18
-        roughness 0.8
-        metalness 0.0
-      }
-      geometry Box {
-        size 10.0 10.0 0.20
-      }
-    }
-  ]
-  name "safety_ground"
-  contactMaterial "floor"
-  boundingObject Box {
-    size 10.0 10.0 0.20
-  }
-}
-
-# Muros de Contencion Perimetral Exterior (Seguridad Absoluta Anti-Vacio 10m x 10m)
+# Muros de Contencion Lejanos (a 6.0m del centro, fuera del alcance de 2.5m-3.0m del HC-SR04)
 DEF SAFETY_WALL_NORTH Solid {
-  translation 0 5.0 0.25
+  translation 0 6.0 0.25
   children [
     Shape {
-      appearance PBRAppearance {
-        baseColor 0.1 0.15 0.2
-        roughness 0.8
-        transparency 0.5
-      }
-      geometry Box {
-        size 10.0 0.08 0.60
-      }
+      appearance PBRAppearance { baseColor 0.1 0.15 0.2 roughness 0.8 transparency 0.7 }
+      geometry Box { size 12.0 0.08 0.60 }
     }
   ]
   name "safety_wall_north"
   contactMaterial "wall"
-  boundingObject Box {
-    size 10.0 0.08 0.60
-  }
+  boundingObject Box { size 12.0 0.08 0.60 }
 }
 
 DEF SAFETY_WALL_SOUTH Solid {
-  translation 0 -5.0 0.25
+  translation 0 -6.0 0.25
   children [
     Shape {
-      appearance PBRAppearance {
-        baseColor 0.1 0.15 0.2
-        roughness 0.8
-        transparency 0.5
-      }
-      geometry Box {
-        size 10.0 0.08 0.60
-      }
+      appearance PBRAppearance { baseColor 0.1 0.15 0.2 roughness 0.8 transparency 0.7 }
+      geometry Box { size 12.0 0.08 0.60 }
     }
   ]
   name "safety_wall_south"
   contactMaterial "wall"
-  boundingObject Box {
-    size 10.0 0.08 0.60
-  }
+  boundingObject Box { size 12.0 0.08 0.60 }
 }
 
 DEF SAFETY_WALL_WEST Solid {
-  translation -5.0 0 0.25
+  translation -6.0 0 0.25
   children [
     Shape {
-      appearance PBRAppearance {
-        baseColor 0.1 0.15 0.2
-        roughness 0.8
-        transparency 0.5
-      }
-      geometry Box {
-        size 0.08 10.0 0.60
-      }
+      appearance PBRAppearance { baseColor 0.1 0.15 0.2 roughness 0.8 transparency 0.7 }
+      geometry Box { size 0.08 12.0 0.60 }
     }
   ]
   name "safety_wall_west"
   contactMaterial "wall"
-  boundingObject Box {
-    size 0.08 10.0 0.60
-  }
+  boundingObject Box { size 0.08 12.0 0.60 }
 }
 
 DEF SAFETY_WALL_EAST Solid {
-  translation 5.0 0 0.25
+  translation 6.0 0 0.25
   children [
     Shape {
-      appearance PBRAppearance {
-        baseColor 0.1 0.15 0.2
-        roughness 0.8
-        transparency 0.5
-      }
-      geometry Box {
-        size 0.08 10.0 0.60
-      }
+      appearance PBRAppearance { baseColor 0.1 0.15 0.2 roughness 0.8 transparency 0.7 }
+      geometry Box { size 0.08 12.0 0.60 }
     }
   ]
   name "safety_wall_east"
   contactMaterial "wall"
-  boundingObject Box {
-    size 0.08 10.0 0.60
-  }
+  boundingObject Box { size 0.08 12.0 0.60 }
 }
 
-# Perimetro y Estrecho de Salida (orientacion de salida: north)
+# Perimetro Semieliptico de Carton (5mm) y Hueco de Salida (30cm, orientacion: north)
 Transform {
   rotation 0 0 1 0
   children [
-    # Plataforma de Escape a Aguas Abiertas (Evita caida al vacio al salir)
+    # Pared Plana de Base (~1.80m sobre la pared del laboratorio)
+    DEF WALL_SOUTH Solid {
+      translation 0.0000 -0.6000 0.0900
+      children [
+        Shape {
+          appearance DEF BACK_WALL_APP PBRAppearance {
+            baseColor 0.82 0.85 0.88
+            roughness 0.5
+          }
+          geometry Box {
+            size 1.8100 0.020 0.1800
+          }
+        }
+      ]
+      name "wall_back"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 1.8100 0.020 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R01 Solid {
+      translation 0.8983 -0.5474 0.0900
+      rotation 0 0 1 1.60370
+      children [
+        Shape {
+          appearance DEF CARDBOARD_APP PBRAppearance {
+            baseColor 0.76 0.60 0.42
+            roughness 0.75
+            metalness 0.0
+          }
+          geometry Box {
+            size 0.1072 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r01"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1072 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R02 Solid {
+      translation 0.8914 -0.4427 0.0900
+      rotation 0 0 1 1.66972
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1068 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r02"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1068 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R03 Solid {
+      translation 0.8776 -0.3392 0.0900
+      rotation 0 0 1 1.73641
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1061 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r03"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1061 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R04 Solid {
+      translation 0.8571 -0.2377 0.0900
+      rotation 0 0 1 1.80422
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1051 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r04"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1051 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R05 Solid {
+      translation 0.8300 -0.1390 0.0900
+      rotation 0 0 1 1.87360
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1038 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r05"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1038 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R06 Solid {
+      translation 0.7965 -0.0438 0.0900
+      rotation 0 0 1 1.94504
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1021 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r06"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1021 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R07 Solid {
+      translation 0.7569 0.0470 0.0900
+      rotation 0 0 1 2.01900
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1003 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r07"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1003 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R08 Solid {
+      translation 0.7115 0.1330 0.0900
+      rotation 0 0 1 2.09598
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0982 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r08"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0982 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R09 Solid {
+      translation 0.6606 0.2132 0.0900
+      rotation 0 0 1 2.17644
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0960 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r09"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0960 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R10 Solid {
+      translation 0.6047 0.2873 0.0900
+      rotation 0 0 1 2.26085
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0937 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r10"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0937 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R11 Solid {
+      translation 0.5440 0.3545 0.0900
+      rotation 0 0 1 2.34959
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0914 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r11"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0914 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R12 Solid {
+      translation 0.4792 0.4144 0.0900
+      rotation 0 0 1 2.44298
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0892 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r12"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0892 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R13 Solid {
+      translation 0.4108 0.4664 0.0900
+      rotation 0 0 1 2.54118
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0871 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r13"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0871 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R14 Solid {
+      translation 0.3391 0.5103 0.0900
+      rotation 0 0 1 2.64416
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0852 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r14"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0852 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R15 Solid {
+      translation 0.2649 0.5457 0.0900
+      rotation 0 0 1 2.75164
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0835 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r15"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0835 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_R16 Solid {
+      translation 0.1886 0.5722 0.0900
+      rotation 0 0 1 2.86302
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0823 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_r16"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0823 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L01 Solid {
+      translation -0.1886 0.5722 0.0900
+      rotation 0 0 1 -2.86302
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0823 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l01"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0823 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L02 Solid {
+      translation -0.2649 0.5457 0.0900
+      rotation 0 0 1 -2.75164
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0835 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l02"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0835 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L03 Solid {
+      translation -0.3391 0.5103 0.0900
+      rotation 0 0 1 -2.64416
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0852 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l03"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0852 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L04 Solid {
+      translation -0.4108 0.4664 0.0900
+      rotation 0 0 1 -2.54118
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0871 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l04"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0871 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L05 Solid {
+      translation -0.4792 0.4144 0.0900
+      rotation 0 0 1 -2.44298
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0892 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l05"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0892 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L06 Solid {
+      translation -0.5440 0.3545 0.0900
+      rotation 0 0 1 -2.34959
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0914 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l06"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0914 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L07 Solid {
+      translation -0.6047 0.2873 0.0900
+      rotation 0 0 1 -2.26085
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0937 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l07"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0937 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L08 Solid {
+      translation -0.6606 0.2132 0.0900
+      rotation 0 0 1 -2.17644
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0960 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l08"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0960 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L09 Solid {
+      translation -0.7115 0.1330 0.0900
+      rotation 0 0 1 -2.09598
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.0982 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l09"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.0982 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L10 Solid {
+      translation -0.7569 0.0470 0.0900
+      rotation 0 0 1 -2.01900
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1003 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l10"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1003 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L11 Solid {
+      translation -0.7965 -0.0438 0.0900
+      rotation 0 0 1 -1.94504
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1021 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l11"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1021 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L12 Solid {
+      translation -0.8300 -0.1390 0.0900
+      rotation 0 0 1 -1.87360
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1038 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l12"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1038 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L13 Solid {
+      translation -0.8571 -0.2377 0.0900
+      rotation 0 0 1 -1.80422
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1051 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l13"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1051 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L14 Solid {
+      translation -0.8776 -0.3392 0.0900
+      rotation 0 0 1 -1.73641
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1061 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l14"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1061 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L15 Solid {
+      translation -0.8914 -0.4427 0.0900
+      rotation 0 0 1 -1.66972
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1068 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l15"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1068 0.0050 0.1800
+      }
+    }
+
+    DEF WALL_ARC_L16 Solid {
+      translation -0.8983 -0.5474 0.0900
+      rotation 0 0 1 -1.60370
+      children [
+        Shape {
+          appearance USE CARDBOARD_APP
+          geometry Box {
+            size 0.1072 0.0050 0.1800
+          }
+        }
+      ]
+      name "wall_arc_l16"
+      contactMaterial "wall"
+      boundingObject Box {
+        size 0.1072 0.0050 0.1800
+      }
+    }
+
+    # Marcador de Referencia de Salida (sin malla ni colisionador que solape el piso)
     DEF EXIT_PLATFORM Solid {
-  translation 0 1.6 -0.10
-  children [
-    Shape {
-      appearance PBRAppearance {
-        baseColor 0.12 0.22 0.30
-        roughness 0.5
-        metalness 0.1
-      }
-      geometry Box {
-        size 1.20 0.80 0.20
-      }
+      translation 0 0.9500 -0.10
+      name "exit_platform"
     }
-  ]
-  name "exit_platform"
-  contactMaterial "floor"
-  boundingObject Box {
-    size 1.20 0.80 0.20
-  }
-}
-
-# Pared Guia Salida Oeste
-DEF EXIT_WALL_WEST Solid {
-  translation -0.60 1.6 0.10
-  children [
-    Shape {
-      appearance DEF WALL_APP PBRAppearance {
-        baseColor 0.8 0.85 0.9
-        roughness 0.4
-      }
-      geometry Box {
-        size 0.04 0.80 0.20
-      }
-    }
-  ]
-  name "exit_wall_west"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 0.04 0.80 0.20
-  }
-}
-
-# Pared Guia Salida Este
-DEF EXIT_WALL_EAST Solid {
-  translation 0.60 1.6 0.10
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 0.04 0.80 0.20
-      }
-    }
-  ]
-  name "exit_wall_east"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 0.04 0.80 0.20
-  }
-}
-
-# Muro de Contencion Final de Escape (Norte)
-DEF EXIT_WALL_NORTH Solid {
-  translation 0 2.0 0.10
-  children [
-    Shape {
-      appearance PBRAppearance {
-        baseColor 0.2 0.7 0.3
-        roughness 0.3
-      }
-      geometry Box {
-        size 1.24 0.04 0.20
-      }
-    }
-  ]
-  name "exit_wall_north"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 1.24 0.04 0.20
-  }
-}
-
-# Muro Sur (2.44m x 0.04m x 0.20m)
-DEF WALL_SOUTH Solid {
-  translation 0 -1.2 0.10
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 2.44 0.04 0.20
-      }
-    }
-  ]
-  name "wall_south"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 2.44 0.04 0.20
-  }
-}
-
-# Muro Oeste
-DEF WALL_WEST Solid {
-  translation -1.2 0 0.10
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 0.04 2.40 0.20
-      }
-    }
-  ]
-  name "wall_west"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 0.04 2.40 0.20
-  }
-}
-
-# Muro Este
-DEF WALL_EAST Solid {
-  translation 1.2 0 0.10
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 0.04 2.40 0.20
-      }
-    }
-  ]
-  name "wall_east"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 0.04 2.40 0.20
-  }
-}
-
-# Muro Norte - Lado Izquierdo de la Salida (1.05m de largo)
-DEF WALL_NORTH_LEFT Solid {
-  translation -0.675 1.2 0.10
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 1.05 0.04 0.20
-      }
-    }
-  ]
-  name "wall_north_left"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 1.05 0.04 0.20
-  }
-}
-
-# Muro Norte - Lado Derecho de la Salida (1.05m de largo)
-DEF WALL_NORTH_RIGHT Solid {
-  translation 0.675 1.2 0.10
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 1.05 0.04 0.20
-      }
-    }
-  ]
-  name "wall_north_right"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 1.05 0.04 0.20
-  }
-}
-
-# Chaflanes Guia de Entrada al Estrecho de Salida (Previene enganches laterales)
-DEF EXIT_CHAMFER_WEST Solid {
-  translation -0.19 1.15 0.10
-  rotation 0 0 1 -0.5236
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 0.10 0.04 0.20
-      }
-    }
-  ]
-  name "exit_chamfer_west"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 0.10 0.04 0.20
-  }
-}
-
-DEF EXIT_CHAMFER_EAST Solid {
-  translation 0.19 1.15 0.10
-  rotation 0 0 1 0.5236
-  children [
-    Shape {
-      appearance USE WALL_APP
-      geometry Box {
-        size 0.10 0.04 0.20
-      }
-    }
-  ]
-  name "exit_chamfer_east"
-  contactMaterial "wall"
-  boundingObject Box {
-    size 0.10 0.04 0.20
-  }
-}
-
-# Indicador visual del Estrecho de Salida (zona segura para escape)
-DEF EXIT_STRAIT_MARKER Solid {
-  translation 0 1.25 0.001
-  children [
-    Shape {
-      appearance PBRAppearance {
-        baseColor 0.1 0.9 0.3
-        roughness 0.2
-        emissiveColor 0.05 0.4 0.15
-      }
-      geometry Box {
-        size 0.30 0.10 0.002
-      }
-    }
-  ]
-  name "exit_strait_marker"
-}
   ]
 }
 
-# Obstaculo Prismático: obstacle_box_1
+# Obstaculo (Borrador de Pizarra): obstacle_eraser_1
 DEF OBSTACLE_BOX_1 Solid {
-  translation -0.5 0.4 0.1
+  translation -0.28 0.18 0.06
+  rotation 0 0 1 0.35
   children [
     Shape {
       appearance PBRAppearance {
-        baseColor 0.9 0.4 0.1
-        roughness 0.5
+        baseColor 0.85 0.35 0.15
+        roughness 0.6
       }
       geometry Box {
-        size 0.2 0.2 0.2
+        size 0.14 0.06 0.12
       }
     }
   ]
-  name "obstacle_box_1"
+  name "obstacle_eraser_1"
   contactMaterial "wall"
   boundingObject Box {
-    size 0.2 0.2 0.2
+    size 0.14 0.06 0.12
   }
 }
 
-# Obstaculo Prismático: obstacle_box_2
+# Obstaculo (Borrador de Pizarra): obstacle_eraser_2
 DEF OBSTACLE_BOX_2 Solid {
-  translation -0.3 -0.6 0.1
+  translation 0.32 -0.08 0.06
+  rotation 0 0 1 -0.5
   children [
     Shape {
       appearance PBRAppearance {
-        baseColor 0.9 0.4 0.1
-        roughness 0.5
+        baseColor 0.25 0.45 0.80
+        roughness 0.6
       }
       geometry Box {
-        size 0.25 0.15 0.2
+        size 0.14 0.06 0.12
       }
     }
   ]
-  name "obstacle_box_2"
+  name "obstacle_eraser_2"
   contactMaterial "wall"
   boundingObject Box {
-    size 0.25 0.15 0.2
-  }
-}
-
-# Obstaculo Cilíndrico: obstacle_cylinder_1
-DEF OBSTACLE_CYLINDER_1 Solid {
-  translation 0.5 -0.3 0.1
-  children [
-    Shape {
-      appearance PBRAppearance {
-        baseColor 0.7 0.3 0.8
-        roughness 0.5
-      }
-      geometry Cylinder {
-        height 0.2
-        radius 0.1
-      }
-    }
-  ]
-  name "obstacle_cylinder_1"
-  contactMaterial "wall"
-  boundingObject Cylinder {
-    height 0.2
-    radius 0.1
+    size 0.14 0.06 0.12
   }
 }
 
 # Canica 1 (Lobito): 16mm de diametro
 DEF LOBITO_1 Solid {
-  translation 0.3 0.5 0.008
+  translation 0.28 0.15 0.008
   children [
     Shape {
       appearance PBRAppearance {
@@ -564,7 +869,7 @@ DEF LOBITO_1 Solid {
 
 # Canica 2 (Lobito): 16mm de diametro
 DEF LOBITO_2 Solid {
-  translation -0.6 -0.1 0.008
+  translation -0.35 -0.12 0.008
   children [
     Shape {
       appearance PBRAppearance {
@@ -588,7 +893,7 @@ DEF LOBITO_2 Solid {
 
 # Canica 3 (Lobito): 16mm de diametro
 DEF LOBITO_3 Solid {
-  translation 0.4 -0.7 0.008
+  translation 0.25 -0.28 0.008
   children [
     Shape {
       appearance PBRAppearance {
@@ -610,227 +915,53 @@ DEF LOBITO_3 Solid {
   }
 }
 
-# Robot Autonomo: La Orquita 4WD (Kit Rover Dos Pisos Todomicro)
+# Robot Autonomo: La Orquita 4WD (Modelo 3D Real de GreatXLabs/Keiko-Modelos-3D: 257mm x 150mm x 76.1mm)
 DEF ORQUITA Robot {
-  translation 0 -0.2 0.001
+  translation 0 -0.32 0.001
   rotation 0 0 1 1.5708
   children [
-    # 1. Bandeja Inferior de Acrilico con Escotadura Frontal
-    # Seccion Trasera (X in [-0.128, +0.048])
-    Pose {
-      translation -0.04 0 0.025
-      children [
-        Shape {
-          appearance DEF ACRYLIC_APP PBRAppearance {
-            baseColor 0.85 0.85 0.90
-            transparency 0.35
-            roughness 0.1
-            metalness 0.05
-          }
-          geometry Box {
-            size 0.176 0.150 0.003
-          }
-        }
-      ]
+    # 1. Malla 3D Real del Chasis 4WD (Bandejas, Separadores de Bronce, Soportes y 4 Motores TT)
+    DEF ORQUITA_CHASSIS_VISUAL Shape {
+      appearance PBRAppearance {
+        baseColor 0.82 0.84 0.88
+        roughness 0.25
+        metalness 0.20
+      }
+      geometry Mesh {
+        url [ "../meshes/orquita_chassis_body.stl" ]
+      }
     }
-    # Ala Delantera Izquierda
-    Pose {
-      translation 0.088 0.050 0.025
-      children [
-        Shape {
-          appearance USE ACRYLIC_APP
-          geometry Box {
-            size 0.080 0.050 0.003
-          }
-        }
-      ]
-    }
-    # Ala Delantera Derecha
-    Pose {
-      translation 0.088 -0.050 0.025
-      children [
-        Shape {
-          appearance USE ACRYLIC_APP
-          geometry Box {
-            size 0.080 0.050 0.003
-          }
-        }
-      ]
+    # Carcasa Exterior "Capote" (CAD Chassis.FCStd: frente en +X, aleta dorsal y cola en -X)
+    DEF ORQUITA_CAPOTE_VISUAL Shape {
+      appearance PBRAppearance {
+        baseColor 0.12 0.14 0.18
+        roughness 0.35
+        metalness 0.15
+        transparency 0.25
+      }
+      geometry Mesh {
+        url [ "../meshes/orquita_capote.stl" ]
+      }
     }
 
-    # 2. Bandeja Superior de Acrilico (256mm x 150mm x 3mm)
-    Pose {
-      translation 0 0 0.085
-      children [
-        Shape {
-          appearance USE ACRYLIC_APP
-          geometry Box {
-            size 0.256 0.150 0.003
-          }
-        }
-      ]
-    }
-
-    # 3. Separadores Metalicos (Standoffs de 60mm entre bandejas)
-    DEF STANDOFF_FL Pose {
-      translation 0.11 0.065 0.055
-      children [
-        DEF STANDOFF_SHAPE Shape {
-          appearance PBRAppearance {
-            baseColor 0.85 0.75 0.2
-            metalness 0.9
-            roughness 0.2
-          }
-          geometry Cylinder {
-            height 0.060
-            radius 0.003
-          }
-        }
-      ]
-    }
-    DEF STANDOFF_FR Pose {
-      translation 0.11 -0.065 0.055
-      children [ USE STANDOFF_SHAPE ]
-    }
-    DEF STANDOFF_RL Pose {
-      translation -0.11 0.065 0.055
-      children [ USE STANDOFF_SHAPE ]
-    }
-    DEF STANDOFF_RR Pose {
-      translation -0.11 -0.065 0.055
-      children [ USE STANDOFF_SHAPE ]
-    }
-
-    # 4. Modulo Driver L298N
-    Pose {
-      translation -0.04 0 0.038
-      children [
-        Shape {
-          appearance PBRAppearance {
-            baseColor 0.8 0.1 0.1
-            roughness 0.4
-          }
-          geometry Box {
-            size 0.045 0.045 0.022
-          }
-        }
-      ]
-    }
-
-    # 5. Pack de Baterias 2x 18650
-    Pose {
-      translation 0.02 0 0.036
-      children [
-        Shape {
-          appearance PBRAppearance {
-            baseColor 0.1 0.1 0.1
-            roughness 0.5
-          }
-          geometry Box {
-            size 0.075 0.042 0.020
-          }
-        }
-      ]
-    }
-
-    # 6. Placa Arduino UNO
-    Pose {
-      translation -0.02 0 0.094
-      children [
-        Shape {
-          appearance PBRAppearance {
-            baseColor 0.0 0.35 0.65
-            roughness 0.3
-          }
-          geometry Box {
-            size 0.070 0.055 0.015
-          }
-        }
-      ]
-    }
-
-    # 7. Modulo Bluetooth HC-05
-    Pose {
-      translation -0.08 0 0.092
-      children [
-        Shape {
-          appearance PBRAppearance {
-            baseColor 0.1 0.5 0.2
-            roughness 0.4
-          }
-          geometry Box {
-            size 0.028 0.016 0.008
-          }
-        }
-      ]
-    }
-
-    # 8. Tolva / V-Funnel Scoop Frontal para Recoleccion de Canicas
-    # Guia izquierda ensanchada (Boca ancha X in [0.048, 0.125], Y in [0.022, 0.068])
-    Pose {
-      translation 0.086 0.045 0.014
-      rotation 0 0 1 -0.5404
-      children [
-        Shape {
-          appearance PBRAppearance {
-            baseColor 0.25 0.25 0.30
-            roughness 0.3
-          }
-          geometry Box {
-            size 0.090 0.004 0.020
-          }
-        }
-      ]
-    }
-    # Guia derecha ensanchada
-    Pose {
-      translation 0.086 -0.045 0.014
-      rotation 0 0 1 0.5404
-      children [
-        Shape {
-          appearance PBRAppearance {
-            baseColor 0.25 0.25 0.30
-            roughness 0.3
-          }
-          geometry Box {
-            size 0.090 0.004 0.020
-          }
-        }
-      ]
-    }
-    # Tope Trasero de la Tolva (Backstop a X=0.045)
-    Pose {
-      translation 0.045 0 0.014
-      children [
-        Shape {
-          appearance PBRAppearance {
-            baseColor 0.15 0.15 0.20
-            roughness 0.4
-          }
-          geometry Box {
-            size 0.006 0.045 0.020
-          }
-        }
-      ]
-    }
-
-    # Sensor de Captura Bucal (Recesado a X=0.050, Z=0.014)
+    # 2. Sensor de Captura Bucal Frontal
     TouchSensor {
-      translation 0.050 0 0.014
+      translation 0.085 0 0.016
       name "capture_sensor"
       boundingObject Box {
-        size 0.008 0.042 0.016
+        size 0.010 0.060 0.020
       }
     }
 
     # -------------------------------------------------------------------------
-    # TREN DE TRACCION 4WD: 4 MOTORES DC TT INDEPENDIENTES
+    # TREN DE TRACCION 4WD: 4 MOTORES DC TT Y RUEDAS CAD REALES (D = 67.2 mm)
+    # Coordenadas exactas del CAD: X = +-0.0586 m, Y = +-0.0596 m, Z = 0.0336 m
     # -------------------------------------------------------------------------
     # Motor 1: Delantero Izquierdo
     HingeJoint {
       jointParameters HingeJointParameters {
         axis 0 1 0
-        anchor 0.075 0.088 0.0325
+        anchor 0.0586 0.0596 0.0336
       }
       device [
         RotationalMotor {
@@ -840,25 +971,28 @@ DEF ORQUITA Robot {
         PositionSensor { name "front_left_encoder" }
       ]
       endPoint Solid {
-        translation 0.075 0.088 0.0325
-        rotation 1 0 0 1.5708
+        translation 0.0586 0.0596 0.0336
         children [
-          DEF WHEEL_TT Shape {
+          DEF WHEEL_CAD_SHAPE Shape {
             appearance PBRAppearance {
-              baseColor 0.95 0.85 0.05
-              roughness 0.6
+              baseColor 0.92 0.80 0.08
+              roughness 0.55
             }
-            geometry Cylinder {
-              height 0.026
-              radius 0.0325
+            geometry Mesh {
+              url [ "../meshes/orquita_wheel.stl" ]
             }
           }
         ]
         name "wheel_fl"
         contactMaterial "wheel"
-        boundingObject Capsule {
-          height 0.002
-          radius 0.0325
+        boundingObject Pose {
+          rotation 1 0 0 1.5708
+          children [
+            Capsule {
+              height 0.002
+              radius 0.0336
+            }
+          ]
         }
         physics Physics {
           density -1
@@ -871,7 +1005,7 @@ DEF ORQUITA Robot {
     HingeJoint {
       jointParameters HingeJointParameters {
         axis 0 1 0
-        anchor -0.075 0.088 0.0325
+        anchor -0.0586 0.0596 0.0336
       }
       device [
         RotationalMotor {
@@ -881,14 +1015,18 @@ DEF ORQUITA Robot {
         PositionSensor { name "rear_left_encoder" }
       ]
       endPoint Solid {
-        translation -0.075 0.088 0.0325
-        rotation 1 0 0 1.5708
-        children [ USE WHEEL_TT ]
+        translation -0.0586 0.0596 0.0336
+        children [ USE WHEEL_CAD_SHAPE ]
         name "wheel_rl"
         contactMaterial "wheel"
-        boundingObject Capsule {
-          height 0.002
-          radius 0.0325
+        boundingObject Pose {
+          rotation 1 0 0 1.5708
+          children [
+            Capsule {
+              height 0.002
+              radius 0.0336
+            }
+          ]
         }
         physics Physics {
           density -1
@@ -901,7 +1039,7 @@ DEF ORQUITA Robot {
     HingeJoint {
       jointParameters HingeJointParameters {
         axis 0 1 0
-        anchor 0.075 -0.088 0.0325
+        anchor 0.0586 -0.0596 0.0336
       }
       device [
         RotationalMotor {
@@ -911,14 +1049,18 @@ DEF ORQUITA Robot {
         PositionSensor { name "front_right_encoder" }
       ]
       endPoint Solid {
-        translation 0.075 -0.088 0.0325
-        rotation 1 0 0 1.5708
-        children [ USE WHEEL_TT ]
+        translation 0.0586 -0.0596 0.0336
+        children [ USE WHEEL_CAD_SHAPE ]
         name "wheel_fr"
         contactMaterial "wheel"
-        boundingObject Capsule {
-          height 0.002
-          radius 0.0325
+        boundingObject Pose {
+          rotation 1 0 0 1.5708
+          children [
+            Capsule {
+              height 0.002
+              radius 0.0336
+            }
+          ]
         }
         physics Physics {
           density -1
@@ -931,7 +1073,7 @@ DEF ORQUITA Robot {
     HingeJoint {
       jointParameters HingeJointParameters {
         axis 0 1 0
-        anchor -0.075 -0.088 0.0325
+        anchor -0.0586 -0.0596 0.0336
       }
       device [
         RotationalMotor {
@@ -941,14 +1083,18 @@ DEF ORQUITA Robot {
         PositionSensor { name "rear_right_encoder" }
       ]
       endPoint Solid {
-        translation -0.075 -0.088 0.0325
-        rotation 1 0 0 1.5708
-        children [ USE WHEEL_TT ]
+        translation -0.0586 -0.0596 0.0336
+        children [ USE WHEEL_CAD_SHAPE ]
         name "wheel_rr"
         contactMaterial "wheel"
-        boundingObject Capsule {
-          height 0.002
-          radius 0.0325
+        boundingObject Pose {
+          rotation 1 0 0 1.5708
+          children [
+            Capsule {
+              height 0.002
+              radius 0.0336
+            }
+          ]
         }
         physics Physics {
           density -1
@@ -961,9 +1107,9 @@ DEF ORQUITA Robot {
       translation 0.13 0.035 0.025
       rotation 0 0 1 0.0873
       name "us_low_left"
-      type "sonar"
+      type "generic"
       numberOfRays 17
-      aperture 0.5
+      aperture 0.35
       lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
         DEF US_TRANSDUCER Shape {
@@ -977,9 +1123,9 @@ DEF ORQUITA Robot {
       translation 0.13 -0.035 0.025
       rotation 0 0 1 -0.0873
       name "us_low_right"
-      type "sonar"
+      type "generic"
       numberOfRays 17
-      aperture 0.5
+      aperture 0.35
       lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
         USE US_TRANSDUCER
@@ -990,9 +1136,9 @@ DEF ORQUITA Robot {
       translation 0.12 0.05 0.095
       rotation 0 0 1 0.3491
       name "us_high_left"
-      type "sonar"
+      type "generic"
       numberOfRays 17
-      aperture 0.5
+      aperture 0.35
       lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
         DEF US_TRANSDUCER_HIGH Shape {
@@ -1006,9 +1152,9 @@ DEF ORQUITA Robot {
       translation 0.12 -0.05 0.095
       rotation 0 0 1 -0.3491
       name "us_high_right"
-      type "sonar"
+      type "generic"
       numberOfRays 17
-      aperture 0.5
+      aperture 0.35
       lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
         USE US_TRANSDUCER_HIGH
@@ -1019,9 +1165,9 @@ DEF ORQUITA Robot {
       translation 0.0 0.075 0.065
       rotation 0 0 1 1.5708
       name "us_side_left"
-      type "sonar"
+      type "generic"
       numberOfRays 17
-      aperture 0.5
+      aperture 0.35
       lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
         DEF US_TRANSDUCER_SIDE Shape {
@@ -1035,9 +1181,9 @@ DEF ORQUITA Robot {
       translation 0.0 -0.075 0.065
       rotation 0 0 1 -1.5708
       name "us_side_right"
-      type "sonar"
+      type "generic"
       numberOfRays 17
-      aperture 0.5
+      aperture 0.35
       lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
         USE US_TRANSDUCER_SIDE
@@ -1057,62 +1203,30 @@ DEF ORQUITA Robot {
   contactMaterial "chassis"
   boundingObject Group {
     children [
-      # Seccion Trasera Inferior
+      # Silueta física del chasis CAD: paragolpes completos y cuerpo central despejado de las ruedas
       Pose {
-        translation -0.04 0 0.025
+        translation 0.095 0 0.048
         children [
-          Box { size 0.176 0.150 0.003 }
+          Box { size 0.065 0.150 0.055 }
         ]
       }
-      # Ala Delantera Izquierda
       Pose {
-        translation 0.088 0.050 0.025
+        translation -0.095 0 0.048
         children [
-          Box { size 0.080 0.050 0.003 }
+          Box { size 0.065 0.150 0.055 }
         ]
       }
-      # Ala Delantera Derecha
       Pose {
-        translation 0.088 -0.050 0.025
+        translation 0 0 0.048
         children [
-          Box { size 0.080 0.050 0.003 }
-        ]
-      }
-      # Bandeja Superior
-      Pose {
-        translation 0 0 0.085
-        children [
-          Box { size 0.256 0.150 0.003 }
-        ]
-      }
-      # Guia Tolva Izquierda
-      Pose {
-        translation 0.086 0.045 0.014
-        rotation 0 0 1 -0.5404
-        children [
-          Box { size 0.090 0.004 0.020 }
-        ]
-      }
-      # Guia Tolva Derecha
-      Pose {
-        translation 0.086 -0.045 0.014
-        rotation 0 0 1 0.5404
-        children [
-          Box { size 0.090 0.004 0.020 }
-        ]
-      }
-      # Tope Trasero Tolva
-      Pose {
-        translation 0.045 0 0.014
-        children [
-          Box { size 0.006 0.045 0.020 }
+          Box { size 0.125 0.088 0.055 }
         ]
       }
     ]
   }
   physics Physics {
     density -1
-    mass 0.78
+    mass 0.84
     centerOfMass [ 0 0 0.035 ]
   }
   controller "dataset_collector"

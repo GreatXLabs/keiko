@@ -300,6 +300,7 @@ public final class DatasetParser {
                 grouped.computeIfAbsent(s.getClassIndex(), k -> new ArrayList<>()).add(s);
             }
 
+            List<DataSample> stratifiedTrain = new ArrayList<>();
             for (List<DataSample> classSamples : grouped.values()) {
                 Collections.shuffle(classSamples, rand);
                 int nTrain = (int) Math.round(classSamples.size() * trainRatio);
@@ -309,11 +310,15 @@ public final class DatasetParser {
                 for (int i = 0; i < classSamples.size(); i++) {
                     DataSample s = classSamples.get(i);
                     if (i < nTrain) {
-                        addSampleWithOptionalAugmentation(trainSet, s, enableAugmentation, augmentationFactor, augmentationNoise, rand);
+                        stratifiedTrain.add(s);
                     } else {
                         testSamples.add(s);
                     }
                 }
+            }
+            Collections.shuffle(stratifiedTrain, rand);
+            for (DataSample s : stratifiedTrain) {
+                addSampleWithOptionalAugmentation(trainSet, s, enableAugmentation, augmentationFactor, augmentationNoise, rand);
             }
         } else {
             // Barajar estándar para regresión

@@ -22,7 +22,7 @@ class ArenaMapper:
     OBSTACLE = 3   # Obstáculo detectado '#'
     EXIT = 4       # Estrecho de Salida 'E'
 
-    def __init__(self, x_min=-1.10, x_max=1.10, y_min=-1.10, y_max=1.10, res=0.10, exit_pos=(0.0, 1.20)):
+    def __init__(self, x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=(0.0, 0.60)):
         self.x_min = x_min
         self.x_max = x_max
         self.y_min = y_min

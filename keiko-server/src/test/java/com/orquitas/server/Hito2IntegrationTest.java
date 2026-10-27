@@ -15,13 +15,13 @@ import static org.junit.jupiter.api.Assertions.*;
 public class Hito2IntegrationTest {
 
     private File tempEstomago;
-    private EstomagoManager estomagoManager;
+    private GestorEstomago estomagoManager;
 
     @BeforeEach
     public void setUp() throws IOException {
         tempEstomago = File.createTempFile("estomago_hito2_test_", ".txt");
         if (tempEstomago.exists()) tempEstomago.delete();
-        estomagoManager = new EstomagoManager(tempEstomago);
+        estomagoManager = new GestorEstomago(tempEstomago);
     }
 
     @AfterEach
@@ -36,7 +36,7 @@ public class Hito2IntegrationTest {
         CountDownLatch escapeLatch = new CountDownLatch(1);
 
         AuditorEstomago auditor = new AuditorEstomago(estomagoManager, 50, 3);
-        auditor.agregarListener(new AuditorListener() {
+        auditor.agregarOyente(new OyenteAuditor() {
             @Override
             public void onCapturaAuditada(int total) {}
 
@@ -63,26 +63,26 @@ public class Hito2IntegrationTest {
         estomagoManager.registrarCaptura("test_3");
         assertEquals(3, estomagoManager.contarCapturasValidas());
 
-        // Verificar que el auditor detecta el cambio de estado físicamente
+        // Verificar que el auditor detecta el cambio de estado fisicamente
         boolean activado = escapeLatch.await(1, TimeUnit.SECONDS);
-        assertTrue(activado, "El AuditorEstomago debe activar Modo Escape tras verificar 3 registros físicos en disco");
+        assertTrue(activado, "El AuditorEstomago debe activar Modo Escape tras verificar 3 registros fisicos en disco");
         assertTrue(auditor.isModoEscapeActivado());
 
         auditor.detener();
     }
 
     @Test
-    public void testParseoTelemetriaYComandos() {
-        String trama = "TELEMETRY:15.0,16.0,180.0,190.0,1000\n";
+    public void testParseoTelemetriaInferenciaNeurophYComandos() {
+        String trama = "TELEMETRY:115.0,16.0,118.0,116.0,122.0,119.0,1000\n";
         VectorSensores s = MensajeProtocolo.parsearTelemetria(trama);
-        assertEquals(15.0, s.getDLowLeft());
-        assertEquals(16.0, s.getDLowRight());
-        assertEquals(180.0, s.getDHighLeft());
-        assertEquals(190.0, s.getDHighRight());
+        assertEquals(6, s.getCantidadSensores());
+        assertEquals(16.0, s.getDLowCenter(), 1e-4);
+        assertEquals(122.0, s.getDHighCenter(), 1e-4);
         assertTrue(s.isValido());
 
-        String clase = ClasificadorNeuroph.inferenciaReglas(s);
-        assertEquals("LOBITO", clase);
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(new ConfiguracionServidor().resolverArchivoModelo());
+        String clase = clasificador.clasificar(s);
+        assertTrue(clase.startsWith("LOBITO"), "La red Neuroph 2.98 debe clasificar como LOBITO, obtuvo: " + clase);
 
         PlanificadorNavegacion planner = new PlanificadorNavegacion(estomagoManager);
         ComandoRobot cmd = planner.evaluar(s, clase);

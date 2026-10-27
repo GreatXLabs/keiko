@@ -30,7 +30,9 @@ if COMMON_DIR not in sys.path:
     sys.path.insert(0, COMMON_DIR)
 
 from arena_mapper import ArenaMapper
+from collision_audit import find_penalizable_contact, is_new_impact
 from sonar_visualizer import SonarVisualizer
+from ultrasonic_physics import UltrasonicPhysicsModel, SensorBorderFilter
 
 try:
     sys.stdout.reconfigure(line_buffering=True)
@@ -51,10 +53,10 @@ def log_msg(msg):
 
 # Geometría canónica de salida por pared: (posición del estrecho, yaw de egreso)
 EXIT_GEOM = {
-    "north": ((0.0, 1.2), math.pi / 2.0),
-    "east": ((1.2, 0.0), 0.0),
-    "south": ((0.0, -1.2), -math.pi / 2.0),
-    "west": ((-1.2, 0.0), math.pi),
+    "north": ((0.0, 0.60), math.pi / 2.0),
+    "east": ((0.60, 0.0), 0.0),
+    "south": ((0.0, -0.60), -math.pi / 2.0),
+    "west": ((-0.60, 0.0), math.pi),
 }
 
 def detect_exit(supervisor):
@@ -70,11 +72,11 @@ def detect_exit(supervisor):
             pass
 
     if ex is not None and ey is not None:
-        if ey > 1.0:
+        if ey > 0.45:
             wall = "north"
-        elif ex > 1.0:
+        elif ex > 0.45:
             wall = "east"
-        elif ey < -1.0:
+        elif ey < -0.45:
             wall = "south"
         else:
             wall = "west"
@@ -126,10 +128,16 @@ def main():
             sensors[name] = s
             filtered_distances[name] = 250.0
 
-    if "us_low_center" in sensors:
+    if "us_low_center" in sensors and "us_side_left" in sensors:
         active_config = "trisector_10"
+    elif "us_low_center" in sensors:
+        active_config = "trisector_front_6"
     else:
         active_config = "dual_plane_8"
+
+    physics_mode = os.environ.get("ORQUITAS_SENSOR_PHYSICS", "realistic").strip().lower()
+    us_physics = UltrasonicPhysicsModel(mode=physics_mode)
+    border_filter = SensorBorderFilter(sensor_names=list(sensors.keys()))
 
     sonar_vis = SonarVisualizer(robot, display_name="sensor_hud", config_name=active_config)
     log_msg(f"[HARDWARE] Banco ultrasónico: {active_config.upper()} ({len(sensors)} transductores activos).")
@@ -159,8 +167,8 @@ def main():
 
     # 3. Referencias del Supervisor para cinemática y canicas
     self_node = robot.getSelf()
-    # Auditoría de contactos físicos (colisiones reglamentarias -5 pts)
-    self_node.enableContactPointsTracking(time_step, True)
+    # Auditoría exclusiva del chasis: excluye ruedas y otros descendientes del robot.
+    self_node.enableContactPointsTracking(time_step, False)
     marbles = {}
     for i in range(1, 4):
         node = robot.getFromDef(f"LOBITO_{i}")
@@ -177,28 +185,28 @@ def main():
     log_msg(f"[HARDWARE] Salida detectada: {exit_wall.upper()} @ ({exit_pos[0]:.2f}, {exit_pos[1]:.2f}) | yaw={exit_yaw:.2f}")
 
     # Cartógrafo 2D a bordo
-    mapper = ArenaMapper(x_min=-1.15, x_max=1.15, y_min=-1.15, y_max=1.15, res=0.10)
+    mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=exit_pos)
 
     captures_count = 0
     current_server_state = "BUSQUEDA"
     last_action_desc = "INICIALIZACION"
     vl_cmd, vr_cmd = 0.0, 0.0
 
-    # Colisiones: tracking físico real. Se descartan los puntos de contacto a cota de
-    # suelo (z <= 0.02 m): apoyo de ruedas, canicas y plataforma de salida. El contacto
-    # penalizable (muro / obstáculo) ocurre a cota de chasis (z > 0.02 m).
+    # Colisiones: solo chasis; se descartan suelo (z <= 0.022 m), canicas y salida reglamentaria.
     collisions_count = 0
     was_colliding = False
 
     # Conexión con el Servidor Central
     sock = None
     rx_buffer = ""
-    last_command_sim_time = 0.0
+    last_command_wall_time = time.monotonic()
     in_failsafe = False
     inactivity_timer = 0.0
+    received_server_command = False
 
     def try_connect():
-        nonlocal sock, rx_buffer, last_command_sim_time, in_failsafe
+        nonlocal sock, rx_buffer, last_command_wall_time, in_failsafe
+        nonlocal inactivity_timer, received_server_command
         if sock is not None:
             try:
                 sock.close()
@@ -208,14 +216,19 @@ def main():
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             s.settimeout(0.5)
             s.connect((server_host, server_port))
+            # Sin Nagle: las tramas cortas de control no deben esperar ACKs acumulados.
+            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            if s.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY) == 0:
+                log_msg("[RED] ADVERTENCIA: TCP_NODELAY inactivo; la latencia de Nagle puede disparar el watchdog.")
             s.setblocking(False)
             sock = s
             rx_buffer = ""
-            last_command_sim_time = robot.getTime()
+            last_command_wall_time = time.monotonic()
             in_failsafe = False
+            inactivity_timer = 0.0
+            received_server_command = False
             log_msg(f"[CONEXIÓN] Enlace establecido con Servidor Central en {server_host}:{server_port}")
             return True
         except Exception:
@@ -241,30 +254,38 @@ def main():
             continue
 
         # -------------------------------------------------------------
-        # 1. FILTRADO SENSORIAL PASO-BAJO Y VALIDACIÓN DE FRONTERA
+        # 1. FILTRADO SENSORIAL DE FRONTERA Y FÍSICA ACÚSTICA HC-SR04
         # -------------------------------------------------------------
-        readings = {}
-        for s_name, dev in sensors.items():
-            raw_val = dev.getValue()
-            filtered_distances[s_name] = 0.50 * filtered_distances[s_name] + 0.50 * raw_val
-            readings[s_name] = max(2.0, min(300.0, filtered_distances[s_name]))
-
-        d_ll = readings.get("us_low_left", 250.0)
-        d_lr = readings.get("us_low_right", 250.0)
-        d_hl = readings.get("us_high_left", 250.0)
-        d_hr = readings.get("us_high_right", 250.0)
-        d_sl = readings.get("us_side_left", 250.0)
-        d_sr = readings.get("us_side_right", 250.0)
-        d_rl = readings.get("us_rear_left", 250.0)
-        d_rr = readings.get("us_rear_right", 250.0)
-
-        # Posición y orientación del robot
         r_pos = self_node.getPosition()
         rx, ry = r_pos[0], r_pos[1]
         rot = self_node.getOrientation()
         fwd_x = rot[0]
         fwd_y = rot[3]
         yaw = math.atan2(fwd_y, fwd_x)
+
+        active_marbles_xy = []
+        for m_data in marbles.values():
+            if not m_data["captured"]:
+                try:
+                    mp = m_data["node"].getPosition()
+                    active_marbles_xy.append((mp[0], mp[1]))
+                except Exception:
+                    pass
+
+        raw_readings = {s_name: dev.getValue() for s_name, dev in sensors.items()}
+        realistic_raw = us_physics.apply(raw_readings, robot_pose=(rx, ry, yaw), marble_positions=active_marbles_xy)
+        readings = border_filter.update(realistic_raw)
+
+        d_ll = readings.get("us_low_left", 250.0)
+        d_lc = readings.get("us_low_center", 250.0)
+        d_lr = readings.get("us_low_right", 250.0)
+        d_hl = readings.get("us_high_left", 250.0)
+        d_hc = readings.get("us_high_center", 250.0)
+        d_hr = readings.get("us_high_right", 250.0)
+        d_sl = readings.get("us_side_left", 250.0)
+        d_sr = readings.get("us_side_right", 250.0)
+        d_rl = readings.get("us_rear_left", 250.0)
+        d_rr = readings.get("us_rear_right", 250.0)
 
         # -------------------------------------------------------------
         # 2. ACTUALIZACIÓN DEL MAPA DE OCUPACIÓN 2D
@@ -287,11 +308,10 @@ def main():
                 dist_to_robot = math.hypot(rel_x, rel_y)
                 dz = abs(m_pos[2] - r_pos[2])
 
-                # Contacto frontal: tocar con cualquier parte frontal del chasis (paragolpes, ruedas delanteras)
-                front_contact = (-0.02 <= local_fwd <= 0.28) and (abs(local_lat) <= 0.18) and (dz <= 0.12)
-                dist_contact = (dist_to_robot < 0.26) and (local_fwd > -0.05) and (abs(local_lat) <= 0.16)
+                # Contacto físico real con la boca de captura frontal del chasis (25.7x15.0 cm)
+                front_contact = (-0.02 <= local_fwd <= 0.20) and (abs(local_lat) <= 0.12) and (dz <= 0.12)
 
-                if front_contact or dist_contact:
+                if front_contact:
                     m_data["captured"] = True
                     captures_count += 1
 
@@ -361,29 +381,28 @@ def main():
         has_rear = ("us_rear_left" in sensors) and ("us_rear_right" in sensors)
         has_center = ("us_low_center" in sensors) and ("us_high_center" in sensors)
 
-        # Banco modular 4 / 6 / 8 / 10 transductores. Protocol.java (contrato serie)
-        # admite 4, 6 u 8 canales, de modo que en la topología trisector de 10 los
-        # transductores centrales se fusionan por mínimo en su canal frontal afín.
-        # ponytail: techo = 8 canales de cable; ampliar Protocol.java + SensorVector
-        # si se requiere telemetría de 10 canales nativa.
-        f_ll, f_lr, f_hl, f_hr = d_ll, d_lr, d_hl, d_hr
-        if has_center:
-            d_lc = readings.get("us_low_center", 250.0)
-            d_hc = readings.get("us_high_center", 250.0)
-            f_ll, f_lr = min(f_ll, d_lc), min(f_lr, d_lc)
-            f_hl, f_hr = min(f_hl, d_hc), min(f_hr, d_hc)
-
-        if sensor_mode >= 8 and has_side and has_rear:
-            telemetry_msg = (f"TELEMETRY:{f_ll:.2f},{f_lr:.2f},{f_hl:.2f},{f_hr:.2f},"
+        if has_center and not has_side:
+            # Configuración principal de 6 sensores frontales (trisector_front_6):
+            # [low_left, low_center, low_right, high_left, high_center, high_right]
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lc:.2f},{d_lr:.2f},"
+                             f"{d_hl:.2f},{d_hc:.2f},{d_hr:.2f},"
+                             f"{int(sim_time*1000)}\n")
+        elif sensor_mode >= 10 and has_center and has_side and has_rear:
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lc:.2f},{d_lr:.2f},"
+                             f"{d_hl:.2f},{d_hc:.2f},{d_hr:.2f},"
                              f"{d_sl:.2f},{d_sr:.2f},{d_rl:.2f},{d_rr:.2f},"
-                             f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n")
+                             f"{int(sim_time*1000)}\n")
+        elif sensor_mode >= 8 and has_side and has_rear:
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lr:.2f},{d_hl:.2f},{d_hr:.2f},"
+                             f"{d_sl:.2f},{d_sr:.2f},{d_rl:.2f},{d_rr:.2f},"
+                             f"{int(sim_time*1000)}\n")
         elif sensor_mode >= 6 and has_side:
-            telemetry_msg = (f"TELEMETRY:{f_ll:.2f},{f_lr:.2f},{f_hl:.2f},{f_hr:.2f},"
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lr:.2f},{d_hl:.2f},{d_hr:.2f},"
                              f"{d_sl:.2f},{d_sr:.2f},"
-                             f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n")
+                             f"{int(sim_time*1000)}\n")
         else:
-            telemetry_msg = (f"TELEMETRY:{f_ll:.2f},{f_lr:.2f},{f_hl:.2f},{f_hr:.2f},"
-                             f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n")
+            telemetry_msg = (f"TELEMETRY:{d_ll:.2f},{d_lr:.2f},{d_hl:.2f},{d_hr:.2f},"
+                             f"{int(sim_time*1000)}\n")
 
         try:
             sock.sendall(telemetry_msg.encode("utf-8"))
@@ -432,27 +451,10 @@ def main():
                             if len(parts) >= 3:
                                 current_server_state = parts[2]
 
-                            # BARRERA VIRTUAL LOCAL: embudo estrecho y direccional sobre el
-                            # vano de salida. Bloquea solo el cruce prematuro del estrecho,
-                            # no la proximidad a la pared (evita trampas con canicas cercanas).
-                            dx = rx - exit_pos[0]
-                            dy = ry - exit_pos[1]
-                            along_exit = dx * exit_dir[0] + dy * exit_dir[1]   # >0 fuera, <0 dentro
-                            cross_exit = -dx * exit_dir[1] + dy * exit_dir[0]  # desviación lateral del vano
-                            if captures_count < 3 and along_exit > -0.35 and abs(cross_exit) < 0.25:
-                                inward_yaw = math.atan2(-exit_dir[1], -exit_dir[0])
-                                diff_in = (inward_yaw - yaw + math.pi) % (2 * math.pi) - math.pi
-                                if abs(diff_in) > 0.25:
-                                    vl_cmd = -4.8 if diff_in > 0 else 4.8
-                                    vr_cmd = 4.8 if diff_in > 0 else -4.8
-                                else:
-                                    vl_cmd, vr_cmd = 3.5, 3.5
-                                last_action_desc = "BARRERA_SALIDA"
-                            else:
-                                last_action_desc = f"CMD_SERVER({current_server_state})"
-
+                            last_action_desc = f"CMD_SERVER({current_server_state})"
                             set_drive_velocities(vl_cmd, vr_cmd)
-                            last_command_sim_time = sim_time
+                            last_command_wall_time = time.monotonic()
+                            received_server_command = True
                             if in_failsafe:
                                 log_msg("[FAIL-SAFE RESTABLECIDO] Enlace activo recuperado. Reanudando marcha.")
                                 in_failsafe = False
@@ -460,7 +462,7 @@ def main():
                             pass
 
                 elif line == "HEARTBEAT":
-                    last_command_sim_time = sim_time
+                    last_command_wall_time = time.monotonic()
                     if in_failsafe:
                         in_failsafe = False
 
@@ -476,8 +478,10 @@ def main():
 
         # -------------------------------------------------------------
         # 7. WATCHDOG FAIL-SAFE (< 500 ms) - REQUISITO EXCLUYENTE
+        # Se mide en tiempo de pared: en --mode=fast el reloj de simulación corre
+        # mucho más rápido que la red y dispararía falsos timeouts por scheduling.
         # -------------------------------------------------------------
-        time_since_last_cmd = sim_time - last_command_sim_time
+        time_since_last_cmd = time.monotonic() - last_command_wall_time
         if time_since_last_cmd > failsafe_timeout_sec:
             set_drive_velocities(0.0, 0.0)
             if not in_failsafe:
@@ -485,8 +489,11 @@ def main():
                 log_msg(f"[FAIL-SAFE ACTIVO] Timeout de enlace ({time_since_last_cmd*1000:.0f} ms > 500 ms).")
                 log_msg("   MOTORES DETENIDOS POR SEGURIDAD.")
 
-        # Inactividad reglamentaria (>10 segundos continuos inmóvil)
-        if abs(vl_cmd) < 0.05 and abs(vr_cmd) < 0.05:
+        # Inactividad reglamentaria (>10 s de parada ordenada por el servidor).
+        # No cuenta en sincronización inicial, reconexiones ni fail-safe transitorio:
+        # solo cuando ya hubo un COMMAND y los motores quedan deliberadamente en reposo.
+        if (received_server_command and not in_failsafe
+                and abs(vl_cmd) < 0.05 and abs(vr_cmd) < 0.05):
             inactivity_timer += (time_step / 1000.0)
             if inactivity_timer >= 10.0 and sim_time > 5.0:
                 log_msg(f"\n[FIN REGLAMENTARIO] Inmóvil por {inactivity_timer:.1f}s continuos (>10s reglamentarios).")
@@ -498,10 +505,23 @@ def main():
         # -------------------------------------------------------------
         # 8. AUDITORÍA DE COLISIONES FÍSICAS (PENALIZACIÓN REGLAMENTARIA -5 PTS)
         # -------------------------------------------------------------
-        collision_now = any(cp.getPoint()[2] > 0.02 for cp in self_node.getContactPoints(True))
-        if collision_now and not was_colliding:
+        collision_point = find_penalizable_contact(
+            (cp.getPoint() for cp in self_node.getContactPoints(False)),
+            active_marbles_xy,
+            (rx, ry),
+            exit_dir,
+        )
+        collision_now = collision_point is not None
+
+        if is_new_impact(collision_point, was_colliding):
             collisions_count += 1
-            log_msg(f"[{elapsed_sec:05.1f}s] COLISIÓN REGISTRADA: -5 pts")
+            log_msg(f"[COLISIÓN REGISTRADA: -5 pts] (impacto #{collisions_count} en pos=({collision_point[0]:.2f}, {collision_point[1]:.2f}, {collision_point[2]:.2f}))")
+            if sock:
+                try:
+                    sock.sendall(f"EVENT:COLISION,impacto={collisions_count}\n".encode("utf-8"))
+                except Exception as e:
+                    log_msg(f"[ERROR TRANSMISION EVENTO COLISION] {e}")
+                    sock = None
         was_colliding = collision_now
 
         # -------------------------------------------------------------
