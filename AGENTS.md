@@ -1,6 +1,6 @@
 # Contexto Técnico del Proyecto: Orquitas (Keiko)
 
-Especificación técnica de ingeniería y reglas operativas para el ecosistema robótico autónomo distribuido "Proyecto Orquitas" (Programación Sobre Redes y Desarrollo de Sistemas, Ciclo 2026).
+Especificación técnica de ingeniería, enrutador de documentación y reglas operativas para el ecosistema robótico autónomo distribuido "Proyecto Orquitas" (Programación Sobre Redes y Desarrollo de Sistemas, Ciclo 2026).
 
 ---
 
@@ -14,7 +14,30 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
 
 ---
 
-## 1. Alcance y Restricciones Tecnológicas del Proyecto
+## 1. Enrutador de Documentación para Agentes de IA
+
+Este documento (`AGENTS.md`) define las reglas de arquitectura y restricciones globales que rigen a los agentes que interactúan con el repositorio. Para inspeccionar o modificar información detallada, los agentes **deben dirigirse a los archivos markdown específicos** listados en esta matriz de enrutamiento:
+
+| Información Buscada | Archivo / Directorio de Referencia | Contenido Principal |
+| :--- | :--- | :--- |
+| **Reglamento, Pista y Puntuación** | [`docs/consignas/La Competencia.md`](docs/consignas/La%20Competencia.md) | Geometría y dimensiones de la Bahía (~1.80 m base, ~1.20 m profundidad, ~1.70 m² de área), salida de 30 cm, 2 obstáculos 3D (6x6 cm, alt. mín. 6 cm), 3 canicas (1.6 cm), etapas, sistema de puntos/penalizaciones y estrategia docente. |
+| **Consigna General e Hitos** | [`docs/consignas/Consigna y Alcances.md`](docs/consignas/Consigna%20y%20Alcances.md) | Alcance integral del proyecto (PSR + DS), metodología SCRUM, definición formal de Hitos 1, 2 y 3, entregables requeridos y criterios globales de evaluación. |
+| **Redes, Protocolo y Persistencia** | [`docs/consignas/Reglas Técnicas de Programación Sobre Redes.md`](docs/consignas/Reglas%20Técnicas%20de%20Programación%20Sobre%20Redes.md) | Especificación de PSR: responsabilidades Cliente vs. Servidor, diseño de tramas Bluetooth RFCOMM/SPP, condición de carrera en `estomago.txt` ("La Linareada"), concurrencia, sincronización, hilo auditor y Fail-Safe. |
+| **Manual Conceptual del Sistema** | [`docs/EXPLICACION_SISTEMA_HUMANO.md`](docs/EXPLICACION_SISTEMA_HUMANO.md) | Guía explicativa integral para humanos: arquitectura robótica 4WD, banco sensorial HC-SR04, odometría, cartografía 2D e inferencia con Neuroph 2.98. |
+| **Ingeniería Sensorial e Inferencia** | [`docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md`](docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md) | Fundamento físico-acústico de ultrasonido, propagación, modelado de incertidumbre y justificación analítica de la clasificación con Neuroph 2.98. |
+| **Datos de Campo y Calibración IA** | [`docs/INFORME_NEUROPH_LECTURAS_CAMPO.md`](docs/INFORME_NEUROPH_LECTURAS_CAMPO.md) | Registro experimental de mediciones reales en pista, calibración de sensores y tasas de acierto del modelo de red neuronal. |
+| **Bitácora de Experimentos y Ranking** | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Historial de pruebas en cluster distribuido y simulador 3D (Webots), matrices de confusión y métricas de odometría. |
+| **Guía de Documentación Hito 2** | [`docs/GUIA_MODIFICACION_DOCUMENTACION_HITO2.md`](docs/GUIA_MODIFICACION_DOCUMENTACION_HITO2.md) | Detalle formal de adecuaciones y texto de Casos de Uso para entregas académicas de la segunda etapa. |
+| **Modelado UML Formal** | `docs/uml/` | Diagramas de Casos de Uso, Clases, Secuencia, Despliegue y Estados de la solución. |
+| **Firmware del Robot (Cliente)** | `firmware/` | Código para el microcontrolador y sensores a bordo del robot físico. |
+| **Servidor Central (PC Externa)** | `keiko-server/` | Proyecto Java 21 / NetBeans del Servidor Central (cerebro, concurrencia, persistencia `estomago.txt`, Neuroph, Bluetooth). |
+| **Simulador de Navegación** | `keiko-sim/` | Entorno de simulación para pruebas dinámicas de navegación y sensores. |
+| **Entrenamiento de Red Neuronal** | `neuroph-train/` | Scripts y utilitarios para entrenar, validar y exportar la red neuronal `.nnet`. |
+| **Suite de Pruebas Físicas** | `pruebas/` | Scripts de verificación en campo: lidar, visión artificial, pruebas de odometría y bitácora de hardware. |
+
+---
+
+## 2. Alcance y Restricciones Tecnológicas del Proyecto
 
 - **Estructura del Repositorio:** El directorio raíz `keiko/` aloja subproyectos independientes (ej. `neuroph-train/`, firmware cliente, servidor cerebro). Cada subproyecto gestiona su propio ciclo de vida y empaquetado.
 - **Lenguaje y Entorno:** Java puro (Java 21 LTS), con estructura de proyecto compatible y ejecutable en NetBeans.
@@ -25,22 +48,26 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
 
 ---
 
-## 2. Modelo de Dominio y Escenario ("La Bahía de Caza")
+## 3. Modelo de Dominio y Escenario ("La Bahía de Caza")
 
-### 2.1 Elementos del Escenario
-- **Muros Perimetrales:** Límites físicos de la pista.
-- **Obstáculos Naturales:** Elementos estáticos y dinámicos a esquivar.
-- **Lobitos (Presas Biológicas):** Canicas físicas distribuidas en la bahía.
-- **Estrecho de Salida:** Apertura perimetral que conduce a aguas abiertas.
+### 3.1 Elementos del Escenario
+- **Geometría de la Bahía:** Superficie aproximada de **semielipse** (o semicírculo irregular) montada contra una pared plana:
+  - Base apoyada en la pared: **~1.80 m** (semieje menor $b = 0.90\text{ m}$).
+  - Profundidad perpendicular máxima: **~1.20 m** hacia la salida (semieje mayor $a = 1.20\text{ m}$, aprox. 3 baldosas).
+  - Área interior calculada: **~1.70 m²** ($A = \frac{1}{2} \pi \cdot a \cdot b$).
+- **Muros Perimetrales:** Cartón de 5 mm de espesor y altura uniforme de 15 a 20 cm.
+- **Estrecho de Salida:** Abertura perimetral única de **30 cm de luz libre**, ubicada en el centro del arco exterior. No posee marcos, sensores ni postes en "T" (corte plano de 5 mm).
+- **Obstáculos:** Exactamente **2 obstáculos** fabricados mediante **impresión 3D**, con base de **6 cm × 6 cm** y una **altura mínima de 6 cm** (la altura final no fue fijada con exactitud, pero nunca será menor a 6 cm).
+- **Lobitos (Presas Biológicas):** Exactamente **3 canicas físicas de 1.6 cm de diámetro**, distribuidas con margen de separación suficiente respecto a muros y obstáculos.
 
-### 2.2 Ciclo Biológico de Tres Fases
+### 3.2 Ciclo Biológico de Tres Fases
 1. **Fase 1: Búsqueda y Captura ("Panza Llena"):** Localizar y capturar exactamente **3 Lobitos**.
 2. **Fase 2: Mutación Conductual:** Al verificar la tercera captura en almacenamiento persistente, cesar inmediatamente la búsqueda de presas y transicionar al modo escape.
 3. **Fase 3: Escape:** Localizar el Estrecho de Salida y abandonar la Bahía de Caza de manera 100% autónoma.
 
 ---
 
-## 3. Arquitectura Distribuida y Pipeline de Datos
+## 4. Arquitectura Distribuida y Pipeline de Datos
 
 ```text
 [Sensores Fisicos] 
@@ -64,14 +91,14 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
 [Cliente: Motores / Actuacion]
 ```
 
-### 3.1 Responsabilidades del Cliente (Hardware Robot)
+### 4.1 Responsabilidades del Cliente (Hardware Robot)
 - **Muestreo y Validación en Frontera:** Muestreo periódico de sensores (ultrasonido, infrarrojo, captura óptica/mecánica). Filtrar ruido espurio antes de transmitir.
 - **Empaquetado y Transmisión:** Enviar telemetría al Servidor mediante el protocolo serie acordado.
 - **Actuación Motriz:** Recibir y ejecutar órdenes de velocidad y giro.
 - **Fail-Safe Obligatorio:** Si la conexión Bluetooth se interrumpe o transcurren **> 500 ms** sin recepción de comando o heartbeat, el robot **debe detener inmediatamente los motores**. Queda prohibida la navegación ciega sin enlace activo.
 - **Sin Lógica Estratégica:** El cliente no clasifica datos ni decide trayectorias complejas.
 
-### 3.2 Responsabilidades del Servidor Central (Cerebro en PC)
+### 4.2 Responsabilidades del Servidor Central (Cerebro en PC)
 - **Procesamiento Multihilo Concurrente:** Coordinar hilos de comunicación serie, inferencia neuronal, persistencia de datos y auditoría de estado.
 - **Inferencia Neuronal (Neuroph 2.98):**
   - Clasificar vectores de entrada en: `LOBITO`, `MURO`, `OBSTACULO`, `SALIDA`, `ESPACIO_LIBRE`.
@@ -80,27 +107,27 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
 
 ---
 
-## 4. Persistencia y Concurrencia Crítica ("El Estómago" y "La Linareada")
+## 5. Persistencia y Concurrencia Crítica ("El Estómago" y "La Linareada")
 
-### 4.1 Invariantes de Persistencia
+### 5.1 Invariantes de Persistencia
 - **Archivo Físico Único:** `estomago.txt`.
 - **Prohibición de Estado Volátil:** Está terminantemente prohibido utilizar variables en memoria (contadores primitivos, variables estáticas, atributos) para determinar si la Orquita alcanzó "Panza Llena".
 - **Fuente de Verdad Persistente:** El número de registros válidos en `estomago.txt` es la única evidencia aceptada. Ante un reinicio forzado del servidor, el estado debe reconstruirse leyendo este archivo físico.
 
-### 4.2 Control de Concurrencia y Sincronización
+### 5.2 Control de Concurrencia y Sincronización
 - **Recurso Compartido Disputado:** Dos hilos acceden concurrentemente a `estomago.txt`:
   1. **Hilo Escritor (Persistencia):** Escribe un nuevo registro tras la captura de un Lobito.
   2. **Hilo Lector (Auditor):** Sondea periódicamente el archivo para inspeccionar capturas acumuladas.
 - **Mecanismo de Bloqueo Requerido:** Todas las operaciones de I/O sobre `estomago.txt` deben residir dentro de una sección crítica protegida con `ReentrantReadWriteLock` o monitores `synchronized(lock)`.
 - **Vaciado Obligatorio de Buffer:** Todo registro escrito debe ejecutar inmediatamente `flush()` / `FileDescriptor.sync()` para asegurar el volcado físico a disco sin retención en buffers volátiles del SO.
 
-### 4.3 Contrato del Hilo Auditor
+### 5.3 Contrato del Hilo Auditor
 - Se ejecuta como un hilo independiente en segundo plano.
 - Al contabilizar exactamente **3 registros de captura válidos** en `estomago.txt`, emite la transición formal al **Modo Escape**.
 
 ---
 
-## 5. Protocolo de Comunicación Bluetooth (RFCOMM / SPP)
+## 6. Protocolo de Comunicación Bluetooth (RFCOMM / SPP)
 
 - **Capa de Transporte:** Bluetooth Serie RFCOMM (SPP).
 - **Delimitación de Mensajes:** Framing explícito (ej. salto de línea `\n` o longitud prefijada) para resolver la fragmentación del buffer serie.
@@ -117,7 +144,7 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
 
 ---
 
-## 6. Máquina de Estados Finita (FSM)
+## 7. Máquina de Estados Finita (FSM)
 
 | Estado | Condición de Entrada | Objetivo Operativo | Transición Siguiente |
 | :--- | :--- | :--- | :--- |
@@ -130,15 +157,15 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
 
 ---
 
-## 7. Reglamento de Competencia y Matriz de Puntuación
+## 8. Reglamento de Competencia y Matriz de Puntuación
 
-### 7.1 Etapas de la Competencia
+### 8.1 Etapas de la Competencia
 1. **Clasificación:** Pasada individual contra reloj. Tiempo límite: **7 minutos**. Los 4 mejores puntajes avanzan.
 2. **Semifinales:** Llaves directas (1.° vs 4.° y 2.° vs 3.°). Dos robots en simultáneo en la bahía. Tiempo límite: **10 minutos**.
 3. **Final:** Enfrentamiento directo entre ganadores de semifinales. Tiempo límite: **10 minutos**.
 4. **La Recontrafinalísima:** Duelo único entre Campeón Turno Tarde y Campeón Turno Noche. Tiempo límite: **10 minutos**.
 
-### 7.2 Matriz de Puntuación Oficial
+### 8.2 Matriz de Puntuación Oficial
 | Concepto | Puntos | Condición |
 | :--- | :---: | :--- |
 | Captura del 1.er Lobito | **+5** | Captura exitosa verificada |
@@ -153,7 +180,7 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
 | Colisión contra obstáculos | **-5** | Penalización por impacto |
 | Pérdida / escape de un Lobito | **-5** | Penalización por pérdida de presa retenida |
 
-### 7.3 Restricciones Operativas en Pista
+### 8.3 Restricciones Operativas en Pista
 - **Autonomía Absoluta:** Prohibido tocar o asistir físicamente al robot una vez iniciada la prueba. Cualquier contacto manual acarrea descalificación inmediata de la pasada.
 - **Prohibición de Entrada Manual:** Prohibido inyectar órdenes motrices por consola o alterar `estomago.txt` externamente.
 - **Límite de Inactividad (10 Segundos):** Si el robot permanece inactivo o detenido por **más de 10 segundos continuos**, la prueba finaliza automáticamente, computando los puntos acumulados hasta ese instante.
@@ -163,9 +190,14 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
   3. Mayor proximidad avanzada hacia el Estrecho de Salida.
   4. Prueba de desempate en pista.
 
+### 8.4 Consideraciones Docentes y Estrategia Táctica
+- **Premio especial del profesor:** Reconocimiento al equipo que logre capturar las 3 canicas dentro de los 7 minutos sin registrar choques contra muros ni obstáculos.
+- **Umbral de aprobación:** La existencia del premio especial evidencia que el criterio para aprobar no exige una pasada 100% perfecta.
+- **Libertad táctica:** Cada equipo define su balance de riesgo. Por ejemplo, capturar 1 sola presa (+5) y escapar directamente asegura +15 (Modo Escape), +30 (Abandono de Bahía) y bonificación de tiempo (> 50 puntos acumulados), eliminando el riesgo de penalizaciones por choques (-5).
+
 ---
 
-## 8. Hitos del Proyecto y Requisitos de Entrega (PSR / DS)
+## 9. Hitos del Proyecto y Requisitos de Entrega (PSR / DS)
 
 - **Gestión:** Metodología SCRUM con dailies documentados en minutas de reunión al inicio de cada clase.
 
@@ -176,7 +208,7 @@ Especificación técnica de ingeniería y reglas operativas para el ecosistema r
   - Secuencia (flujos normales y alternativos de telemetría, captura y escape).
   - Despliegue (nodos físicos, interfaces de comunicación serie/Bluetooth).
   - Estados (FSM completa con eventos disparadores).
-- Plano técnico de circuito y diseño exterior aprobado.
+- Plano técnico de circuito y diseño exterior aprobado por profesor de Tecnología de la Representación.
 - Documento preliminar de arquitectura Cliente-Servidor y estrategia de red neuronal.
 
 ### Hito 2: Integración Técnica
