@@ -190,11 +190,6 @@ Este documento (`AGENTS.md`) define las reglas de arquitectura y restricciones g
   3. Mayor proximidad avanzada hacia el Estrecho de Salida.
   4. Prueba de desempate en pista.
 
-### 8.4 Consideraciones Docentes y Estrategia Táctica
-- **Premio especial del profesor:** Reconocimiento al equipo que logre capturar las 3 canicas dentro de los 7 minutos sin registrar choques contra muros ni obstáculos.
-- **Umbral de aprobación:** La existencia del premio especial evidencia que el criterio para aprobar no exige una pasada 100% perfecta.
-- **Libertad táctica:** Cada equipo define su balance de riesgo. Por ejemplo, capturar 1 sola presa (+5) y escapar directamente asegura +15 (Modo Escape), +30 (Abandono de Bahía) y bonificación de tiempo (> 50 puntos acumulados), eliminando el riesgo de penalizaciones por choques (-5).
-
 ---
 
 ## 9. Hitos del Proyecto y Requisitos de Entrega (PSR / DS)
