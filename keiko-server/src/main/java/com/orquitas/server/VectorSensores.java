@@ -102,6 +102,10 @@ public class VectorSensores {
     public boolean hasPose() { return hasPose; }
     public double getPosX() { return posX; }
     public double getPosY() { return posY; }
+    public double getTheta() { return theta; }
+
+    // Retorna marca de tiempo de la medicion.
+    public long getTimestamp() { return timestamp; }
 
     // Valida que todas las distancias esten dentro del rango fisico valido [0, 400] cm y sin NaN.
     public boolean isValido() {
