@@ -19,8 +19,6 @@ public final class ConfiguracionServidor {
     public static final String NOMBRE_ARCHIVO_ESTOMAGO = "estomago.txt";
     public static final int AUDITOR_SONDEO_MS = 25;
     public static final int CAPTURAS_REQUERIDAS_ESCAPE = 3;
-    public static final int HEARTBEAT_INTERVALO_MS = 250;
-    public static final int FAILSAFE_TIMEOUT_MS = 500;
     public static final String RUTA_MODELO_PREDETERMINADA = "../keiko-sim/data/models/orquitas_production_champion.nnet";
 
     private int puerto;
@@ -28,8 +26,6 @@ public final class ConfiguracionServidor {
     private String rutaArchivoModelo;
     private int auditorSondeoMs;
     private int capturasRequeridasEscape;
-    private int heartbeatIntervaloMs;
-    private int failsafeTimeoutMs;
     private String directorioBaseEnv;
 
     // Inicializa la configuracion cargando variables desde .env y entorno de ejecucion.
@@ -42,8 +38,6 @@ public final class ConfiguracionServidor {
         this.rutaArchivoModelo = obtenerString(envMap, "MODEL_FILE_PATH", RUTA_MODELO_PREDETERMINADA);
         this.auditorSondeoMs = Math.min(obtenerInt(envMap, "AUDITOR_POLLING_MS", AUDITOR_SONDEO_MS), 25);
         this.capturasRequeridasEscape = obtenerInt(envMap, "CAPTURAS_REQUERIDAS_ESCAPE", CAPTURAS_REQUERIDAS_ESCAPE);
-        this.heartbeatIntervaloMs = obtenerInt(envMap, "HEARTBEAT_INTERVAL_MS", HEARTBEAT_INTERVALO_MS);
-        this.failsafeTimeoutMs = obtenerInt(envMap, "FAILSAFE_TIMEOUT_MS", FAILSAFE_TIMEOUT_MS);
     }
 
     // Lee pares clave-valor de archivo .env buscando en directorio actual y superiores.
@@ -146,18 +140,6 @@ public final class ConfiguracionServidor {
 
     // Asigna el numero de capturas requeridas para conmutar al modo escape.
     public void setCapturasRequeridasEscape(int c) { this.capturasRequeridasEscape = c; }
-
-    // Retorna el intervalo entre mensajes heartbeat en milisegundos.
-    public int getHeartbeatIntervaloMs() { return heartbeatIntervaloMs; }
-
-    // Asigna el intervalo entre mensajes heartbeat en milisegundos.
-    public void setHeartbeatIntervaloMs(int ms) { this.heartbeatIntervaloMs = ms; }
-
-    // Retorna el timeout de seguridad failsafe en milisegundos.
-    public int getFailsafeTimeoutMs() { return failsafeTimeoutMs; }
-
-    // Asigna el timeout de seguridad failsafe en milisegundos.
-    public void setFailsafeTimeoutMs(int ms) { this.failsafeTimeoutMs = ms; }
 
     // Retorna el objeto File asociado a la ruta del estomago.
     public File getArchivoEstomago() {

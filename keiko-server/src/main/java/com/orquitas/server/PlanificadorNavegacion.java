@@ -539,47 +539,6 @@ public class PlanificadorNavegacion {
         return fallback;
     }
 
-    // RF-07: Sobrecarga compatible que traduce una etiqueta global a terna [IZQ, CENTRO, DER] y delega.
-    public synchronized ComandoRobot evaluar(VectorSensores sensores, String claseDetectada) {
-        if (claseDetectada == null) {
-            claseDetectada = "ESPACIO_LIBRE";
-        }
-        String[] pares;
-        switch (claseDetectada) {
-            case "LOBITO_IZQ":
-                pares = new String[]{"LOBITO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
-                break;
-            case "LOBITO_DER":
-                pares = new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "LOBITO"};
-                break;
-            case "LOBITO_CENTRO":
-            case "LOBITO":
-                pares = new String[]{"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"};
-                break;
-            case "OBSTACULO_IZQ":
-                pares = new String[]{"BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
-                break;
-            case "OBSTACULO_DER":
-                pares = new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "BLOQUEO"};
-                break;
-            case "OBSTACULO_CENTRO":
-            case "OBSTACULO":
-                pares = new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"};
-                break;
-            case "MURO":
-            case "BLOQUEO":
-                pares = new String[]{"BLOQUEO", "BLOQUEO", "BLOQUEO"};
-                break;
-            case "SALIDA":
-                pares = new String[]{"ESPACIO_LIBRE", "SALIDA", "ESPACIO_LIBRE"};
-                break;
-            default:
-                pares = new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
-                break;
-        }
-        return evaluarPares(sensores, pares);
-    }
-
     // Activa la transicion formal hacia el modo escape.
     public synchronized void activarModoEscape() {
         this.estado = EstadoRobot.ESCAPE;

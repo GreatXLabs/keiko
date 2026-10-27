@@ -19,11 +19,6 @@ public class VectorSensores {
     private final double posY;
     private final double theta;
 
-    // Crea vector de 4 sensores con marca temporal actual.
-    public VectorSensores(double dLowLeft, double dLowRight, double dHighLeft, double dHighRight) {
-        this(dLowLeft, dLowRight, dHighLeft, dHighRight, System.currentTimeMillis());
-    }
-
     // Crea vector de 4 sensores indicando marca temporal explicita.
     public VectorSensores(double dLowLeft, double dLowRight, double dHighLeft, double dHighRight, long timestamp) {
         this(new double[]{dLowLeft, dLowRight, dHighLeft, dHighRight}, timestamp, false, 0.0, 0.0, 0.0);
@@ -52,11 +47,6 @@ public class VectorSensores {
         this.posX = posX;
         this.posY = posY;
         this.theta = theta;
-    }
-
-    // Retorna copia de todos los canales crudos en centimetros.
-    public double[] getCanales() {
-        return Arrays.copyOf(canales, canales.length);
     }
 
     // Retorna la cantidad de sensores en el vector (4, 6, 8, 10).
@@ -109,29 +99,9 @@ public class VectorSensores {
         return canales[3];
     }
 
-    // Retorna marca de tiempo de la medicion.
-    public long getTimestamp() { return timestamp; }
-
     public boolean hasPose() { return hasPose; }
     public double getPosX() { return posX; }
     public double getPosY() { return posY; }
-    public double getTheta() { return theta; }
-
-    // Retorna menor distancia de los sensores de plano bajo.
-    public double getMinLow() {
-        if (canales.length >= 6) {
-            return Math.min(canales[0], Math.min(canales[1], canales[2]));
-        }
-        return Math.min(canales[0], canales[1]);
-    }
-
-    // Retorna menor distancia de los sensores de plano alto.
-    public double getMinHigh() {
-        if (canales.length >= 6) {
-            return Math.min(canales[3], Math.min(canales[4], canales[5]));
-        }
-        return Math.min(canales[2], canales[3]);
-    }
 
     // Valida que todas las distancias esten dentro del rango fisico valido [0, 400] cm y sin NaN.
     public boolean isValido() {
@@ -152,11 +122,6 @@ public class VectorSensores {
             norm[i] = Math.min(1.0, Math.max(0.0, v));
         }
         return norm;
-    }
-
-    // Sobrecarga de compatibilidad que delega en la normalizacion estandar [2.0, 250.0] cm.
-    public double[] toArrayNormalizado(double maxRangoM) {
-        return toArrayNormalizado();
     }
 
     // Retorna representacion textual legible del vector sensorial.
