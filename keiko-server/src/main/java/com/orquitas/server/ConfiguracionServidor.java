@@ -30,6 +30,7 @@ public final class ConfiguracionServidor {
     private int capturasRequeridasEscape;
     private int heartbeatIntervaloMs;
     private int failsafeTimeoutMs;
+    private String directorioBaseEnv;
 
     // Inicializa la configuracion cargando variables desde .env y entorno de ejecucion.
     public ConfiguracionServidor() {
@@ -46,7 +47,7 @@ public final class ConfiguracionServidor {
     }
 
     // Lee pares clave-valor de archivo .env buscando en directorio actual y superiores.
-    private static Map<String, String> cargarArchivoEnv() {
+    private Map<String, String> cargarArchivoEnv() {
         Map<String, String> mapa = new HashMap<>();
         String[] candidatos = {
             System.getProperty("env.file"),
@@ -67,6 +68,7 @@ public final class ConfiguracionServidor {
         }
 
         if (archivoEncontrado != null) {
+            this.directorioBaseEnv = archivoEncontrado.getAbsoluteFile().getParent();
             try (BufferedReader br = new BufferedReader(
                     new InputStreamReader(new FileInputStream(archivoEncontrado), StandardCharsets.UTF_8))) {
                 String linea;
@@ -159,7 +161,12 @@ public final class ConfiguracionServidor {
 
     // Retorna el objeto File asociado a la ruta del estomago.
     public File getArchivoEstomago() {
-        return new File(rutaArchivoEstomago);
+        File ruta = new File(rutaArchivoEstomago);
+        // Las rutas relativas se anclan al directorio del .env para no depender del CWD.
+        if (ruta.isAbsolute() || directorioBaseEnv == null) {
+            return ruta;
+        }
+        return new File(directorioBaseEnv, rutaArchivoEstomago);
     }
 
     // Resuelve la ubicacion real del archivo de red neuronal buscando rutas relativas habituales.
