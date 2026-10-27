@@ -401,8 +401,6 @@ void processIncomingCommand(String cmd) {
     // Notificación formal de mutación conductual emitida por el Servidor (ej. "ESCAPE")
     currentEstado = cmd.substring(13);
     currentEstado.trim();
-    lastCommandMillis = millis();
-    failSafeActive = false;
   } else if (cmd.equals("HEARTBEAT")) {
     // Latido de enlace para reset de watchdog liveness
     lastCommandMillis = millis();
