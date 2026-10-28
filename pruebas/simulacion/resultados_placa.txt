@@ -1,0 +1,22 @@
+
+######## Calibración pared 2.0 m (conservadora) ########
+configuración                            | canica sola <30cm | col. correcta por distancia (todas las escenas) | falsas | falsas por obstáculo (caja_alta/caja_baja/chico/lata/tapita)
+                                         | detect.  columna   |  <15    15-25   25-35   35-50 |
+A acostados, abanico 0°                  |    52%     50%    |    68%     52%     29%      8% |   19%  | 17%/19%/5%/47%/67%
+A acostados, abanico 20°                 |    67%     63%    |    77%     70%     42%      7% |   25%  | 17%/19%/19%/53%/61%
+A acostados, abanico 30°                 |    75%     75%    |    77%     75%     45%      8% |   25%  | 13%/14%/24%/53%/67%
+B parados, abanico 0°                    |    19%     13%    |    53%     10%     12%      4% |   15%  | 4%/10%/10%/27%/61%
+B parados, abanico 20°                   |    20%     20%    |    60%     17%     18%      8% |   22%  | 17%/10%/14%/40%/72%
+B parados, abanico 30°                   |    24%     24%    |    63%     19%     22%      9% |   25%  | 9%/14%/29%/40%/72%
+Ref. sin límite (10 cm, 1,5/12, 20°)     |    73%     73%    |    70%     71%     53%     11% |   27%  | 17%/10%/38%/47%/78%
+
+######## Calibración pared 3.5 m (optimista) ########
+configuración                            | canica sola <30cm | col. correcta por distancia (todas las escenas) | falsas | falsas por obstáculo (caja_alta/caja_baja/chico/lata/tapita)
+                                         | detect.  columna   |  <15    15-25   25-35   35-50 |
+A acostados, abanico 0°                  |    57%     56%    |    81%     53%     52%     46% |   18%  | 17%/19%/29%/20%/11%
+A acostados, abanico 20°                 |    77%     68%    |    82%     59%     62%     51% |   20%  | 4%/38%/24%/7%/17%
+A acostados, abanico 30°                 |    85%     77%    |    81%     71%     70%     50% |   18%  | 0%/43%/19%/13%/22%
+B parados, abanico 0°                    |    46%     45%    |    63%     44%     47%     35% |   18%  | 13%/19%/19%/7%/33%
+B parados, abanico 20°                   |    70%     65%    |    77%     63%     61%     50% |   23%  | 13%/24%/24%/13%/44%
+B parados, abanico 30°                   |    79%     77%    |    81%     74%     73%     47% |   24%  | 9%/38%/43%/0%/61%
+Ref. sin límite (10 cm, 1,5/12, 20°)     |    92%     88%    |    82%     85%     73%     51% |   21%  | 9%/38%/29%/0%/33%
