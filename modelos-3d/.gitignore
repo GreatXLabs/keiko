@@ -1,0 +1,12 @@
+# FreeCAD backups y temporales
+*.FCBak
+*.FCStd1
+*.FCStd~
+*.FCStd.lock
+
+# Herramientas locales / MCP
+.serena/
+
+# Basura de SO
+.DS_Store
+Thumbs.db
