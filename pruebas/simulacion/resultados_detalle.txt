@@ -1,0 +1,112 @@
+
+######## Calibración pared 2.0 m ########
+
+ arriba 8 cm, abanico ±0°
+   canica sola <30 cm: detectada 68%, columna correcta 68% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 14% (3/21), chico 14% (3/21), lata 13% (2/15), tapita 44% (8/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 64, columna equivocada: 15, el de arriba la vio o leyó algo parecido: 5, tapada por obstáculo: 2
+
+ arriba 8 cm, abanico ±20°
+   canica sola <30 cm: detectada 73%, columna correcta 73% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 10% (2/21), chico 29% (6/21), lata 27% (4/15), tapita 67% (12/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 62, columna equivocada: 20, el de arriba la vio o leyó algo parecido: 2, tapada por obstáculo: 2
+
+ arriba 8 cm, abanico ±30°
+   canica sola <30 cm: detectada 75%, columna correcta 75% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 4% (1/23), caja_baja 10% (2/21), chico 33% (7/21), lata 33% (5/15), tapita 78% (14/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 58, columna equivocada: 26, el de arriba la vio o leyó algo parecido: 4, tapada por obstáculo: 2
+
+ arriba 10 cm, abanico ±0°
+   canica sola <30 cm: detectada 68%, columna correcta 68% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 19% (4/21), chico 14% (3/21), lata 40% (6/15), tapita 56% (10/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 63, columna equivocada: 18, tapada por obstáculo: 2, el de arriba la vio o leyó algo parecido: 2
+
+ arriba 10 cm, abanico ±20°
+   canica sola <30 cm: detectada 73%, columna correcta 73% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 13% (3/23), caja_baja 14% (3/21), chico 29% (6/21), lata 47% (7/15), tapita 72% (13/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 59, columna equivocada: 24, tapada por obstáculo: 2, el de arriba la vio o leyó algo parecido: 1
+
+ arriba 10 cm, abanico ±30°
+   canica sola <30 cm: detectada 75%, columna correcta 75% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 4% (1/23), caja_baja 19% (4/21), chico 33% (7/21), lata 53% (8/15), tapita 78% (14/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 56, columna equivocada: 26, el de arriba la vio o leyó algo parecido: 4, tapada por obstáculo: 2
+
+ arriba 12 cm, abanico ±0°
+   canica sola <30 cm: detectada 68%, columna correcta 68% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 13% (3/23), caja_baja 14% (3/21), chico 29% (6/21), lata 40% (6/15), tapita 61% (11/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 62, columna equivocada: 19, tapada por obstáculo: 2, el de arriba la vio o leyó algo parecido: 2
+
+ arriba 12 cm, abanico ±20°
+   canica sola <30 cm: detectada 73%, columna correcta 73% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 17% (4/23), caja_baja 10% (2/21), chico 38% (8/21), lata 47% (7/15), tapita 78% (14/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 59, columna equivocada: 24, tapada por obstáculo: 2
+
+ arriba 12 cm, abanico ±30°
+   canica sola <30 cm: detectada 75%, columna correcta 75% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 19% (4/21), chico 43% (9/21), lata 47% (7/15), tapita 78% (14/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 53, columna equivocada: 30, tapada por obstáculo: 2, el de arriba la vio o leyó algo parecido: 2
+
+######## Calibración pared 3.5 m ########
+
+ arriba 8 cm, abanico ±0°
+   canica sola <30 cm: detectada 62%, columna correcta 62% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 17% (4/23), caja_baja 38% (8/21), chico 29% (6/21), lata 20% (3/15), tapita 11% (2/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 46, el de arriba la vio o leyó algo parecido: 33, columna equivocada: 10, tapada por obstáculo: 3
+
+ arriba 8 cm, abanico ±20°
+   canica sola <30 cm: detectada 75%, columna correcta 71% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 33% (7/21), chico 19% (4/21), lata 7% (1/15), tapita 22% (4/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 43, el de arriba la vio o leyó algo parecido: 24, columna equivocada: 17, tapada por obstáculo: 2
+
+ arriba 8 cm, abanico ±30°
+   canica sola <30 cm: detectada 75%, columna correcta 71% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 13% (3/23), caja_baja 33% (7/21), chico 24% (5/21), lata 7% (1/15), tapita 17% (3/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 44, el de arriba la vio o leyó algo parecido: 25, columna equivocada: 10, tapada por obstáculo: 2
+
+ arriba 10 cm, abanico ±0°
+   canica sola <30 cm: detectada 69%, columna correcta 69% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 13% (3/23), caja_baja 38% (8/21), chico 29% (6/21), lata 33% (5/15), tapita 11% (2/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 40, el de arriba la vio o leyó algo parecido: 20, columna equivocada: 13, tapada por obstáculo: 2
+
+ arriba 10 cm, abanico ±20°
+   canica sola <30 cm: detectada 83%, columna correcta 80% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 4% (1/23), caja_baja 38% (8/21), chico 24% (5/21), lata 13% (2/15), tapita 22% (4/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 26, columna equivocada: 21, el de arriba la vio o leyó algo parecido: 16, tapada por obstáculo: 2
+
+ arriba 10 cm, abanico ±30°
+   canica sola <30 cm: detectada 83%, columna correcta 80% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 33% (7/21), chico 33% (7/21), lata 27% (4/15), tapita 33% (6/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 30, el de arriba la vio o leyó algo parecido: 14, columna equivocada: 13, tapada por obstáculo: 2
+
+ arriba 12 cm, abanico ±0°
+   canica sola <30 cm: detectada 76%, columna correcta 75% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 13% (3/23), caja_baja 38% (8/21), chico 29% (6/21), lata 13% (2/15), tapita 11% (2/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 38, columna equivocada: 17, el de arriba la vio o leyó algo parecido: 7, tapada por obstáculo: 2
+
+ arriba 12 cm, abanico ±20°
+   canica sola <30 cm: detectada 92%, columna correcta 88% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 38% (8/21), chico 29% (6/21), lata 0% (0/15), tapita 33% (6/18)
+   canicas <30 cm perdidas o mal ubicadas: columna equivocada: 25, fuera de alcance/cono: 16, el de arriba la vio o leyó algo parecido: 8, tapada por obstáculo: 2
+
+ arriba 12 cm, abanico ±30°
+   canica sola <30 cm: detectada 88%, columna correcta 85% (n=84)
+   escenas vacías con falsa canica: 0/111
+   falsas canicas con un solo obstáculo: caja_alta 9% (2/23), caja_baja 33% (7/21), chico 38% (8/21), lata 7% (1/15), tapita 50% (9/18)
+   canicas <30 cm perdidas o mal ubicadas: fuera de alcance/cono: 19, columna equivocada: 17, el de arriba la vio o leyó algo parecido: 10, tapada por obstáculo: 2
