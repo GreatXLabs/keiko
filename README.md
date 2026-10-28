@@ -39,6 +39,8 @@ keiko/
 │   ├── pom.xml
 │   └── src/
 │
+├── modelos-3d/               <- Modelos CAD de la Orquita (FreeCAD, STEP, STL exportados) vía Git LFS
+│
 ├── docs/                     <- Documentación, consignas de la cátedra y diagramas UML
 └── AGENTS.md                 <- Especificación técnica de ingeniería y reglas operativas
 ```
