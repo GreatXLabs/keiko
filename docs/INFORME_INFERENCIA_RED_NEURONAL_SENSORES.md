@@ -119,7 +119,7 @@ En la Bahia de Caza, la propagacion de ondas mecanicas a 40 kHz en un entorno ce
 ```
 
 #### A. Dispersion Isotropica Esferica en Presas Biologicas (Lobitos)
-Los Lobitos son esferas fisicas (canicas de vidrio) con radio $r = 8\text{ mm}$ ($\varnothing = 16\text{ mm}$). Cuando el frente de onda choca contra una superficie convexa esferica, la onda no se refleja en una direccion preferencial sino que se dispersa isotropicamente en un angulo solido de $4\pi$ estereorradianes.
+Los Lobitos son esferas fisicas (canicas de vidrio blanco opaco, tipo "lechera") con radio $r = 8\text{ mm}$ ($\varnothing = 16\text{ mm}$). El cambio desde las canicas de vidrio transparente usadas en las primeras pruebas no afecta el analisis acustico (mismo material y tamano), pero si la respuesta de los sensores opticos (VL53L0X): los datos de campo y el entrenamiento de la red tomados con canicas transparentes deben revalidarse. Cuando el frente de onda choca contra una superficie convexa esferica, la onda no se refleja en una direccion preferencial sino que se dispersa isotropicamente en un angulo solido de $4\pi$ estereorradianes.
 
 La seccion eficaz acustica geometrica ($\sigma$) de una presa esferica es:
 
