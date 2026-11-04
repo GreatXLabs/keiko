@@ -11,9 +11,11 @@
     US izq (arriba)  TRIG/ECHO -> 13 / 12
     US med (arriba)  TRIG/ECHO -> 11 / 10
     US der (arriba)  TRIG/ECHO -> 9 / 8
-    ToF izq y der    SDA -> A4, SCL -> A5 (los dos en paralelo), VIN -> 5V
-    ToF izq XSHUT -> A0      ToF der XSHUT -> A1
-    PCA9685          SDA -> A4, SCL -> A5 (mismo bus que los ToF), VCC -> 5V
+    ToF izq y der    SDA -> D20, SCL -> D21 (I2C del Mega, en paralelo), VIN -> 5V
+    ToF izq XSHUT -> A8      ToF der XSHUT -> A9
+    ToF estómago     XSHUT -> A10: este sketch lo deja apagado (si no, arranca
+                     en 0x29 y choca con los otros dos al darles dirección)
+    PCA9685          SDA -> D20, SCL -> D21 (mismo bus que los ToF), VCC -> 5V
                      servo izq -> canal 0, servo der -> canal 1
                      V+ (bornera) -> fuente de 5V aparte, con GND común
 
@@ -52,7 +54,9 @@ const float US_OBSTACULO_CM = 25.0;
 
 // ---------- ToF de abajo ----------
 const uint8_t NUM_TOF = 2;  // 0 = izquierda, 1 = derecha
-const uint8_t TOF_XSHUT[NUM_TOF] = {A0, A1};
+const uint8_t TOF_XSHUT[NUM_TOF] = {A8, A9};
+// ToF del estómago: se mantiene apagado para que no ocupe 0x29
+const uint8_t XSHUT_ESTOMAGO = A10;
 const uint8_t TOF_DIRECCION[NUM_TOF] = {0x30, 0x31};
 // Posición del eje de cada servo (cm): lateral desde el centro del chasis
 // (positivo = izquierda) y hacia adelante desde el panel frontal
@@ -248,6 +252,8 @@ void setup() {
     pinMode(TOF_XSHUT[k], OUTPUT);
     digitalWrite(TOF_XSHUT[k], LOW);
   }
+  pinMode(XSHUT_ESTOMAGO, OUTPUT);
+  digitalWrite(XSHUT_ESTOMAGO, LOW);
 
   // Los servos se centran antes que nada: sirve para montar los sensores
   // mirando al frente aunque los ToF todavía no estén conectados
