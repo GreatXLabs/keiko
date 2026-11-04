@@ -4,13 +4,18 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * Representacion del vector sensorial muestreado por la Orquita (doble plano ultrasonico HC-SR04).
- * Soporta configuracion principal de 6 sensores frontales (3 bajos + 3 altos: L, C, R)
- * asi como configuraciones de 4, 8 o 10 sensores.
+ * Representación del vector sensorial muestreado por la Orquita.
+ * Configuración oficial 3US + 2Laser:
+ * - Canales 0, 1, 2: Ultrasonidos frontales fijos HC-SR04 (Izquierda, Centro, Derecha) a 5.5 cm de altura.
+ * - Canales 3, 4: Láseres ToF VL53L0X (Izquierda, Derecha) a 1.8 cm de altura sobre servos SG90.
+ * - Canal 5: Ángulo del barrido de servos en grados (-45.0 a +60.0).
+ *
+ * Mantiene compatibilidad con esquemas legacy de 4, 6, 8 o 10 canales.
  */
 public class VectorSensores {
     public static final double MIN_RANGO_CM = 2.0;
     public static final double MAX_RANGO_CM = 250.0;
+    public static final double MAX_LECTURA_VALIDA_CM = 1000.0;
 
     private final double[] canales;
     private final long timestamp;
@@ -19,27 +24,23 @@ public class VectorSensores {
     private final double posY;
     private final double theta;
 
-    // Crea vector de 4 sensores indicando marca temporal explicita.
     public VectorSensores(double dLowLeft, double dLowRight, double dHighLeft, double dHighRight, long timestamp) {
         this(new double[]{dLowLeft, dLowRight, dHighLeft, dHighRight}, timestamp, false, 0.0, 0.0, 0.0);
     }
 
-    // Crea vector de 6 sensores frontales (LL, LC, LR, HL, HC, HR) con marca temporal actual.
     public VectorSensores(double dLowLeft, double dLowCenter, double dLowRight,
                           double dHighLeft, double dHighCenter, double dHighRight) {
         this(new double[]{dLowLeft, dLowCenter, dLowRight, dHighLeft, dHighCenter, dHighRight},
                 System.currentTimeMillis(), false, 0.0, 0.0, 0.0);
     }
 
-    // Crea vector de N sensores con marca temporal explicita.
     public VectorSensores(double[] canales, long timestamp) {
         this(canales, timestamp, false, 0.0, 0.0, 0.0);
     }
 
-    // Crea vector de N sensores con marca temporal y pose opcional de telemetria.
     public VectorSensores(double[] canales, long timestamp, boolean hasPose, double posX, double posY, double theta) {
         if (canales == null || canales.length < 4) {
-            throw new IllegalArgumentException("Se requieren al menos 4 canales ultrasonicos");
+            throw new IllegalArgumentException("Se requieren al menos 4 canales sensoriales");
         }
         this.canales = Arrays.copyOf(canales, canales.length);
         this.timestamp = timestamp;
@@ -49,17 +50,57 @@ public class VectorSensores {
         this.theta = theta;
     }
 
-    // Retorna la cantidad de sensores en el vector (4, 6, 8, 10).
     public int getCantidadSensores() {
         return canales.length;
     }
 
-    // Retorna distancia medida por sensor plano bajo izquierdo.
+    public double[] getCanales() {
+        return Arrays.copyOf(canales, canales.length);
+    }
+
+    public double getUsLeft() {
+        return canales[0];
+    }
+
+    public double getUsCenter() {
+        if (canales.length >= 6) {
+            return canales[1];
+        }
+        return 0.5 * (canales[0] + canales[1]);
+    }
+
+    public double getUsRight() {
+        if (canales.length >= 6) {
+            return canales[2];
+        }
+        return canales[1];
+    }
+
+    public double getLaserLeft() {
+        if (canales.length >= 6) {
+            return canales[3];
+        }
+        return 200.0;
+    }
+
+    public double getLaserRight() {
+        if (canales.length >= 6) {
+            return canales[4];
+        }
+        return 200.0;
+    }
+
+    public double getAnguloServo() {
+        if (canales.length >= 6) {
+            return canales[5];
+        }
+        return 0.0;
+    }
+
     public double getDLowLeft() {
         return canales[0];
     }
 
-    // Retorna distancia medida por sensor plano bajo central (o promedio bajo si hay 4 sensores).
     public double getDLowCenter() {
         if (canales.length >= 6) {
             return canales[1];
@@ -67,7 +108,6 @@ public class VectorSensores {
         return 0.5 * (canales[0] + canales[1]);
     }
 
-    // Retorna distancia medida por sensor plano bajo derecho.
     public double getDLowRight() {
         if (canales.length >= 6) {
             return canales[2];
@@ -75,7 +115,6 @@ public class VectorSensores {
         return canales[1];
     }
 
-    // Retorna distancia medida por sensor plano alto izquierdo.
     public double getDHighLeft() {
         if (canales.length >= 6) {
             return canales[3];
@@ -83,7 +122,6 @@ public class VectorSensores {
         return canales[2];
     }
 
-    // Retorna distancia medida por sensor plano alto central (o promedio alto si hay 4 sensores).
     public double getDHighCenter() {
         if (canales.length >= 6) {
             return canales[4];
@@ -91,7 +129,6 @@ public class VectorSensores {
         return 0.5 * (canales[2] + canales[3]);
     }
 
-    // Retorna distancia medida por sensor plano alto derecho.
     public double getDHighRight() {
         if (canales.length >= 6) {
             return canales[5];
@@ -103,37 +140,44 @@ public class VectorSensores {
     public double getPosX() { return posX; }
     public double getPosY() { return posY; }
     public double getTheta() { return theta; }
-
-    // Retorna marca de tiempo de la medicion.
     public long getTimestamp() { return timestamp; }
 
-    // Valida que todas las distancias esten dentro del rango fisico valido [0, 400] cm y sin NaN.
+    // Valida distancias en [0, 1000] cm (incluye 999.0 cm de timeout VL53L0X) y angulo en [-180, 180].
     public boolean isValido() {
-        for (double c : canales) {
-            if (Double.isNaN(c) || Double.isInfinite(c) || c < 0.0 || c > 400.0) {
+        for (int i = 0; i < canales.length; i++) {
+            double c = canales[i];
+            if (Double.isNaN(c) || Double.isInfinite(c)) {
                 return false;
+            }
+            if (i == 5 && canales.length == 6) {
+                if (c < -180.0 || c > 180.0) return false;
+            } else {
+                if (c < 0.0 || c > MAX_LECTURA_VALIDA_CM) return false;
             }
         }
         return true;
     }
 
-    // Normaliza las distancias en [0.0, 1.0] usando la escala Min-Max [2.0, 250.0] cm de entrenamiento Neuroph.
     public double[] toArrayNormalizado() {
         double[] norm = new double[canales.length];
         double span = MAX_RANGO_CM - MIN_RANGO_CM;
         for (int i = 0; i < canales.length; i++) {
-            double v = (canales[i] - MIN_RANGO_CM) / span;
-            norm[i] = Math.min(1.0, Math.max(0.0, v));
+            if (i == 5 && canales.length == 6) {
+                double v = (canales[i] - (-45.0)) / (60.0 - (-45.0));
+                norm[i] = Math.min(1.0, Math.max(0.0, v));
+            } else {
+                double v = (canales[i] - MIN_RANGO_CM) / span;
+                norm[i] = Math.min(1.0, Math.max(0.0, v));
+            }
         }
         return norm;
     }
 
-    // Retorna representacion textual legible del vector sensorial.
     @Override
     public String toString() {
         if (canales.length == 6) {
             return String.format(Locale.US,
-                    "VectorSensores6[LL=%.1f, LC=%.1f, LR=%.1f, HL=%.1f, HC=%.1f, HR=%.1f cm]",
+                    "VectorSensores[US_L=%.1f, US_C=%.1f, US_R=%.1f, LSR_L=%.1f, LSR_R=%.1f cm, Servo=%.1f°]",
                     canales[0], canales[1], canales[2], canales[3], canales[4], canales[5]);
         }
         return "VectorSensores" + Arrays.toString(canales);

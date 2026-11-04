@@ -73,11 +73,11 @@ public class Hito2IntegrationTest {
 
     @Test
     public void testParseoTelemetriaInferenciaNeurophYComandos() {
-        String trama = "TELEMETRY:115.0,16.0,118.0,116.0,122.0,119.0,1000\n";
+        String trama = "TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1000\n";
         VectorSensores s = MensajeProtocolo.parsearTelemetria(trama);
         assertEquals(6, s.getCantidadSensores());
-        assertEquals(16.0, s.getDLowCenter(), 1e-4);
-        assertEquals(122.0, s.getDHighCenter(), 1e-4);
+        assertEquals(95.0, s.getUsCenter(), 1e-4);
+        assertEquals(12.0, s.getLaserLeft(), 1e-4);
         assertTrue(s.isValido());
 
         ClasificadorNeuroph clasificador = new ClasificadorNeuroph(new ConfiguracionServidor().resolverArchivoModelo());

@@ -24,7 +24,7 @@ public class PlanificadorNavegacion {
     private static final double VEL_RETRO_ARCO_ANTIBUCLE = -4.2;
     private static final double VEL_GIRO_COMPROMETIDO = 4.6;
     private static final double VEL_GIRO_AMPLIO = 5.0;
-    private static final double SESGO_GIRO_NORMAL = -1.6;
+    private static final double SESGO_GIRO_NORMAL = 0.0;
     private static final double SESGO_GIRO_ANTIBUCLE = -2.0;
 
     // Alineacion proactiva al estrecho de salida (apertura de 30 cm).
@@ -64,6 +64,9 @@ public class PlanificadorNavegacion {
     private final int[] historialLados = new int[TAM_HISTORIAL_LADOS];
     private int indiceHistorialLados = 0;
     private int entradasHistorialLados = 0;
+    private int ciclosPersistenciaLobito = 0;
+    private String ultimoLobito = null;
+    private VectorSensores ultimoSensores = null;
 
     // Inicializa el planificador evaluando si el estomago ya posee capturas suficientes para escape.
     public PlanificadorNavegacion(GestorEstomago gestorEstomago) {
@@ -75,6 +78,7 @@ public class PlanificadorNavegacion {
 
     // RF-07: Evalua la accion motriz a partir de las 3 clasificaciones neuronales [IZQ, CENTRO, DER].
     public synchronized ComandoRobot evaluarPares(VectorSensores sensores, String[] pares) {
+        this.ultimoSensores = sensores;
         if (pares == null || pares.length < 3) {
             return new ComandoRobot(0.0, 0.0, estado);
         }
@@ -89,6 +93,12 @@ public class PlanificadorNavegacion {
         String cen = pares[1] != null ? pares[1] : "ESPACIO_LIBRE";
         String der = pares[2] != null ? pares[2] : "ESPACIO_LIBRE";
 
+        if (estado == EstadoRobot.ESCAPE) {
+            if ("LOBITO".equals(izq)) izq = "ESPACIO_LIBRE";
+            if ("LOBITO".equals(cen)) cen = "ESPACIO_LIBRE";
+            if ("LOBITO".equals(der)) der = "ESPACIO_LIBRE";
+        }
+
         boolean bIzq = "BLOQUEO".equals(izq);
         boolean bCen = "BLOQUEO".equals(cen);
         boolean bDer = "BLOQUEO".equals(der);
@@ -98,21 +108,7 @@ public class PlanificadorNavegacion {
         }
 
         // ---------------------------------------------------------------------
-        // 1. INTERRUPCION OPORTUNISTA DE GIRO COMPROMETIDO
-        // Si durante un giro comprometido (post-retroceso) el robot ya tiene el frente
-        // despejado de bloqueos y engancha un LOBITO (en BUSQUEDA) o la SALIDA (en ESCAPE),
-        // cancela el resto del giro para aprovechar el objetivo inmediatamente.
-        // ---------------------------------------------------------------------
-        if (pasosRetrocesoRestantes == 0 && pasosGiroComprometido > 0 && !giroAlineacionSalida) {
-            if (estado != EstadoRobot.ESCAPE && !bCen && ("LOBITO".equals(cen) || "LOBITO".equals(izq) || "LOBITO".equals(der))) {
-                pasosGiroComprometido = 0;
-            } else if (estado == EstadoRobot.ESCAPE && !bCen && ("SALIDA".equals(cen) || "SALIDA".equals(izq) || "SALIDA".equals(der))) {
-                pasosGiroComprometido = 0;
-            }
-        }
-
-        // ---------------------------------------------------------------------
-        // 2. EJECUCION DE MANIOBRA COMPROMETIDA ACTIVA (MARCHA ATRAS O GIRO)
+        // 1. EJECUCION DE MANIOBRA COMPROMETIDA ACTIVA (MARCHA ATRAS O GIRO)
         // El retroceso puede ser en arco asimetrico para que la cola siga la estela
         // libre en lugar de barrer lateralmente contra un obstaculo.
         // ---------------------------------------------------------------------
@@ -141,19 +137,14 @@ public class PlanificadorNavegacion {
         if (!salidaFrontalEnEscape && ((bIzq && bCen && bDer) || (bIzq && bDer))) {
             contadorOscilaciones++;
             boolean bucle = contadorOscilaciones >= UMBRAL_OSCILACIONES_ANTIBUCLE || esPatronAlternante();
-            int pasosRetroceso = bucle ? PASOS_RETRO_ARCO_ANTIBUCLE : PASOS_RETRO_ARCO_TOTAL;
-            iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, pasosRetroceso);
-            // En ESCAPE preferir sentido consistente de barrido perimetral (+1 horario);
-            // en BUSQUEDA alejarse del ultimo lado bloqueado o girar hacia mayor despeje.
             int fallbackDir = (estado == EstadoRobot.ESCAPE) ? 1 : (ultimoLadoBloqueado <= 0 ? 1 : -1);
             int dir = calcularDireccionEvasiva(sensores, fallbackDir);
-            if (bucle) {
-                contadorOscilaciones = 0;
-                reiniciarHistorialLados();
-                iniciarGiroComprometido(dir, PASOS_GIRO_ANTIBUCLE, VEL_GIRO_AMPLIO, SESGO_GIRO_ANTIBUCLE);
-            } else {
-                iniciarGiroComprometido(dir, PASOS_GIRO_BLOQUEO, VEL_GIRO_AMPLIO, SESGO_GIRO_NORMAL);
-            }
+            int pasosGiro = bucle ? 28 : 22;
+
+            int pasosRetroceso = bucle ? PASOS_RETRO_ARCO_ANTIBUCLE : PASOS_RETRO_ARCO_TOTAL;
+            iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, pasosRetroceso);
+            double sesgo = (sensores == null) ? (bucle ? SESGO_GIRO_ANTIBUCLE : SESGO_GIRO_NORMAL) : 0.0;
+            iniciarGiroComprometido(dir, pasosGiro, VEL_GIRO_AMPLIO, sesgo);
             ciclosDesdeUltimoBloqueo = 0;
             EstadoRobot est = (estado == EstadoRobot.ESCAPE) ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
             return new ComandoRobot(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, est);
@@ -260,18 +251,18 @@ public class PlanificadorNavegacion {
                 if (debeActivarAntiBucle()) {
                     return activarManiobraAntiBucle(1, EstadoRobot.ESCAPE);
                 }
-                return iniciarRetrocesoArcoYPivote(1, 7, EstadoRobot.ESCAPE);
+                return iniciarRetrocesoArcoYPivote(1, 16, EstadoRobot.ESCAPE);
             }
             if (bCen && bDer) {
                 registrarBloqueoLateral(1);
                 if (debeActivarAntiBucle()) {
                     return activarManiobraAntiBucle(-1, EstadoRobot.ESCAPE);
                 }
-                return iniciarRetrocesoArcoYPivote(-1, 7, EstadoRobot.ESCAPE);
+                return iniciarRetrocesoArcoYPivote(-1, 16, EstadoRobot.ESCAPE);
             }
             if (bCen) {
                 int dir = calcularDireccionEvasiva(sensores, 1);
-                return iniciarRetrocesoArcoYPivote(dir, 7, EstadoRobot.ESCAPE);
+                return iniciarRetrocesoArcoYPivote(dir, 16, EstadoRobot.ESCAPE);
             }
             if (bIzq) {
                 registrarBloqueoLateral(-1);
@@ -295,118 +286,136 @@ public class PlanificadorNavegacion {
         // ---------------------------------------------------------------------
         // 5. LOGICA DE BUSQUEDA Y APROXIMACION (CAPTURAS < 3)
         // ---------------------------------------------------------------------
-        // Prioridad 5a: Evitar salir prematuramente por el hueco de 30 cm antes de tiempo
-        boolean sIzq = "SALIDA".equals(izq);
-        boolean sCen = "SALIDA".equals(cen);
-        boolean sDer = "SALIDA".equals(der);
-
-        if (sCen || (sIzq && sDer)) {
-            int dir = (ultimoLadoBloqueado <= 0) ? 1 : -1;
-            iniciarGiroComprometido(dir, 9);
-            return new ComandoRobot(VEL_GIRO_COMPROMETIDO * dir, -VEL_GIRO_COMPROMETIDO * dir, EstadoRobot.BUSQUEDA);
-        }
-        if (sIzq) {
-            iniciarGiroComprometido(1, 6);
-            return new ComandoRobot(VEL_GIRO_COMPROMETIDO, -VEL_GIRO_COMPROMETIDO, EstadoRobot.BUSQUEDA);
-        }
-        if (sDer) {
-            iniciarGiroComprometido(-1, 6);
-            return new ComandoRobot(-VEL_GIRO_COMPROMETIDO, VEL_GIRO_COMPROMETIDO, EstadoRobot.BUSQUEDA);
-        }
-
-        // Prioridad 5b: Deteccion y aproximacion de presas (LOBITO)
+        // Prioridad 5a: Deteccion y aproximacion de presas (LOBITO) con embocado fino a boca de 7.0 cm
         boolean lIzq = "LOBITO".equals(izq);
         boolean lCen = "LOBITO".equals(cen);
         boolean lDer = "LOBITO".equals(der);
 
-        if (lCen) {
+        if (lCen && !bCen) {
+            pasosGiroComprometido = 0;
+            ultimoLobito = "LOBITO_CENTRO";
+            ciclosPersistenciaLobito = 10;
+            // Desaceleración suave al 40-50% en los últimos 10-15 cm para embocar sin rebote
+            boolean enZonaBucal = sensores != null && (sensores.getLaserLeft() <= 18.0 || sensores.getLaserRight() <= 18.0);
+            double vApproach = enZonaBucal ? 2.4 : 3.4;
+
+            double diff = 0.0;
+            if (sensores != null) {
+                double dl = sensores.getLaserLeft();
+                double dr = sensores.getLaserRight();
+                if (dl < 32.0 && dr < 32.0) {
+                    diff = (dl - dr);
+                } else if (dr < 20.0 && dl >= 20.0) {
+                    diff = (20.0 - dr);
+                } else if (dl < 20.0 && dr >= 20.0) {
+                    diff = -(20.0 - dl);
+                }
+            }
+            double steer = Math.max(-0.6, Math.min(0.6, diff * 0.10));
+
             if (bIzq && !bDer) {
-                return new ComandoRobot(3.6, 3.0, EstadoRobot.APROXIMACION);
+                return new ComandoRobot(vApproach + 0.3, vApproach - 0.3, EstadoRobot.APROXIMACION);
             } else if (bDer && !bIzq) {
-                return new ComandoRobot(3.0, 3.6, EstadoRobot.APROXIMACION);
+                return new ComandoRobot(vApproach - 0.3, vApproach + 0.3, EstadoRobot.APROXIMACION);
             } else {
-                return new ComandoRobot(3.8, 3.8, EstadoRobot.APROXIMACION);
+                return new ComandoRobot(vApproach + steer, vApproach - steer, EstadoRobot.APROXIMACION);
             }
         }
 
-        if (lIzq) {
-            if (bCen) {
-                return new ComandoRobot(-3.4, 3.4, EstadoRobot.APROXIMACION);
-            } else {
-                return new ComandoRobot(1.2, 4.2, EstadoRobot.APROXIMACION);
+        if (lIzq && !bIzq && !bCen) {
+            pasosGiroComprometido = 0;
+            ultimoLobito = "LOBITO_IZQ";
+            ciclosPersistenciaLobito = 10;
+            return new ComandoRobot(1.2, 2.8, EstadoRobot.APROXIMACION);
+        }
+
+        if (lDer && !bDer && !bCen) {
+            pasosGiroComprometido = 0;
+            ultimoLobito = "LOBITO_DER";
+            ciclosPersistenciaLobito = 10;
+            return new ComandoRobot(2.8, 1.2, EstadoRobot.APROXIMACION);
+        }
+
+        // Persistencia de aproximacion durante barrido de servos (para no perder el objetivo mientras el servo barre)
+        if (ciclosPersistenciaLobito > 0 && !bCen && !bIzq && !bDer) {
+            ciclosPersistenciaLobito--;
+            if ("LOBITO_CENTRO".equals(ultimoLobito)) {
+                return new ComandoRobot(2.4, 2.4, EstadoRobot.APROXIMACION);
+            } else if ("LOBITO_IZQ".equals(ultimoLobito)) {
+                return new ComandoRobot(1.4, 2.6, EstadoRobot.APROXIMACION);
+            } else if ("LOBITO_DER".equals(ultimoLobito)) {
+                return new ComandoRobot(2.6, 1.4, EstadoRobot.APROXIMACION);
+            }
+        } else if (bCen || bIzq || bDer) {
+            ciclosPersistenciaLobito = 0;
+            ultimoLobito = null;
+        }
+
+        // Prioridad 5b: Evitar salir prematuramente por el estrecho de salida (30 cm) antes de Panza Llena
+        // Solo aplica si el frente no está bloqueado físicamente y el giro evasivo tiene espacio libre.
+        boolean sCen = "SALIDA".equals(cen);
+        boolean sIzq = "SALIDA".equals(izq);
+        boolean sDer = "SALIDA".equals(der);
+
+        if (!bCen) {
+            if (sCen || (sIzq && sDer)) {
+                int dir = bIzq ? -1 : (bDer ? 1 : ((ultimoLadoBloqueado <= 0) ? 1 : -1));
+                iniciarGiroComprometido(dir, 12);
+                return new ComandoRobot(VEL_GIRO_COMPROMETIDO * dir, -VEL_GIRO_COMPROMETIDO * dir, EstadoRobot.BUSQUEDA);
+            }
+            if (sIzq && !bDer) {
+                iniciarGiroComprometido(1, 8);
+                return new ComandoRobot(VEL_GIRO_COMPROMETIDO, -VEL_GIRO_COMPROMETIDO, EstadoRobot.BUSQUEDA);
+            }
+            if (sDer && !bIzq) {
+                iniciarGiroComprometido(-1, 8);
+                return new ComandoRobot(-VEL_GIRO_COMPROMETIDO, VEL_GIRO_COMPROMETIDO, EstadoRobot.BUSQUEDA);
             }
         }
 
-        if (lDer) {
-            if (bCen) {
-                return new ComandoRobot(3.4, -3.4, EstadoRobot.APROXIMACION);
-            } else {
-                return new ComandoRobot(4.2, 1.2, EstadoRobot.APROXIMACION);
-            }
-        }
-
-        // Prioridad 5c: Esquive y deflexion de bloqueos
-        boolean obsIzq = bIzq || (sensores != null && (sensores.getDLowLeft() <= 18.0 || sensores.getDHighLeft() <= 20.0));
-        boolean obsDer = bDer || (sensores != null && (sensores.getDLowRight() <= 18.0 || sensores.getDHighRight() <= 20.0));
-        boolean obsCen = bCen || (sensores != null && (sensores.getDLowCenter() <= 23.0 || sensores.getDHighCenter() <= 25.0));
-
-        // Flanqueo proactivo hacia espacio abierto: si un lateral esta encajonado
-        // contra un muro (<22 cm) y el lado opuesto se abre ampliamente a la bahia (>50 cm),
-        // virar decididamente hacia el sector despejado para escapar de pasillos ciegos.
-        if (sensores != null && !obsCen && !obsIzq && !obsDer && !lIzq && !lDer && !lCen) {
-            double dL = sensores.getDLowLeft();
-            double dR = sensores.getDLowRight();
-            if (dL < 22.0 && dR > 50.0) {
-                return new ComandoRobot(4.6, 2.2, EstadoRobot.BUSQUEDA);
-            }
-            if (dR < 22.0 && dL > 50.0) {
-                return new ComandoRobot(2.2, 4.6, EstadoRobot.BUSQUEDA);
-            }
-        }
+        // Prioridad 5c: Esquive y deflexion de bloqueos (100% clasificados por red neuronal)
+        boolean obsIzq = bIzq;
+        boolean obsDer = bDer;
+        boolean obsCen = bCen;
 
         if (obsIzq && obsCen) {
             registrarBloqueoLateral(-1);
-            if (ciclosMismoLadoBloqueado >= 5 || debeActivarAntiBucle()) {
+            if (ciclosMismoLadoBloqueado >= 40 || debeActivarAntiBucle()) {
                 return activarManiobraAntiBucle(1, EstadoRobot.BUSQUEDA);
             }
             int dir = calcularDireccionEvasiva(sensores, 1);
-            return iniciarRetrocesoArcoYPivote(dir, 7, EstadoRobot.BUSQUEDA);
+            int pasos = 22;
+            return iniciarRetrocesoArcoYPivote(dir, pasos, EstadoRobot.BUSQUEDA);
         }
 
         if (obsCen && obsDer) {
             registrarBloqueoLateral(1);
-            if (ciclosMismoLadoBloqueado >= 5 || debeActivarAntiBucle()) {
+            if (ciclosMismoLadoBloqueado >= 40 || debeActivarAntiBucle()) {
                 return activarManiobraAntiBucle(-1, EstadoRobot.BUSQUEDA);
             }
             int dir = calcularDireccionEvasiva(sensores, -1);
-            return iniciarRetrocesoArcoYPivote(dir, 7, EstadoRobot.BUSQUEDA);
+            int pasos = 22;
+            return iniciarRetrocesoArcoYPivote(dir, pasos, EstadoRobot.BUSQUEDA);
         }
 
         if (obsCen) {
             int dir = calcularDireccionEvasiva(sensores, (ultimoLadoBloqueado <= 0) ? 1 : -1);
-            return iniciarRetrocesoArcoYPivote(dir, 14, EstadoRobot.BUSQUEDA);
+            int pasos = 22;
+            return iniciarRetrocesoArcoYPivote(dir, pasos, EstadoRobot.BUSQUEDA);
         }
 
         if (obsIzq) {
             registrarBloqueoLateral(-1);
-            if (ciclosMismoLadoBloqueado >= 4 || debeActivarAntiBucle()) {
+            if (ciclosMismoLadoBloqueado >= 25 || debeActivarAntiBucle()) {
                 return activarManiobraAntiBucle(1, EstadoRobot.BUSQUEDA);
-            }
-            if (sensores != null && sensores.getDLowLeft() <= 12.0) {
-                int dir = calcularDireccionEvasiva(sensores, 1);
-                return iniciarRetrocesoArcoYPivote(dir, 10, EstadoRobot.BUSQUEDA);
             }
             return new ComandoRobot(VEL_AVANCE_ARCO, VEL_ARCO_LENTA, EstadoRobot.BUSQUEDA);
         }
 
         if (obsDer) {
             registrarBloqueoLateral(1);
-            if (ciclosMismoLadoBloqueado >= 4 || debeActivarAntiBucle()) {
+            if (ciclosMismoLadoBloqueado >= 25 || debeActivarAntiBucle()) {
                 return activarManiobraAntiBucle(-1, EstadoRobot.BUSQUEDA);
-            }
-            if (sensores != null && sensores.getDLowRight() <= 12.0) {
-                int dir = calcularDireccionEvasiva(sensores, -1);
-                return iniciarRetrocesoArcoYPivote(dir, 10, EstadoRobot.BUSQUEDA);
             }
             return new ComandoRobot(VEL_ARCO_LENTA, VEL_AVANCE_ARCO, EstadoRobot.BUSQUEDA);
         }
@@ -418,6 +427,19 @@ public class PlanificadorNavegacion {
             reiniciarHistorialLados();
         }
         double sweep = ((contadorCiclos / 50) % 2 == 0) ? 0.55 : -0.55;
+        if (sensores != null && sensores.getCantidadSensores() >= 6) {
+            double dl = sensores.getLaserLeft();
+            double dr = sensores.getLaserRight();
+            double usl = sensores.getUsLeft();
+            double usr = sensores.getUsRight();
+            double clearL = Math.min(usl, dl);
+            double clearR = Math.min(usr, dr);
+            if (clearL < 28.0 && clearR >= 28.0) {
+                sweep = 0.55; // Curvar hacia la derecha (alejarse de la izquierda)
+            } else if (clearR < 28.0 && clearL >= 28.0) {
+                sweep = -0.55; // Curvar hacia la izquierda (alejarse de la derecha)
+            }
+        }
         return new ComandoRobot(4.8 + sweep, 4.8 - sweep, EstadoRobot.BUSQUEDA);
     }
 
@@ -495,45 +517,88 @@ public class PlanificadorNavegacion {
         giroAlineacionSalida = false;
     }
 
-    // Retroceso recto normal (6 ciclos) seguido de pivote asimetrico, para despejar trompa y cola.
+    // Retroceso recto normal (5 ciclos) seguido de pivote asimetrico, para despejar trompa y cola.
     private ComandoRobot iniciarRetrocesoArcoYPivote(int direccionGiro, int pasosGiro, EstadoRobot estadoComando) {
         if (ciclosDesdeUltimoReverso < 70) {
             contadorReversosConsecutivos++;
         }
         ciclosDesdeUltimoReverso = 0;
-        if (contadorReversosConsecutivos >= 2) {
+        if (contadorReversosConsecutivos >= 4) {
             contadorReversosConsecutivos = 0;
             ultimoSentidoAntiBucle = -ultimoSentidoAntiBucle;
             return activarManiobraAntiBucle(ultimoSentidoAntiBucle, estadoComando);
         }
-        iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, PASOS_RETRO_ARCO_NORMAL);
-        iniciarGiroComprometido(direccionGiro, pasosGiro, VEL_GIRO_COMPROMETIDO, SESGO_GIRO_NORMAL);
+        double sesgo = (ultimoSensores == null) ? SESGO_GIRO_NORMAL : 0.0;
+        int pasosRetro = (ultimoSensores != null) ? 5 : PASOS_RETRO_ARCO_NORMAL;
+        iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, pasosRetro);
+        iniciarGiroComprometido(direccionGiro, pasosGiro, VEL_GIRO_COMPROMETIDO, sesgo);
         return new ComandoRobot(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, estadoComando);
     }
 
-    // Maniobra anti-bucle en dos fases: retroceso recto profundo y giro amplio asimetrico.
+    // Notificación explícita de ingesta de presa: retroceder para despejar el entorno y buscar la siguiente.
+    public synchronized void notificarCaptura() {
+        int dir;
+        if (ultimoSensores != null) {
+            dir = calcularDireccionEvasiva(ultimoSensores, 1);
+        } else {
+            dir = (ultimoLadoBloqueado <= 0) ? 1 : -1;
+        }
+        iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, 6);
+        iniciarGiroComprometido(dir, 24, VEL_GIRO_AMPLIO, 0.0);
+        ciclosPersistenciaLobito = 0;
+        ultimoLobito = null;
+    }
+
+    // Notificación de impacto físico o contacto: retroceso y giro evasivo inmediato para no atascarse.
+    public synchronized void notificarColision() {
+        int dir;
+        if (ultimoSensores != null) {
+            dir = calcularDireccionEvasiva(ultimoSensores, 1);
+        } else {
+            dir = (ultimoLadoBloqueado <= 0) ? -1 : 1;
+        }
+
+        if (pasosRetrocesoRestantes > 0 || velRetrocesoIzq < 0) {
+            iniciarRetrocesoArco(4.8, 4.8, 6);
+            iniciarGiroComprometido(dir, 12, VEL_GIRO_COMPROMETIDO, 0.0);
+        } else {
+            iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, 5);
+            iniciarGiroComprometido(dir, 14, VEL_GIRO_COMPROMETIDO, 0.0);
+        }
+        ciclosPersistenciaLobito = 0;
+        ultimoLobito = null;
+    }
+
+    // Maniobra anti-bucle en dos fases: retroceso recto y giro amplio asimetrico.
     private ComandoRobot activarManiobraAntiBucle(int direccion, EstadoRobot estadoComando) {
         contadorOscilaciones = 0;
         ciclosMismoLadoBloqueado = 0;
         reiniciarHistorialLados();
-        iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, PASOS_RETRO_ARCO_ANTIBUCLE);
-        iniciarGiroComprometido(direccion, PASOS_GIRO_ANTIBUCLE, VEL_GIRO_AMPLIO, SESGO_GIRO_ANTIBUCLE);
+        double sesgo = (ultimoSensores == null) ? SESGO_GIRO_ANTIBUCLE : 0.0;
+        int pasos = (ultimoSensores == null) ? PASOS_GIRO_ANTIBUCLE : 24;
+        int pasosRetro = (ultimoSensores == null) ? PASOS_RETRO_ARCO_ANTIBUCLE : 6;
+        iniciarRetrocesoArco(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, pasosRetro);
+        iniciarGiroComprometido(direccion, pasos, VEL_GIRO_AMPLIO, sesgo);
         return new ComandoRobot(VEL_RETRO_ARCO_RAPIDA, VEL_RETRO_ARCO_RAPIDA, estadoComando);
     }
 
     // Calcula la direccion de giro evasivo priorizando el lado con mayor despeje fisico.
     private int calcularDireccionEvasiva(VectorSensores sensores, int fallback) {
         if (sensores != null) {
-            double dL = sensores.getDLowLeft();
-            double dR = sensores.getDLowRight();
-            if (dL < 18.0 && dR >= 18.0) {
+            double clearanceL = sensores.getUsLeft();
+            double clearanceR = sensores.getUsRight();
+            if (sensores.getCantidadSensores() >= 6) {
+                clearanceL = Math.min(clearanceL, sensores.getLaserLeft());
+                clearanceR = Math.min(clearanceR, sensores.getLaserRight());
+            }
+            if (clearanceL < 22.0 && clearanceR >= 22.0) {
                 return 1; // Obstaculo a la izquierda: girar hacia la derecha
             }
-            if (dR < 18.0 && dL >= 18.0) {
+            if (clearanceR < 22.0 && clearanceL >= 22.0) {
                 return -1; // Obstaculo a la derecha: girar hacia la izquierda
             }
-            if (Math.abs(dL - dR) > 3.0) {
-                return (dL > dR) ? -1 : 1; // Girar hacia el sector con mayor despeje libre
+            if (Math.abs(clearanceL - clearanceR) > 3.0) {
+                return (clearanceL > clearanceR) ? -1 : 1; // Girar hacia el sector con mayor despeje libre
             }
         }
         return fallback;
@@ -545,6 +610,8 @@ public class PlanificadorNavegacion {
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
         this.giroAlineacionSalida = false;
+        this.ciclosPersistenciaLobito = 0;
+        this.ultimoLobito = null;
         LOGGER.info("MUTACION CONDUCTUAL ACTIVADA: Modo ESCAPE.");
     }
 

@@ -1,0 +1,150 @@
+package com.orquitas.server;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Verifica el flujo de hardware físico sobre streams serie/Bluetooth (sin Socket TCP):
+ * - Recepción de TELEMETRY 3US+2Laser y emisión de COMMAND
+ * - Conteo de canicas desde EVENT:CAPTURA del láser del estómago con cooldown anti-rebote y tope en 3
+ * - Emisión periódica de HEARTBEAT (< 500 ms) para mantener vivo el watchdog del Arduino
+ * - Parseo de argumentos CLI --serial y --baud
+ */
+public class HardwareSerialAndCaptureTest {
+
+    private File tempEstomago;
+    private GestorEstomago gestorEstomago;
+
+    @BeforeEach
+    public void setUp() throws IOException {
+        tempEstomago = File.createTempFile("estomago_hw_serial_test_", ".txt");
+        if (tempEstomago.exists()) tempEstomago.delete();
+        gestorEstomago = new GestorEstomago(tempEstomago);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        if (tempEstomago != null && tempEstomago.exists()) {
+            tempEstomago.delete();
+        }
+    }
+
+    @Test
+    public void testStreamSessionCountsMarblesWithDebounceAndTriggersEscape() throws Exception {
+        PipedOutputStream arduinoTx = new PipedOutputStream();
+        PipedInputStream serverRx = new PipedInputStream(arduinoTx);
+        PipedOutputStream serverTx = new PipedOutputStream();
+        PipedInputStream arduinoRx = new PipedInputStream(serverTx);
+
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(new ConfiguracionServidor().resolverArchivoModelo());
+        PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
+
+        // Cooldown de 180 ms y heartbeat cada 120 ms para test rápido y determinista
+        ManejadorCliente sesionSerie = new ManejadorCliente(
+                serverRx, serverTx, "Serial:/dev/rfcomm0", () -> {},
+                gestorEstomago, null, clasificador, planificador, 180L, 120L);
+
+        CountDownLatch escapeLatch = new CountDownLatch(1);
+        AuditorEstomago auditor = new AuditorEstomago(gestorEstomago, 25, 3);
+        auditor.agregarOyente(new OyenteAuditor() {
+            @Override
+            public void onCapturaAuditada(int total) {}
+
+            @Override
+            public void onModoEscapeActivado(List<RegistroCaptura> capturas) {
+                planificador.activarModoEscape();
+                sesionSerie.enviarMensaje(MensajeProtocolo.crearModoEscape());
+                escapeLatch.countDown();
+            }
+        });
+
+        Thread serverThread = new Thread(sesionSerie, "Test-SerialSession");
+        serverThread.start();
+        auditor.iniciar();
+
+        BufferedWriter toServer = new BufferedWriter(new OutputStreamWriter(arduinoTx, StandardCharsets.UTF_8));
+        BufferedReader fromServer = new BufferedReader(new InputStreamReader(arduinoRx, StandardCharsets.UTF_8));
+
+        try {
+            // 1. Verificar HEARTBEAT automático del servidor cuando la línea está en silencio
+            String firstLine = fromServer.readLine();
+            assertEquals("HEARTBEAT", firstLine, "El servidor debe enviar HEARTBEAT periódico para sostener el fail-safe");
+
+            // 2. Enviar telemetría con canica al centro -> debe responder COMMAND con APROXIMACION
+            toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1000\n");
+            toServer.flush();
+
+            String cmdLine = leerHastaPrefijo(fromServer, "COMMAND:");
+            assertTrue(cmdLine.contains("APROXIMACION"), "Debe responder COMMAND en APROXIMACION, recibió: " + cmdLine);
+
+            // 3. Captura #1 + rebote espurio inmediato (30 ms después < 180 ms cooldown)
+            toServer.write("EVENT:CAPTURA_LOBITO_1\n");
+            toServer.flush();
+            Thread.sleep(30);
+            toServer.write("EVENT:CAPTURA_REBOTE_ESPURIO\n");
+            toServer.flush();
+            Thread.sleep(60);
+            assertEquals(1, gestorEstomago.contarCapturasValidas(), "El rebote dentro del cooldown no debe duplicar la captura");
+
+            // 4. Captura #2 tras vencer el cooldown
+            Thread.sleep(160);
+            toServer.write("EVENT:CAPTURA_LOBITO_2\n");
+            toServer.flush();
+            Thread.sleep(60);
+            assertEquals(2, gestorEstomago.contarCapturasValidas());
+
+            // 5. Captura #3 tras vencer el cooldown -> dispara STATE_CHANGE:ESCAPE
+            Thread.sleep(160);
+            toServer.write("EVENT:CAPTURA_LOBITO_3\n");
+            toServer.flush();
+
+            assertTrue(escapeLatch.await(1, TimeUnit.SECONDS), "El auditor debe activar ESCAPE al contar 3 canicas");
+            String stateLine = leerHastaPrefijo(fromServer, "STATE_CHANGE:");
+            assertEquals("STATE_CHANGE:ESCAPE", stateLine);
+            assertEquals(3, gestorEstomago.contarCapturasValidas());
+
+            // 6. Un 4.º evento después de panza llena no debe exceder las 3 canicas
+            Thread.sleep(200);
+            toServer.write("EVENT:CAPTURA_EXTRA\n");
+            toServer.flush();
+            Thread.sleep(60);
+            assertEquals(3, gestorEstomago.contarCapturasValidas(), "En ESCAPE no debe registrar una 4ta captura");
+        } finally {
+            auditor.detener();
+            sesionSerie.cerrar();
+            toServer.close();
+            fromServer.close();
+            serverThread.join(1000);
+        }
+    }
+
+    @Test
+    public void testCliSerialConfigurationParsing() {
+        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(
+                new String[]{"--serial", "/dev/rfcomm0", "--baud", "9600", "--port", "5555"});
+        assertEquals("/dev/rfcomm0", cfg.getPuertoSerie());
+        assertEquals(9600, cfg.getBaudiosSerie());
+        assertEquals(5555, cfg.getPuerto());
+    }
+
+    private static String leerHastaPrefijo(BufferedReader reader, String prefijo) throws IOException {
+        for (int i = 0; i < 15; i++) {
+            String line = reader.readLine();
+            assertNotNull(line, "El stream se cerró antes de recibir " + prefijo);
+            if (line.startsWith(prefijo)) {
+                return line;
+            }
+        }
+        fail("No se recibió línea con prefijo " + prefijo);
+        return null;
+    }
+}

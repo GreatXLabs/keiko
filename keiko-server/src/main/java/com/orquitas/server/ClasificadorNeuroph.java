@@ -1,234 +1,337 @@
 package com.orquitas.server;
 
 import org.neuroph.core.NeuralNetwork;
+
 import java.io.File;
+import java.io.InputStream;
 import java.util.logging.Logger;
 
 /**
- * Clasificador del entorno de la Bahia de Caza mediante Red Neuronal Neuroph 2.98.
- * Soporta como arquitectura principal la evaluacion por par coaxial (d_bajo, d_alto -> 4 clases:
- * BLOQUEO, ESPACIO_LIBRE, LOBITO, SALIDA) reutilizando la misma red para los 3 sectores
- * (IZQ, CENTRO, DER), ademas de compatibilidad con modelos de 5, 7 o 9 salidas.
+ * Clasificador del entorno de la Bahía de Caza mediante Redes Neuronales Neuroph 2.98.
+ * Implementa la arquitectura de 2 redes especializadas:
+ * 1. Red 1 (modelo_ultrasonico.nnet): 1 entrada normalizada -> 3 salidas {BLOQUEO, ESPACIO_LIBRE, SALIDA}.
+ *    Se ejecuta 3 veces por ciclo (us_left, us_center, us_right) para armar el vector base [IZQ, CEN, DER].
+ * 2. Red 2 (modelo_canicas.nnet): 6 entradas [us_izq, us_cen, us_der, laser_izq, laser_der, angulo_servo]
+ *    -> 4 salidas {LOBITO_CENTRO, LOBITO_DER, LOBITO_IZQ, NINGUNA}.
+ *    Se ejecuta 1 vez por ciclo. Si detecta canica, pisa el sector correspondiente del vector base con LOBITO.
+ *
+ * Soporta carga desde disco y fallback automático desde recursos embebidos en el JAR.
  */
 public class ClasificadorNeuroph {
     private static final Logger LOGGER = Logger.getLogger(ClasificadorNeuroph.class.getName());
 
-    // Orden alfabetico exacto generado por DatasetParser en neuroph-train para par coaxial (2 entradas -> 4 salidas)
-    public static final String[] CLASES_PAR_4 = {
-        "BLOQUEO", "ESPACIO_LIBRE", "LOBITO", "SALIDA"
-    };
+    public static final String[] CLASES_US_3 = { "BLOQUEO", "ESPACIO_LIBRE", "SALIDA" };
+    public static final String[] CLASES_CANICAS_4 = { "LOBITO_CENTRO", "LOBITO_DER", "LOBITO_IZQ", "NINGUNA" };
 
-    // Orden alfabetico para modelos globales de 5, 7 y 9 clases
-    public static final String[] CLASES_5 = {
-        "ESPACIO_LIBRE", "LOBITO", "MURO", "OBSTACULO", "SALIDA"
-    };
-    public static final String[] CLASES_7 = {
-        "ESPACIO_LIBRE", "LOBITO_CENTRO", "LOBITO_DER", "LOBITO_IZQ", "MURO", "OBSTACULO", "SALIDA"
-    };
+    public static final String[] CLASES_PAR_4 = { "BLOQUEO", "ESPACIO_LIBRE", "LOBITO", "SALIDA" };
+    public static final String[] CLASES_5 = { "ESPACIO_LIBRE", "LOBITO", "MURO", "OBSTACULO", "SALIDA" };
+    public static final String[] CLASES_7 = { "ESPACIO_LIBRE", "LOBITO_CENTRO", "LOBITO_DER", "LOBITO_IZQ", "MURO", "OBSTACULO", "SALIDA" };
     public static final String[] CLASES_9 = {
         "ESPACIO_LIBRE", "LOBITO_CENTRO", "LOBITO_DER", "LOBITO_IZQ", "MURO",
         "OBSTACULO_CENTRO", "OBSTACULO_DER", "OBSTACULO_IZQ", "SALIDA"
     };
     public static final String[] CLASES = CLASES_PAR_4;
 
-    private NeuralNetwork<?> neuralNetwork;
+    private NeuralNetwork<?> neuralNetUltrasonico;
+    private NeuralNetwork<?> neuralNetCanicas;
+    private NeuralNetwork<?> neuralNetLegacy;
+
     private final File archivoModelo;
     private double ultimaConfianza = 0.0;
 
-    // Inicializa el clasificador con el archivo de la red neuronal.
     public ClasificadorNeuroph(File archivoModelo) {
         this.archivoModelo = archivoModelo;
-        cargarModelo();
+        cargarModelos();
     }
 
-    // Carga la red neuronal desde el archivo .nnet especificado.
-    private void cargarModelo() {
+    public ClasificadorNeuroph(File modeloUltrasonico, File modeloCanicas) {
+        this.archivoModelo = modeloUltrasonico;
+        cargarModeloEspecifico(modeloUltrasonico, true);
+        cargarModeloEspecifico(modeloCanicas, false);
+    }
+
+    private void cargarModelos() {
         if (archivoModelo != null && archivoModelo.exists()) {
-            try {
-                this.neuralNetwork = NeuralNetwork.createFromFile(archivoModelo);
-                LOGGER.info("Red neuronal Neuroph 2.98 cargada desde: " + archivoModelo.getAbsolutePath()
-                        + " (entradas=" + neuralNetwork.getInputsCount()
-                        + ", salidas=" + neuralNetwork.getOutputsCount() + ")");
-            } catch (Exception e) {
-                LOGGER.warning("No se pudo cargar modelo Neuroph: " + e.getMessage());
+            File dir = archivoModelo.getParentFile();
+            String nombre = archivoModelo.getName().toLowerCase();
+            if (nombre.contains("ultrasonico") || nombre.contains("us")) {
+                cargarModeloEspecifico(archivoModelo, true);
+                if (dir != null) {
+                    File fCanicas = new File(dir, "modelo_canicas.nnet");
+                    if (fCanicas.exists()) cargarModeloEspecifico(fCanicas, false);
+                }
+            } else if (nombre.contains("canica")) {
+                cargarModeloEspecifico(archivoModelo, false);
+                if (dir != null) {
+                    File fUS = new File(dir, "modelo_ultrasonico.nnet");
+                    if (fUS.exists()) cargarModeloEspecifico(fUS, true);
+                }
+            } else {
+                try {
+                    neuralNetLegacy = NeuralNetwork.createFromFile(archivoModelo);
+                    LOGGER.info("[NEUROPH LEGACY] Cargado modelo: " + archivoModelo.getName()
+                            + " (in=" + neuralNetLegacy.getInputsCount() + ", out=" + neuralNetLegacy.getOutputsCount() + ")");
+                } catch (Exception e) {
+                    LOGGER.warning("[NEUROPH] Error al cargar modelo legacy: " + e.getMessage());
+                }
+            }
+        }
+
+        if (neuralNetLegacy == null) {
+            String[] directoriosCandidatos = new String[]{
+                "models",
+                "keiko-server/models",
+                "../keiko-sim/data/models",
+                "keiko-sim/data/models",
+                "data/models"
+            };
+
+            if (neuralNetUltrasonico == null) {
+                for (String d : directoriosCandidatos) {
+                    File f = new File(d, "modelo_ultrasonico.nnet");
+                    if (f.exists()) {
+                        cargarModeloEspecifico(f, true);
+                        break;
+                    }
+                }
+            }
+            if (neuralNetUltrasonico == null) {
+                cargarDesdeRecursoClasspath("models/modelo_ultrasonico.nnet", true);
+            }
+
+            if (neuralNetCanicas == null) {
+                for (String d : directoriosCandidatos) {
+                    File f = new File(d, "modelo_canicas.nnet");
+                    if (f.exists()) {
+                        cargarModeloEspecifico(f, false);
+                        break;
+                    }
+                }
+            }
+            if (neuralNetCanicas == null) {
+                cargarDesdeRecursoClasspath("models/modelo_canicas.nnet", false);
             }
         }
     }
 
-    // Evalua un par coaxial individual (d_bajo, d_alto en cm) con la red Neuroph 2.98.
+    private void cargarModeloEspecifico(File f, boolean esUltrasonico) {
+        if (f == null || !f.exists()) return;
+        try {
+            NeuralNetwork<?> net = NeuralNetwork.createFromFile(f);
+            asignarRed(net, esUltrasonico, f.getPath());
+        } catch (Exception e) {
+            LOGGER.warning("[NEUROPH] Error cargando " + f.getName() + ": " + e.getMessage());
+        }
+    }
+
+    private void cargarDesdeRecursoClasspath(String rutaRecurso, boolean esUltrasonico) {
+        try (InputStream is = ClasificadorNeuroph.class.getClassLoader().getResourceAsStream(rutaRecurso)) {
+            if (is == null) return;
+            NeuralNetwork<?> net = NeuralNetwork.load(is);
+            asignarRed(net, esUltrasonico, "classpath:" + rutaRecurso);
+        } catch (Exception e) {
+            LOGGER.warning("[NEUROPH] Error cargando recurso embebido " + rutaRecurso + ": " + e.getMessage());
+        }
+    }
+
+    private void asignarRed(NeuralNetwork<?> net, boolean esUltrasonico, String origen) {
+        if (net == null) return;
+        if (esUltrasonico) {
+            this.neuralNetUltrasonico = net;
+            LOGGER.info("[NEUROPH RED 1] modelo_ultrasonico.nnet cargado desde " + origen
+                    + " (in=" + net.getInputsCount() + ", out=" + net.getOutputsCount() + ")");
+        } else {
+            this.neuralNetCanicas = net;
+            LOGGER.info("[NEUROPH RED 2] modelo_canicas.nnet cargado desde " + origen
+                    + " (in=" + net.getInputsCount() + ", out=" + net.getOutputsCount() + ")");
+        }
+    }
+
+    public boolean isCargado() {
+        return (neuralNetUltrasonico != null) || (neuralNetLegacy != null);
+    }
+
+    public synchronized String clasificarSectorUltrasonico(double distCm) {
+        if (neuralNetUltrasonico == null) {
+            return "ESPACIO_LIBRE";
+        }
+        double norm = Math.min(1.0, Math.max(0.0, (distCm - 2.0) / 248.0));
+        neuralNetUltrasonico.setInput(norm);
+        neuralNetUltrasonico.calculate();
+        double[] out = neuralNetUltrasonico.getOutput();
+        int maxIdx = 0;
+        double maxVal = out[0];
+        for (int i = 1; i < out.length; i++) {
+            if (out[i] > maxVal) {
+                maxVal = out[i];
+                maxIdx = i;
+            }
+        }
+        this.ultimaConfianza = maxVal;
+        return CLASES_US_3[maxIdx];
+    }
+
+    public synchronized String clasificarCanicas(VectorSensores sensores) {
+        if (neuralNetCanicas == null || sensores == null || sensores.getCantidadSensores() < 6) {
+            return "NINGUNA";
+        }
+        double nUsIzq = Math.min(1.0, Math.max(0.0, (sensores.getUsLeft() - 2.0) / 248.0));
+        double nUsCen = Math.min(1.0, Math.max(0.0, (sensores.getUsCenter() - 2.0) / 248.0));
+        double nUsDer = Math.min(1.0, Math.max(0.0, (sensores.getUsRight() - 2.0) / 248.0));
+        double nLaserIzq = Math.min(1.0, Math.max(0.0, (sensores.getLaserLeft() - 2.0) / 40.0));
+        double nLaserDer = Math.min(1.0, Math.max(0.0, (sensores.getLaserRight() - 2.0) / 40.0));
+        double nServo = Math.min(1.0, Math.max(0.0, (sensores.getAnguloServo() - (-45.0)) / 105.0));
+
+        neuralNetCanicas.setInput(nUsIzq, nUsCen, nUsDer, nLaserIzq, nLaserDer, nServo);
+        neuralNetCanicas.calculate();
+        double[] out = neuralNetCanicas.getOutput();
+        int maxIdx = 0;
+        double maxVal = out[0];
+        for (int i = 1; i < out.length; i++) {
+            if (out[i] > maxVal) {
+                maxVal = out[i];
+                maxIdx = i;
+            }
+        }
+        return CLASES_CANICAS_4[maxIdx];
+    }
+
     public synchronized String clasificarPar(double dLowCm, double dHighCm) {
         if (Double.isNaN(dLowCm) || Double.isNaN(dHighCm)
                 || Double.isInfinite(dLowCm) || Double.isInfinite(dHighCm)
-                || dLowCm < 0.0 || dLowCm > 400.0 || dHighCm < 0.0 || dHighCm > 400.0) {
+                || dLowCm < 0.0 || dLowCm > VectorSensores.MAX_LECTURA_VALIDA_CM
+                || dHighCm < 0.0 || dHighCm > VectorSensores.MAX_LECTURA_VALIDA_CM) {
             this.ultimaConfianza = 0.0;
             return "ESPACIO_LIBRE";
         }
-        if (neuralNetwork == null) {
-            throw new IllegalStateException("Red neuronal Neuroph 2.98 no cargada; prohibido clasificar con umbrales fijos.");
+        if (neuralNetLegacy != null) {
+            return clasificarParLegacy(dLowCm, dHighCm);
         }
-
-        double span = VectorSensores.MAX_RANGO_CM - VectorSensores.MIN_RANGO_CM;
-        double nLow = Math.min(1.0, Math.max(0.0, (dLowCm - VectorSensores.MIN_RANGO_CM) / span));
-        double nHigh = Math.min(1.0, Math.max(0.0, (dHighCm - VectorSensores.MIN_RANGO_CM) / span));
-
-        if (neuralNetwork.getInputsCount() == 2) {
-            neuralNetwork.setInput(nLow, nHigh);
-        } else {
-            double[] replica = adaptarDimensionEntrada(new double[]{nLow, nLow, nLow, nHigh, nHigh, nHigh}, neuralNetwork.getInputsCount());
-            neuralNetwork.setInput(replica);
+        if (neuralNetUltrasonico != null) {
+            return clasificarSectorUltrasonico(dLowCm);
         }
-        neuralNetwork.calculate();
-        double[] salida = neuralNetwork.getOutput();
-        return argMaxClase(salida);
+        throw new IllegalStateException("Red neuronal Neuroph 2.98 no cargada; prohibido clasificar con umbrales fijos.");
     }
 
-    // Evalua los 3 pares frontales [IZQ, CENTRO, DER] usando la misma red neuronal Neuroph 2.98.
     public synchronized String[] clasificarPares(VectorSensores sensores) {
         if (sensores == null || !sensores.isValido()) {
             this.ultimaConfianza = 0.0;
             return new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
         }
-        if (neuralNetwork == null) {
-            throw new IllegalStateException("Red neuronal Neuroph 2.98 no cargada; prohibido clasificar con umbrales fijos.");
+
+        if (neuralNetLegacy != null) {
+            if (neuralNetLegacy.getInputsCount() == 2) {
+                String cIzq = clasificarParLegacy(sensores.getDLowLeft(), sensores.getDHighLeft());
+                String cCen = clasificarParLegacy(sensores.getDLowCenter(), sensores.getDHighCenter());
+                String cDer = clasificarParLegacy(sensores.getDLowRight(), sensores.getDHighRight());
+                return new String[]{cIzq, cCen, cDer};
+            } else {
+                String global = clasificarGlobalLegacy(sensores);
+                return traducirGlobalATerna(global);
+            }
         }
 
-        if (neuralNetwork.getInputsCount() == 2) {
-            String cIzq = clasificarPar(sensores.getDLowLeft(), sensores.getDHighLeft());
+        if (neuralNetUltrasonico != null && neuralNetUltrasonico.getInputsCount() == 1) {
+            String cIzq = clasificarSectorUltrasonico(sensores.getUsLeft());
             double confIzq = this.ultimaConfianza;
-            String cCen = clasificarPar(sensores.getDLowCenter(), sensores.getDHighCenter());
+            String cCen = clasificarSectorUltrasonico(sensores.getUsCenter());
             double confCen = this.ultimaConfianza;
-            String cDer = clasificarPar(sensores.getDLowRight(), sensores.getDHighRight());
+            String cDer = clasificarSectorUltrasonico(sensores.getUsRight());
             double confDer = this.ultimaConfianza;
             this.ultimaConfianza = (confIzq + confCen + confDer) / 3.0;
-            return new String[]{cIzq, cCen, cDer};
+
+            String[] terna = new String[]{cIzq, cCen, cDer};
+
+            if (neuralNetCanicas != null && sensores.getCantidadSensores() >= 6) {
+                String marbleResult = clasificarCanicas(sensores);
+                if ("LOBITO_CENTRO".equals(marbleResult) && !"BLOQUEO".equals(terna[1])) {
+                    terna[1] = "LOBITO";
+                } else if ("LOBITO_IZQ".equals(marbleResult) && !"BLOQUEO".equals(terna[0])) {
+                    terna[0] = "LOBITO";
+                } else if ("LOBITO_DER".equals(marbleResult) && !"BLOQUEO".equals(terna[2])) {
+                    terna[2] = "LOBITO";
+                }
+            }
+            return terna;
         }
 
-        // Si se cargo un modelo global de 4/6/8/10 entradas, traducir su clase global a terna [IZQ, CEN, DER]
-        String global = clasificarGlobal(sensores);
-        return traducirGlobalATerna(global);
+        throw new IllegalStateException("Red neuronal Neuroph 2.98 no cargada; prohibido clasificar con umbrales fijos.");
     }
 
-    // RF-06: Reconocer tipo de elemento detectado mediante Neuroph 2.98.
-    public synchronized String clasificar(VectorSensores sensores) {
-        if (sensores == null || !sensores.isValido()) {
-            this.ultimaConfianza = 0.0;
-            return "ESPACIO_LIBRE";
+    private String clasificarParLegacy(double dLowCm, double dHighCm) {
+        double span = VectorSensores.MAX_RANGO_CM - VectorSensores.MIN_RANGO_CM;
+        double nLow = Math.min(1.0, Math.max(0.0, (dLowCm - VectorSensores.MIN_RANGO_CM) / span));
+        double nHigh = Math.min(1.0, Math.max(0.0, (dHighCm - VectorSensores.MIN_RANGO_CM) / span));
+        neuralNetLegacy.setInput(nLow, nHigh);
+        neuralNetLegacy.calculate();
+        double[] salida = neuralNetLegacy.getOutput();
+        int maxIdx = 0;
+        double maxVal = salida[0];
+        for (int i = 1; i < salida.length; i++) {
+            if (salida[i] > maxVal) { maxVal = salida[i]; maxIdx = i; }
         }
-        if (neuralNetwork == null) {
-            throw new IllegalStateException("Red neuronal Neuroph 2.98 no cargada; prohibido clasificar con umbrales fijos.");
-        }
-        if (neuralNetwork.getInputsCount() == 2) {
-            String[] pares = clasificarPares(sensores);
-            return sintetizarEtiquetaGlobal(pares);
-        }
-        return clasificarGlobal(sensores);
+        this.ultimaConfianza = maxVal;
+        return CLASES_PAR_4[maxIdx];
     }
 
-    private String clasificarGlobal(VectorSensores sensores) {
+    private String clasificarGlobalLegacy(VectorSensores sensores) {
         double[] norm = sensores.toArrayNormalizado();
-        int inputsRequired = neuralNetwork.getInputsCount();
-        double[] entrada = adaptarDimensionEntrada(norm, inputsRequired);
-
-        neuralNetwork.setInput(entrada);
-        neuralNetwork.calculate();
-        double[] salida = neuralNetwork.getOutput();
-        return argMaxClase(salida);
-    }
-
-    // Sintetiza una etiqueta descriptiva a partir del vector neuronal [IZQ, CENTRO, DER].
-    public static String sintetizarEtiquetaGlobal(String[] pares) {
-        if (pares == null || pares.length < 3) return "ESPACIO_LIBRE";
-        String izq = pares[0], cen = pares[1], der = pares[2];
-
-        if ("LOBITO".equals(cen)) return "LOBITO_CENTRO";
-        if ("LOBITO".equals(izq)) return "LOBITO_IZQ";
-        if ("LOBITO".equals(der)) return "LOBITO_DER";
-
-        if ("SALIDA".equals(cen) || "SALIDA".equals(izq) || "SALIDA".equals(der)) {
-            return "SALIDA";
+        int inputsRequired = neuralNetLegacy.getInputsCount();
+        double[] entrada = new double[inputsRequired];
+        for (int i = 0; i < inputsRequired; i++) {
+            entrada[i] = (i < norm.length) ? norm[i] : 0.0;
         }
-
-        boolean bIzq = "BLOQUEO".equals(izq);
-        boolean bCen = "BLOQUEO".equals(cen);
-        boolean bDer = "BLOQUEO".equals(der);
-
-        if (bIzq && bCen && bDer) return "MURO";
-        if ((bIzq && bCen) || (bCen && bDer) || (bIzq && bDer)) return "MURO";
-        if (bCen) return "OBSTACULO_CENTRO";
-        if (bIzq) return "OBSTACULO_IZQ";
-        if (bDer) return "OBSTACULO_DER";
-
-        return "ESPACIO_LIBRE";
+        neuralNetLegacy.setInput(entrada);
+        neuralNetLegacy.calculate();
+        double[] salida = neuralNetLegacy.getOutput();
+        int maxIdx = 0;
+        double maxVal = salida[0];
+        for (int i = 1; i < salida.length; i++) {
+            if (salida[i] > maxVal) { maxVal = salida[i]; maxIdx = i; }
+        }
+        this.ultimaConfianza = maxVal;
+        String[] clases = (salida.length == 5) ? CLASES_5 : ((salida.length == 7) ? CLASES_7 : CLASES_9);
+        return clases[maxIdx];
     }
 
-    private static String[] traducirGlobalATerna(String global) {
+    private String[] traducirGlobalATerna(String global) {
         if (global == null) return new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
         switch (global) {
             case "LOBITO_IZQ": return new String[]{"LOBITO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
-            case "LOBITO_DER": return new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "LOBITO"};
-            case "LOBITO_CENTRO":
-            case "LOBITO": return new String[]{"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"};
-            case "OBSTACULO_IZQ": return new String[]{"BLOQUEO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
-            case "OBSTACULO_DER": return new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "BLOQUEO"};
-            case "OBSTACULO_CENTRO":
-            case "OBSTACULO": return new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"};
-            case "MURO": return new String[]{"BLOQUEO", "BLOQUEO", "BLOQUEO"};
-            case "SALIDA": return new String[]{"ESPACIO_LIBRE", "SALIDA", "ESPACIO_LIBRE"};
+            case "LOBITO_CENTRO": return new String[]{"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"};
+            case "LOBITO_DER": return new String[]{"ESPACIO_LIBRE", "LOBITO", "LOBITO"};
+            case "SALIDA": return new String[]{"SALIDA", "SALIDA", "SALIDA"};
+            case "MURO":
+            case "OBSTACULO": return new String[]{"BLOQUEO", "BLOQUEO", "BLOQUEO"};
             default: return new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
         }
     }
 
-    // Adapta el vector normalizado al numero de neuronas de entrada de la red cargada.
-    private double[] adaptarDimensionEntrada(double[] norm, int inputsRequired) {
-        if (norm.length == inputsRequired) {
-            return norm;
-        }
-        if (inputsRequired == 6 && norm.length == 4) {
-            double ll = norm[0], lr = norm[1], hl = norm[2], hr = norm[3];
-            return new double[]{ll, 0.5 * (ll + lr), lr, hl, 0.5 * (hl + hr), hr};
-        }
-        if (inputsRequired == 4 && norm.length >= 6) {
-            return new double[]{norm[0], norm[2], norm[3], norm[5]};
-        }
-        double[] adaptado = new double[inputsRequired];
-        for (int i = 0; i < inputsRequired; i++) {
-            adaptado[i] = (i < norm.length) ? norm[i] : 1.0;
-        }
-        return adaptado;
+    public synchronized String clasificar(VectorSensores sensores) {
+        String[] pares = clasificarPares(sensores);
+        return sintetizarEtiquetaGlobal(pares);
     }
 
-    // Obtiene la clase con mayor activacion en la capa de salida de Neuroph.
-    private String argMaxClase(double[] salida) {
-        String[] etiquetas = obtenerEtiquetasPorSalidas(salida.length);
-        int bestIdx = 0;
-        double maxVal = salida[0];
-        double sumExp = 0.0;
-        for (int i = 0; i < salida.length && i < etiquetas.length; i++) {
-            if (salida[i] > maxVal) {
-                maxVal = salida[i];
-                bestIdx = i;
-            }
-            sumExp += Math.exp(salida[i]);
-        }
-        this.ultimaConfianza = (sumExp > 0.0) ? Math.max(maxVal, Math.exp(maxVal) / sumExp) : maxVal;
-        return etiquetas[bestIdx];
+    public static String sintetizarEtiquetaGlobal(String[] pares) {
+        if (pares == null || pares.length < 3) return "ESPACIO_LIBRE";
+        String izq = pares[0], cen = pares[1], der = pares[2];
+        if ("LOBITO".equals(cen)) return "LOBITO_CENTRO";
+        if ("LOBITO".equals(izq)) return "LOBITO_IZQ";
+        if ("LOBITO".equals(der)) return "LOBITO_DER";
+        if ("SALIDA".equals(cen) || "SALIDA".equals(izq) || "SALIDA".equals(der)) return "SALIDA";
+        if ("BLOQUEO".equals(cen) && "BLOQUEO".equals(izq) && "BLOQUEO".equals(der)) return "OBSTACULO";
+        return "ESPACIO_LIBRE";
     }
 
-    // Selecciona el arreglo de etiquetas alfabeticas correspondiente al numero de neuronas de salida.
-    public static String[] obtenerEtiquetasPorSalidas(int numOutputs) {
-        if (numOutputs == 4) return CLASES_PAR_4;
-        if (numOutputs == 9) return CLASES_9;
-        if (numOutputs == 7) return CLASES_7;
-        return CLASES_5;
-    }
-
-    // Retorna el nivel de activacion/confianza de la ultima inferencia neuronal.
     public double getUltimaConfianza() {
         return ultimaConfianza;
     }
 
-    // Retorna verdadero si la red neuronal esta cargada en memoria.
-    public boolean isCargado() {
-        return neuralNetwork != null;
+    public NeuralNetwork<?> getNeuralNetUltrasonico() {
+        return neuralNetUltrasonico;
+    }
+
+    public NeuralNetwork<?> getNeuralNetCanicas() {
+        return neuralNetCanicas;
     }
 }
