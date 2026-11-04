@@ -65,6 +65,39 @@ sketches viejos `prueba-vl53l0x`, `prueba-i2c`, `detector-mixto` y
   y deja de mandar pulsos. Los sketches nuevos lo revisan cada 500 ms y lo
   reconfiguran (`revisarPca()`).
 
+### 1.4 Bluetooth HC-05 (Serial1)
+
+| Pin del HC-05 | Va a |
+| --- | --- |
+| VCC | 5V del Mega |
+| GND | GND |
+| TXD | D19 (RX1) |
+| RXD | D18 (TX1), directo, sin divisor (decisión del equipo; ver nota) |
+| STATE | D30 (no sirve en este módulo, ver abajo) |
+| EN | Nada |
+
+- Se usa `Serial1` para que el USB (`Serial`) quede libre para subir sketches
+  y depurar.
+- Configuración actual (verificada por AT el 2026-11-04): nombre
+  **keiko-greatx**, dirección `00:22:12:01:32:B0`, esclavo (`ROLE:0`), modo
+  datos a **9600,0,0**, firmware `5.0-20220104` (clon).
+- El PIN quedó en el de fábrica para las pruebas: **cambiarlo antes de la
+  competencia** con `hc05-at` (`AT+PSWD=...`) y volver a emparejar. No anotar
+  el PIN en el repo.
+- **STATE no funciona** en este clon: está forzado a LOW siempre, con o sin
+  conexión (probado con y sin pull-up en D30). El fail-safe se apoya solo en
+  el heartbeat.
+- Nota RXD: el RX del HC-05 es de 3,3 V. Sin divisor (1 kΩ / 2 kΩ) funciona,
+  pero puede degradarse; llevar un módulo de repuesto.
+- Modo AT: desenchufar VCC, mantener el botón del módulo, enchufar VCC y
+  soltar cuando el LED parpadea lento (~2 s). En AT habla a 38400. `AT+RESET`
+  vuelve al modo datos.
+- Emparejar desde Linux: el panel de GNOME no muestra el módulo. Usar
+  `bluetoothctl` con `menu scan` → `transport bredr` → `back` → `scan on`
+  (si no, el módulo aparece y desaparece y el `pair` falla con
+  `ConnectionAttemptFailed`), y después `pair` / `trust`. Prueba del enlace:
+  socket RFCOMM al canal 1 (el `python3` del sistema trae `BTPROTO_RFCOMM`).
+
 ---
 
 ## 2. Alimentación
@@ -257,6 +290,8 @@ Recomendaciones sobre esa idea:
 | `prueba-trabado-vcc` | Medir la caída del Vcc del Mega con el picker girando / trabado. |
 | `picker-destrabe` | Detección de trabado por Vcc + destrabe oscilante (solo con servos en el USB). |
 | `picker-estomago` | Picker + VL53L0X del estómago con captura armada (`g`, `p`, `a`, `d`, `v`). |
+| `prueba-hc05` | Puente USB ↔ Bluetooth (115200 / 9600), aviso de STATE y `PING n` cada 2 s. Probado en los dos sentidos. |
+| `hc05-at` | Configurar el HC-05 en modo AT (38400) desde el monitor serie a 115200. |
 
 Problemas de USB del banco:
 
@@ -284,5 +319,7 @@ Problemas de USB del banco:
 - [ ] Actualizar el artifact de alimentación con el V+ por el pin de la tira.
 - [ ] Actualizar a Mega (D20/D21, XSHUT A8–A10) los sketches viejos y
       `keiko-sim/docs/circuito_electronico.md` / `firmware/orquita_firmware`.
-- [ ] Commitear todo esto en una rama propia (por ejemplo
-      `feat/picker-servos`).
+- [x] Commitear todo esto en una rama propia (PR #12).
+- [ ] Cambiar el PIN del HC-05 antes de la competencia (1.4).
+- [ ] Pasar los ultrasonidos de `detector-mixto` a pines libres del Mega
+      (propuesta D24–D29: TRIG/ECHO 24/25, 26/27, 28/29) y `US_ANG` a 0°.
