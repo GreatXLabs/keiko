@@ -74,11 +74,6 @@ public class ReceptorConexiones implements Runnable {
         }
     }
 
-    // Alias compatible para difusion de tramas a clientes conectados.
-    public void broadcast(String mensaje) {
-        transmitirATodos(mensaje);
-    }
-
     // Remueve una sesion de cliente cerrada de la coleccion activa.
     public void removerCliente(ManejadorCliente handler) {
         clientesConectados.remove(handler);

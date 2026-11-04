@@ -10,24 +10,8 @@ public class MensajeProtocolo {
     public static final String PREFIX_COMMAND = "COMMAND:";
     public static final String PREFIX_EVENT = "EVENT:";
     public static final String PREFIX_STATE_CHANGE = "STATE_CHANGE:";
-    public static final String PREFIX_ACK = "ACK:";
     public static final String MSG_HEARTBEAT = "HEARTBEAT";
     public static final String PREFIX_ERROR = "ERROR:";
-
-    private final String tipo;
-    private final String contenido;
-
-    // Crea un mensaje de protocolo con tipo y contenido.
-    public MensajeProtocolo(String tipo, String contenido) {
-        this.tipo = tipo;
-        this.contenido = contenido;
-    }
-
-    // Retorna el tipo de mensaje de protocolo.
-    public String getTipo() { return tipo; }
-
-    // Retorna el cuerpo o contenido util del mensaje.
-    public String getContenido() { return contenido; }
 
     // RF-05: Parsea y valida el vector de distancias sensoriales del cliente (4, 6, 8 o 10 canales).
     public static VectorSensores parsearTelemetria(String linea) {
@@ -51,38 +35,17 @@ public class MensajeProtocolo {
             } else if (total == 5 || total == 7 || total == 9 || total == 11) {
                 numSensores = total - 1;
                 hasTimestamp = true;
-            } else if (total == 8 + 4 || total == 6 + 4 || total == 4 + 4 || total == 10 + 4) {
-                // Caso ambiguo para total == 8 (8 sensores sin ts vs 4 sensores + ts + 3 pose):
-                // Si el token 4 es un entero grande (> 10000) o tiene decimales pequeños en los ultimos 3
-                if (total == 8) {
-                    double t4 = Double.parseDouble(tokens[4].trim());
-                    if (t4 > 500.0) {
-                        numSensores = 4;
-                        hasTimestamp = true;
-                        hasPose = true;
-                    } else {
-                        numSensores = 8;
-                    }
-                } else if (total == 10) {
-                    double t6 = Double.parseDouble(tokens[6].trim());
-                    if (t6 > 500.0) {
-                        numSensores = 6;
-                        hasTimestamp = true;
-                        hasPose = true;
-                    } else {
-                        numSensores = 10;
-                    }
-                } else {
-                    numSensores = total - 4;
-                    hasTimestamp = true;
-                    hasPose = true;
-                }
+            } else if (total == 12 || total == 14) {
+                // 8 sensores + ts + pose (12) o 10 sensores + ts + pose (14).
+                numSensores = total - 4;
+                hasTimestamp = true;
+                hasPose = true;
             } else {
                 throw new IllegalArgumentException("Cantidad de campos de telemetria no soportada: " + total);
             }
 
-            // Re-chequeo para total == 10 (6 sensores + ts + 3 pose vs 10 sensores sin ts)
-            if (total == 10 && !hasPose) {
+            // Desambiguacion de 10 campos: 6 sensores + ts + 3 pose vs 10 sensores sin ts.
+            if (total == 10) {
                 double t6 = Double.parseDouble(tokens[6].trim());
                 if (t6 > 500.0) {
                     numSensores = 6;
@@ -113,11 +76,6 @@ public class MensajeProtocolo {
     public static String crearComando(ComandoRobot cmd) {
         return String.format(Locale.US, "%s%.2f,%.2f,%s\n",
                 PREFIX_COMMAND, cmd.getVLeft(), cmd.getVRight(), cmd.getEstado().name());
-    }
-
-    // Confirma la persistencia en disco de la captura recibida (RF-02/RF-03).
-    public static String crearAckIngesta(int numeroCaptura) {
-        return String.format("%sCAPTURA_%d\n", PREFIX_ACK, numeroCaptura);
     }
 
     // Crea trama de notificacion de transicion al Modo Escape.

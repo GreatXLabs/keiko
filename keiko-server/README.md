@@ -111,4 +111,3 @@ Por estricto contrato de la cátedra:
 | `EVENT:CAPTURA\n` | Cliente -> Servidor | Detección física de canica en boca |
 | `STATE_CHANGE:<estado>\n` | Servidor -> Cliente | Conmutación de FSM (ej. `ESCAPE`) |
 | `HEARTBEAT\n` | Bidireccional | Watchdog y mantenimiento de enlace (< 500 ms) |
-| `ACK:CAPTURA_<n>\n` | Servidor -> Cliente | Confirmación de persistencia en disco |

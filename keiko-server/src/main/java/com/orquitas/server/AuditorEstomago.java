@@ -60,7 +60,7 @@ public class AuditorEstomago extends Thread {
 
         while (corriendo.get() && !Thread.currentThread().isInterrupted()) {
             try {
-                int capturasFisicas = gestorEstomago.contarCapturasRegistradas();
+                int capturasFisicas = gestorEstomago.contarCapturasValidas();
 
                 if (capturasFisicas != ultimasCapturasAuditadas) {
                     ultimasCapturasAuditadas = capturasFisicas;

@@ -24,11 +24,6 @@ public class GestorEstomago {
     private final File archivoEstomago;
     private final Object bloqueoArchivo = new Object();
 
-    // Inicializa el gestor utilizando la ruta predeterminada del estomago.
-    public GestorEstomago() {
-        this(new File(ConfiguracionServidor.NOMBRE_ARCHIVO_ESTOMAGO));
-    }
-
     // Inicializa el gestor con un archivo especifico y asegura su cabecera inicial.
     public GestorEstomago(File archivo) {
         this.archivoEstomago = archivo;
@@ -86,11 +81,6 @@ public class GestorEstomago {
     // RF-03: Registra una captura generando un registro con metadatos descriptivos.
     public int registrarCaptura(String metadata) throws IOException {
         return registrarCaptura(new RegistroCaptura("lobito_ingesta", metadata));
-    }
-
-    // RF-04: Contar capturas registradas en almacenamiento fisico.
-    public int contarCapturasRegistradas() {
-        return contarCapturasValidas();
     }
 
     // RF-04: Cuenta concurrentemente los registros validos presentes en disco.

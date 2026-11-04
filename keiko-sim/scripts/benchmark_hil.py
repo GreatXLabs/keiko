@@ -19,7 +19,7 @@ SIM_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 ROOT_DIR = os.path.abspath(os.path.join(SIM_DIR, ".."))
 WORLDS_DIR = os.path.join(SIM_DIR, "worlds")
 SERVER_JAR = os.path.join(ROOT_DIR, "keiko-server", "target", "keiko-server.jar")
-ESTOMAGO_FILE = os.path.join(ROOT_DIR, "estomago.txt")
+ESTOMAGO_FILE = os.path.join(ROOT_DIR, "keiko-server", "estomago.txt")
 LOG_CLIENT = os.path.join(SIM_DIR, "logs", "simulation_client.log")
 
 MAPS = [
@@ -80,9 +80,11 @@ def run_map_test(m_info: dict, port: int = 8888) -> dict:
     srv_cmd = [
         "java", "-jar", SERVER_JAR,
         "--port", str(port),
+        "--estomago", ESTOMAGO_FILE,
         "--reset"
     ]
-    srv_proc = subprocess.Popen(srv_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    srv_proc = subprocess.Popen(srv_cmd, cwd=os.path.join(ROOT_DIR, "keiko-server"),
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1.5)
 
     # 2. Levantar Webots 3D en modo realtime headless (1s sim = 1s real para sincronización de socket)

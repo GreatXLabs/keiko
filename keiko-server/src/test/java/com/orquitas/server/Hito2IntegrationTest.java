@@ -85,7 +85,7 @@ public class Hito2IntegrationTest {
         assertTrue(clase.startsWith("LOBITO"), "La red Neuroph 2.98 debe clasificar como LOBITO, obtuvo: " + clase);
 
         PlanificadorNavegacion planner = new PlanificadorNavegacion(estomagoManager);
-        ComandoRobot cmd = planner.evaluar(s, clase);
+        ComandoRobot cmd = planner.evaluarPares(s, clasificador.clasificarPares(s));
         assertEquals(EstadoRobot.APROXIMACION, cmd.getEstado());
 
         String cmdStr = MensajeProtocolo.crearComando(cmd);
