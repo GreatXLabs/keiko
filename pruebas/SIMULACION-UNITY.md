@@ -16,7 +16,9 @@ Los valores salen de dos fuentes: lo que está cargado en el Arduino y lo que me
 
 El centro del frente, abajo, queda **libre a propósito**: ahí va el mecanismo de recolección. No hay que poner sensores en esa zona.
 
-**La canica:** vidrio, **16 mm de diámetro** (radio 8 mm).
+**La canica:** vidrio **blanco opaco** ("lechera"), brillosa, **16 mm de diámetro** (radio 8 mm).
+
+> **Cambio de canicas (2026-11-03):** antes se usaban canicas de vidrio transparente; ahora son blancas opacas del mismo tamaño. Las mediciones del láser de la sección 5.3 se tomaron con las **transparentes** y hay que volver a medirlas. Para el ultrasonido no cambia nada (mismo material y tamaño).
 
 Fotos:
 - `fotos_auto/04-frente.jpg`: vista de frente. Se ven los 3 ultrasonidos arriba y los 2 servos con los láser en las puntas de abajo.
@@ -109,15 +111,17 @@ Modelo simple sugerido: varios raycasts dentro del cono de 30°, y que devuelva 
 - **Qué devuelve:** **una sola distancia, que es como un promedio ponderado de todo lo que hay en el cono.** No separa objetos: si en el cono están la canica y el piso, o la canica y una pared, devuelve algo intermedio. **Es lo más importante para modelar bien.**
 - **Rango útil:** si no ve nada en rango, el código toma **999 cm** ("nada").
 - **Frecuencia:** ~30 Hz (33 ms por medición).
-- **Vidrio:** la canica devuelve poca luz comparada con el piso o una pared. Por eso un objeto grande detrás de la canica, dentro del mismo cono, **se lleva la lectura**.
+- **Reflectividad de la canica:** con las canicas transparentes de antes, la canica devolvía poca luz comparada con el piso o una pared, y un objeto grande detrás de la canica, dentro del mismo cono, **se llevaba la lectura**. Las canicas blancas opacas actuales devuelven bastante más luz, así que ese efecto debería ser mucho menor. Al ser brillosas, según el ángulo pueden dar algún reflejo especular. **[MEDIR]** con las canicas nuevas.
 
 Modelo sugerido:
 1. Lanzar muchos raycasts dentro del cono de 25°, por ejemplo una grilla de 7 × 7.
 2. A cada rayo que pega le das un peso: la reflectividad de la superficie dividida por la distancia al cuadrado, multiplicada por un factor que baje hacia el borde del cono.
 3. La lectura es el **promedio de las distancias ponderado por esos pesos**.
-4. Reflectividad relativa para arrancar: piso y paredes 1,0; canica de vidrio ~0,3. **Hay que ajustarla** hasta que el modelo reproduzca la tabla de la sección 5.3.
+4. Reflectividad relativa para arrancar: piso y paredes 1,0; canica blanca opaca ~1,0 o más (la transparente de antes era ~0,3). **Hay que ajustarla** hasta que el modelo reproduzca la tabla de la sección 5.3, una vez que se vuelva a medir con las canicas blancas.
 
 ### 5.3 Datos medidos del láser (para calibrar el modelo)
+
+> Estas tablas se midieron con las **canicas transparentes** anteriores. Con las blancas opacas la canica debería distinguirse mejor del fondo y verse a más distancia. Quedan como referencia hasta volver a medir.
 
 **Prueba buena:** un solo láser fijo, bien alineado, mirando al frente, sobre la mesa.
 
@@ -207,5 +211,6 @@ Hay que medirlos sobre el auto y completarlos acá:
 - [x] Ultrasonidos: 5,4 cm entre centros y los de los costados girados 30° hacia afuera (confirmado).
 - [ ] Inclinación real de cada láser (se puede sacar de la lectura al frente sin nada adelante).
 - [ ] Ancho y posición del mecanismo de recolección (la zona libre del centro).
-- [ ] Medidas exactas de la arena. Lo que se sabe (bitácora 01): semicírculo de ~1 m de radio, salida de 20 cm, piso de baldosa bordó opaca. Objetivo: juntar 3 canicas de vidrio y salir.
+- [ ] Medidas exactas de la arena. Lo que se sabe (bitácora 01): semicírculo de ~1 m de radio, salida de 20 cm, piso de baldosa bordó opaca. Objetivo: juntar 3 canicas y salir.
+- [ ] Volver a medir el láser (tablas de la sección 5.3) con las canicas blancas opacas y ajustar la reflectividad del modelo.
 - [ ] Obstáculos: cuántos, alto, ancho y forma.
