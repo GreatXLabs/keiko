@@ -422,27 +422,30 @@ def main():
             log_msg(f"  Colisiones auditadas: {collisions_count}")
             log_msg(f"  Posición de salida: [{rx:.2f}, {ry:.2f}] m")
             log_msg("=" * 78)
-            robot.step(time_step)
-            robot.simulationQuit(0)
-            break
+            if os.environ.get("ORQUITAS_AUTO_QUIT", "0") == "1":
+                robot.step(time_step)
+                robot.simulationQuit(0)
+                break
         elif escape_crossed and current_server_state in ("BUSQUEDA", "APROXIMACION"):
             set_drive_velocities(0.0, 0.0)
             log_msg("\n" + "=" * 78)
             log_msg(f"  ❌ [ERROR CRÍTICO] El robot salió de la bahía en estado {current_server_state} sin Panza Llena ({captures_count}/3 canicas)")
             log_msg(f"  Posición de cruce indebido: [{rx:.2f}, {ry:.2f}] m")
             log_msg("=" * 78)
-            robot.step(time_step)
-            robot.simulationQuit(1)
-            break
+            if os.environ.get("ORQUITAS_AUTO_QUIT", "0") == "1":
+                robot.step(time_step)
+                robot.simulationQuit(1)
+                break
 
         sim_timeout = float(os.environ.get("ORQUITAS_SIM_TIMEOUT", "420.0"))
         if sim_time >= sim_timeout:
             set_drive_velocities(0.0, 0.0)
             log_msg(f"\n⏱️ TIEMPO MÁXIMO ALCANZADO ({sim_time:.1f} s)")
             log_msg(f"  Tiempo total: {sim_time:.1f} s | Canicas: {captures_count}/3")
-            robot.step(time_step)
-            robot.simulationQuit(0)
-            break
+            if os.environ.get("ORQUITAS_AUTO_QUIT", "0") == "1":
+                robot.step(time_step)
+                robot.simulationQuit(0)
+                break
 
         # -----------------------------------------------------------------
         # 5. TRANSMISIÓN DE TELEMETRÍA (7 CAMPOS CRUDOS)

@@ -184,6 +184,7 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
     env["ORQUITAS_SIM_TIMEOUT"] = str(s_info["timeout"])
     env["ORQUITAS_SWEEP_MAX_DEG"] = "35.0"
     env["ORQUITAS_SWEEP_TICKS"] = "2"
+    env["ORQUITAS_AUTO_QUIT"] = "1"
 
     webots_cmd = [
         "webots", "--batch", "--mode=fast", "--no-rendering",
