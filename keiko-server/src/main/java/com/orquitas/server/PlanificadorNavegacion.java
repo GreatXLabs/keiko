@@ -686,7 +686,7 @@ public class PlanificadorNavegacion {
         );
         int pasosRetro = (ultimoSensores == null) ? PASOS_RETRO_ARCO_ANTIBUCLE : (pegadoFrontal ? 6 : 0);
         double vRetro = (ultimoSensores == null) ? VEL_RETRO_ARCO_ANTIBUCLE : -3.0;
-        int pasosGiro = (ultimoSensores == null) ? PASOS_GIRO_ANTIBUCLE : 24;
+        int pasosGiro = (ultimoSensores == null) ? PASOS_GIRO_ANTIBUCLE : 52;
         double velG = (ultimoSensores == null) ? 2.4 : 3.4;
         double sesgoG = (ultimoSensores == null) ? 1.8 : 0.0;
 
