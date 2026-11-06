@@ -52,6 +52,13 @@ class SonarVisualizer:
         # Definición geométrica y angular de configuraciones de sensores
         # Ángulos en grados: 0° = Norte/Frente, +90° = Este/Derecha, -90° = Oeste/Izquierda, 180° = Sur/Atrás
         self.sensor_profiles = {
+            "sim_3us_2laser": {
+                "us_left":     {"yaw": 0.0, "x_off": -6, "y_off": -18, "is_high": True,  "is_front": True, "pair": None, "label": "US-L"},
+                "us_center":   {"yaw": 0.0, "x_off": 0,  "y_off": -18, "is_high": True,  "is_front": True, "pair": None, "label": "US-C"},
+                "us_right":    {"yaw": 0.0, "x_off": +6, "y_off": -18, "is_high": True,  "is_front": True, "pair": None, "label": "US-R"},
+                "laser_left":  {"yaw": 0.0, "x_off": -9, "y_off": -16, "is_high": False, "is_front": True, "pair": None, "label": "LSR-L"},
+                "laser_right": {"yaw": 0.0, "x_off": +9, "y_off": -16, "is_high": False, "is_front": True, "pair": None, "label": "LSR-R"},
+            },
             "trisector_front_6": {
                 "us_low_left":     {"yaw": -22.0, "x_off": -9, "y_off": -16, "is_high": False, "is_front": True,  "pair": "us_high_left",     "label": "FL-Low"},
                 "us_low_center":   {"yaw": 0.0,   "x_off": 0,  "y_off": -18, "is_high": False, "is_front": True,  "pair": "us_high_center",   "label": "FC-Low"},

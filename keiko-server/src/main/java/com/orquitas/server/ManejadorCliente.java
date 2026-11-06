@@ -85,6 +85,10 @@ public class ManejadorCliente implements Runnable {
             }
             String[] pares = clasificador.clasificarPares(sensores);
             ComandoRobot cmd = planificador.evaluarPares(sensores, pares);
+            LOGGER.info(String.format("[NAV] Terna=%s, Cmd=(%.1f, %.1f, %s), US=[%.1f, %.1f, %.1f], L=[%.1f, %.1f, %.1f°]",
+                    java.util.Arrays.toString(pares), cmd.getVLeft(), cmd.getVRight(), cmd.getEstado(),
+                    sensores.getUsLeft(), sensores.getUsCenter(), sensores.getUsRight(),
+                    sensores.getLaserLeft(), sensores.getLaserRight(), sensores.getAnguloServo()));
             enviarMensaje(MensajeProtocolo.crearComando(cmd));
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "[TELEMETRIA] Error al procesar: " + e.getMessage());
@@ -99,6 +103,21 @@ public class ManejadorCliente implements Runnable {
 
             if (evento.contains("CAPTURA")) {
                 gestorEstomago.registrarCaptura(evento);
+                if (planificador != null) {
+                    planificador.notificarCaptura();
+                }
+            } else if (evento.contains("COLISION")) {
+                if (planificador != null) {
+                    String lado = "unknown";
+                    if (evento.contains("COLISION_")) {
+                        lado = evento.substring(evento.indexOf("COLISION_") + "COLISION_".length()).trim().toLowerCase();
+                    } else if (evento.contains("lado=")) {
+                        try {
+                            lado = evento.split("lado=")[1].split("[,\\s]")[0].trim().toLowerCase();
+                        } catch (Exception ignored) {}
+                    }
+                    planificador.notificarColision(lado);
+                }
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "[EVENTO] Error al registrar captura: " + e.getMessage(), e);

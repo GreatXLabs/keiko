@@ -3,83 +3,61 @@
 WorldInfo {
   info [
     "Bahia de Caza - Entorno de simulacion 3D realista para el Proyecto Orquitas (Keiko)",
-    "Semielipse de ~1.80m x 1.20m (~1.70 m2) con muros de carton de 5mm, hueco de salida de 30cm y modelo CAD 3D."
+    "Semielipse de ~1.80m x 1.20m (~1.70 m2) con muros de carton de 5mm, hueco de salida de 30cm, 2 obstaculos 3D (6x6x6cm) y 3 canicas de 16mm."
   ]
-  title "Bahia de Caza - Orquitas (Semielipse Realista)"
+  title "Bahia de Caza - Orquitas 3US + 2Laser"
   basicTimeStep 32
   FPS 60
   contactProperties [
     ContactProperties {
       material1 "wheel"
       material2 "floor"
-      coulombFriction [
-        0.82
-      ]
-      forceDependentSlip [
-        0.010
-      ]
+      coulombFriction [ 0.82 ]
+      forceDependentSlip [ 0.010 ]
       bounce 0.0
     }
     ContactProperties {
       material1 "wheel"
       material2 "wall"
-      coulombFriction [
-        0.05
-      ]
-      forceDependentSlip [
-        0.05
-      ]
+      coulombFriction [ 0.05 ]
+      forceDependentSlip [ 0.05 ]
       bounce 0.0
     }
     ContactProperties {
       material1 "marble"
       material2 "floor"
-      coulombFriction [
-        0.12
-      ]
+      coulombFriction [ 0.12 ]
       bounce 0.04
     }
     ContactProperties {
       material1 "marble"
       material2 "wheel"
-      coulombFriction [
-        0.45
-      ]
+      coulombFriction [ 0.45 ]
       bounce 0.0
     }
     ContactProperties {
       material1 "marble"
       material2 "chassis"
-      coulombFriction [
-        0.25
-      ]
+      coulombFriction [ 0.25 ]
       bounce 0.02
     }
     ContactProperties {
       material1 "marble"
       material2 "wall"
-      coulombFriction [
-        0.15
-      ]
+      coulombFriction [ 0.15 ]
       bounce 0.2
     }
     ContactProperties {
       material1 "chassis"
       material2 "floor"
-      coulombFriction [
-        0.18
-      ]
-      forceDependentSlip [
-        0.015
-      ]
+      coulombFriction [ 0.18 ]
+      forceDependentSlip [ 0.015 ]
       bounce 0.01
     }
     ContactProperties {
       material1 "chassis"
       material2 "wall"
-      coulombFriction [
-        0.05
-      ]
+      coulombFriction [ 0.05 ]
       bounce 0.01
     }
   ]
@@ -92,9 +70,7 @@ Viewpoint {
 }
 
 Background {
-  skyColor [
-    0.35 0.65 0.90
-  ]
+  skyColor [ 0.35 0.65 0.90 ]
 }
 
 DirectionalLight {
@@ -111,7 +87,7 @@ PointLight {
   location 0 0 2.2
 }
 
-# Suelo Único Continuo del Laboratorio y Bahía de Caza (12m x 12m x 0.20m, cota superior Z = 0.0)
+# Suelo Continuo
 DEF FLOOR Solid {
   translation 0 0 -0.10
   children [
@@ -133,7 +109,7 @@ DEF FLOOR Solid {
   }
 }
 
-# Muros de Contencion Lejanos (a 6.0m del centro, fuera del alcance de 2.5m-3.0m del HC-SR04)
+# Muros de Contencion Lejanos
 DEF SAFETY_WALL_NORTH Solid {
   translation 0 6.0 0.25
   children [
@@ -229,7 +205,7 @@ Transform {
       name "wall_arc_r01"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1072 0.0050 0.1800
+        size 0.1072 0.020 0.1800
       }
     }
 
@@ -247,7 +223,7 @@ Transform {
       name "wall_arc_r02"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1068 0.0050 0.1800
+        size 0.1068 0.020 0.1800
       }
     }
 
@@ -265,7 +241,7 @@ Transform {
       name "wall_arc_r03"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1061 0.0050 0.1800
+        size 0.1061 0.020 0.1800
       }
     }
 
@@ -283,7 +259,7 @@ Transform {
       name "wall_arc_r04"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1051 0.0050 0.1800
+        size 0.1051 0.020 0.1800
       }
     }
 
@@ -301,7 +277,7 @@ Transform {
       name "wall_arc_r05"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1038 0.0050 0.1800
+        size 0.1038 0.020 0.1800
       }
     }
 
@@ -319,7 +295,7 @@ Transform {
       name "wall_arc_r06"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1021 0.0050 0.1800
+        size 0.1021 0.020 0.1800
       }
     }
 
@@ -337,7 +313,7 @@ Transform {
       name "wall_arc_r07"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1003 0.0050 0.1800
+        size 0.1003 0.020 0.1800
       }
     }
 
@@ -355,7 +331,7 @@ Transform {
       name "wall_arc_r08"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0982 0.0050 0.1800
+        size 0.0982 0.020 0.1800
       }
     }
 
@@ -373,7 +349,7 @@ Transform {
       name "wall_arc_r09"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0960 0.0050 0.1800
+        size 0.0960 0.020 0.1800
       }
     }
 
@@ -391,7 +367,7 @@ Transform {
       name "wall_arc_r10"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0937 0.0050 0.1800
+        size 0.0937 0.020 0.1800
       }
     }
 
@@ -409,7 +385,7 @@ Transform {
       name "wall_arc_r11"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0914 0.0050 0.1800
+        size 0.0914 0.020 0.1800
       }
     }
 
@@ -427,7 +403,7 @@ Transform {
       name "wall_arc_r12"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0892 0.0050 0.1800
+        size 0.0892 0.020 0.1800
       }
     }
 
@@ -445,7 +421,7 @@ Transform {
       name "wall_arc_r13"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0871 0.0050 0.1800
+        size 0.0871 0.020 0.1800
       }
     }
 
@@ -463,7 +439,7 @@ Transform {
       name "wall_arc_r14"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0852 0.0050 0.1800
+        size 0.0852 0.020 0.1800
       }
     }
 
@@ -481,7 +457,7 @@ Transform {
       name "wall_arc_r15"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0835 0.0050 0.1800
+        size 0.0835 0.020 0.1800
       }
     }
 
@@ -499,7 +475,7 @@ Transform {
       name "wall_arc_r16"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0823 0.0050 0.1800
+        size 0.0823 0.020 0.1800
       }
     }
 
@@ -517,7 +493,7 @@ Transform {
       name "wall_arc_l01"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0823 0.0050 0.1800
+        size 0.0823 0.020 0.1800
       }
     }
 
@@ -535,7 +511,7 @@ Transform {
       name "wall_arc_l02"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0835 0.0050 0.1800
+        size 0.0835 0.020 0.1800
       }
     }
 
@@ -553,7 +529,7 @@ Transform {
       name "wall_arc_l03"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0852 0.0050 0.1800
+        size 0.0852 0.020 0.1800
       }
     }
 
@@ -571,7 +547,7 @@ Transform {
       name "wall_arc_l04"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0871 0.0050 0.1800
+        size 0.0871 0.020 0.1800
       }
     }
 
@@ -589,7 +565,7 @@ Transform {
       name "wall_arc_l05"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0892 0.0050 0.1800
+        size 0.0892 0.020 0.1800
       }
     }
 
@@ -607,7 +583,7 @@ Transform {
       name "wall_arc_l06"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0914 0.0050 0.1800
+        size 0.0914 0.020 0.1800
       }
     }
 
@@ -625,7 +601,7 @@ Transform {
       name "wall_arc_l07"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0937 0.0050 0.1800
+        size 0.0937 0.020 0.1800
       }
     }
 
@@ -643,7 +619,7 @@ Transform {
       name "wall_arc_l08"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0960 0.0050 0.1800
+        size 0.0960 0.020 0.1800
       }
     }
 
@@ -661,7 +637,7 @@ Transform {
       name "wall_arc_l09"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.0982 0.0050 0.1800
+        size 0.0982 0.020 0.1800
       }
     }
 
@@ -679,7 +655,7 @@ Transform {
       name "wall_arc_l10"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1003 0.0050 0.1800
+        size 0.1003 0.020 0.1800
       }
     }
 
@@ -697,7 +673,7 @@ Transform {
       name "wall_arc_l11"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1021 0.0050 0.1800
+        size 0.1021 0.020 0.1800
       }
     }
 
@@ -715,7 +691,7 @@ Transform {
       name "wall_arc_l12"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1038 0.0050 0.1800
+        size 0.1038 0.020 0.1800
       }
     }
 
@@ -733,7 +709,7 @@ Transform {
       name "wall_arc_l13"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1051 0.0050 0.1800
+        size 0.1051 0.020 0.1800
       }
     }
 
@@ -751,7 +727,7 @@ Transform {
       name "wall_arc_l14"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1061 0.0050 0.1800
+        size 0.1061 0.020 0.1800
       }
     }
 
@@ -769,7 +745,7 @@ Transform {
       name "wall_arc_l15"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1068 0.0050 0.1800
+        size 0.1068 0.020 0.1800
       }
     }
 
@@ -787,11 +763,11 @@ Transform {
       name "wall_arc_l16"
       contactMaterial "wall"
       boundingObject Box {
-        size 0.1072 0.0050 0.1800
+        size 0.1072 0.020 0.1800
       }
     }
 
-    # Marcador de Referencia de Salida (sin malla ni colisionador que solape el piso)
+    # Marcador de Referencia de Salida (30 cm)
     DEF EXIT_PLATFORM Solid {
       translation 0 0.9500 -0.10
       name "exit_platform"
@@ -799,9 +775,9 @@ Transform {
   ]
 }
 
-# Obstaculo (Borrador de Pizarra): obstacle_eraser_1
+# Obstaculo 3D (6x6x6 cm): obstacle_3d_1
 DEF OBSTACLE_BOX_1 Solid {
-  translation -0.28 0.18 0.06
+  translation -0.25 0.18 0.03
   rotation 0 0 1 0.35
   children [
     Shape {
@@ -810,20 +786,20 @@ DEF OBSTACLE_BOX_1 Solid {
         roughness 0.6
       }
       geometry Box {
-        size 0.14 0.06 0.12
+        size 0.06 0.06 0.06
       }
     }
   ]
-  name "obstacle_eraser_1"
+  name "obstacle_3d_1"
   contactMaterial "wall"
   boundingObject Box {
-    size 0.14 0.06 0.12
+    size 0.06 0.06 0.06
   }
 }
 
-# Obstaculo (Borrador de Pizarra): obstacle_eraser_2
+# Obstaculo 3D (6x6x6 cm): obstacle_3d_2
 DEF OBSTACLE_BOX_2 Solid {
-  translation 0.32 -0.08 0.06
+  translation 0.28 -0.08 0.03
   rotation 0 0 1 -0.5
   children [
     Shape {
@@ -832,26 +808,26 @@ DEF OBSTACLE_BOX_2 Solid {
         roughness 0.6
       }
       geometry Box {
-        size 0.14 0.06 0.12
+        size 0.06 0.06 0.06
       }
     }
   ]
-  name "obstacle_eraser_2"
+  name "obstacle_3d_2"
   contactMaterial "wall"
   boundingObject Box {
-    size 0.14 0.06 0.12
+    size 0.06 0.06 0.06
   }
 }
 
-# Canica 1 (Lobito): 16mm de diametro
+# Canica 1 (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF LOBITO_1 Solid {
   translation 0.28 0.15 0.008
   children [
     Shape {
       appearance PBRAppearance {
-        baseColor 0.0 0.9 0.9
-        roughness 0.1
-        metalness 0.3
+        baseColor 0.95 0.95 0.95
+        roughness 0.15
+        metalness 0.05
       }
       geometry DEF MARBLE_GEOM Sphere {
         radius 0.008
@@ -867,15 +843,15 @@ DEF LOBITO_1 Solid {
   }
 }
 
-# Canica 2 (Lobito): 16mm de diametro
+# Canica 2 (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF LOBITO_2 Solid {
   translation -0.35 -0.12 0.008
   children [
     Shape {
       appearance PBRAppearance {
-        baseColor 0.0 0.9 0.9
-        roughness 0.1
-        metalness 0.3
+        baseColor 0.95 0.95 0.95
+        roughness 0.15
+        metalness 0.05
       }
       geometry DEF MARBLE_GEOM Sphere {
         radius 0.008
@@ -891,15 +867,15 @@ DEF LOBITO_2 Solid {
   }
 }
 
-# Canica 3 (Lobito): 16mm de diametro
+# Canica 3 (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF LOBITO_3 Solid {
-  translation 0.25 -0.28 0.008
+  translation 0.22 -0.28 0.008
   children [
     Shape {
       appearance PBRAppearance {
-        baseColor 0.0 0.9 0.9
-        roughness 0.1
-        metalness 0.3
+        baseColor 0.95 0.95 0.95
+        roughness 0.15
+        metalness 0.05
       }
       geometry DEF MARBLE_GEOM Sphere {
         radius 0.008
@@ -915,12 +891,12 @@ DEF LOBITO_3 Solid {
   }
 }
 
-# Robot Autonomo: La Orquita 4WD (Modelo 3D Real de GreatXLabs/Keiko-Modelos-3D: 257mm x 150mm x 76.1mm)
+# Robot Autonomo: La Orquita 4WD (Modelo 3D Real: 257mm x 150mm x 76.1mm)
 DEF ORQUITA Robot {
-  translation 0 -0.32 0.001
+  translation 0.0000 -0.3200 0.001
   rotation 0 0 1 1.5708
   children [
-    # 1. Malla 3D Real del Chasis 4WD (Bandejas, Separadores de Bronce, Soportes y 4 Motores TT)
+    # Malla CAD del Chasis 4WD
     DEF ORQUITA_CHASSIS_VISUAL Shape {
       appearance PBRAppearance {
         baseColor 0.82 0.84 0.88
@@ -931,32 +907,78 @@ DEF ORQUITA Robot {
         url [ "../meshes/orquita_chassis_body.stl" ]
       }
     }
-    # Carcasa Exterior "Capote" (CAD Chassis.FCStd: frente en +X, aleta dorsal y cola en -X)
-    DEF ORQUITA_CAPOTE_VISUAL Shape {
-      appearance PBRAppearance {
-        baseColor 0.12 0.14 0.18
-        roughness 0.35
-        metalness 0.15
-        transparency 0.25
-      }
-      geometry Mesh {
-        url [ "../meshes/orquita_capote.stl" ]
-      }
-    }
 
-    # 2. Sensor de Captura Bucal Frontal
-    TouchSensor {
-      translation 0.085 0 0.016
-      name "capture_sensor"
-      boundingObject Box {
-        size 0.010 0.060 0.020
-      }
-    }
 
     # -------------------------------------------------------------------------
-    # TREN DE TRACCION 4WD: 4 MOTORES DC TT Y RUEDAS CAD REALES (D = 67.2 mm)
-    # Coordenadas exactas del CAD: X = +-0.0586 m, Y = +-0.0596 m, Z = 0.0336 m
+    # CONJUNTO VISUAL DEL PICKER MOUTH (7.0 cm libres, rodillo y guías embudo)
     # -------------------------------------------------------------------------
+    # Rodillo activo del picker (cilindro horizontal giratorio en el túnel)
+    Pose {
+      translation 0.095 0 0.016
+      rotation 1 0 0 1.5708
+      children [
+        DEF PICKER_ROLLER Shape {
+          appearance PBRAppearance {
+            baseColor 0.95 0.35 0.05
+            roughness 0.40
+            metalness 0.10
+          }
+          geometry Cylinder {
+            height 0.066
+            radius 0.010
+          }
+        }
+      ]
+    }
+    # Guía embudo izquierda (alta visibilidad naranja flanqueando la boca de 7.0 cm)
+    Pose {
+      translation 0.115 0.038 0.016
+      rotation 0 0 1 -0.2618
+      children [
+        DEF PICKER_GUIDE_L Shape {
+          appearance PBRAppearance {
+            baseColor 0.95 0.55 0.05
+            roughness 0.30
+          }
+          geometry Box {
+            size 0.035 0.005 0.024
+          }
+        }
+      ]
+    }
+    # Guía embudo derecha (alta visibilidad naranja flanqueando la boca de 7.0 cm)
+    Pose {
+      translation 0.115 -0.038 0.016
+      rotation 0 0 1 0.2618
+      children [
+        DEF PICKER_GUIDE_R Shape {
+          appearance PBRAppearance {
+            baseColor 0.95 0.55 0.05
+            roughness 0.30
+          }
+          geometry Box {
+            size 0.035 0.005 0.024
+          }
+        }
+      ]
+    }
+    # Placa indicadora superior de la boca del picker (marcador frontal de 7.0 cm)
+    Pose {
+      translation 0.095 0 0.029
+      children [
+        DEF PICKER_ROOF_LIP Shape {
+          appearance PBRAppearance {
+            baseColor 0.10 0.75 0.95
+            roughness 0.20
+          }
+          geometry Box {
+            size 0.040 0.070 0.004
+          }
+        }
+      ]
+    }
+
+    # TREN DE TRACCION 4WD: 4 Motores DC TT
     # Motor 1: Delantero Izquierdo
     HingeJoint {
       jointParameters HingeJointParameters {
@@ -1103,93 +1125,148 @@ DEF ORQUITA Robot {
       }
     }
 
-        DistanceSensor {
-      translation 0.128 0.052 0.012
-      rotation 0 0 1 0.384
-      name "us_low_left"
+    # Sensor Ultrasonico HC-SR04: us_left (Z=0.055m, yaw=0°)
+    DistanceSensor {
+      translation 0.1325 0.054 0.055
+      rotation 0 0 1 0
+      name "us_left"
       type "generic"
-      numberOfRays 17
-      aperture 0.35
+      numberOfRays 1
       lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
         DEF US_TRANSDUCER Shape {
-        appearance PBRAppearance { baseColor 0.1 0.5 0.9 roughness 0.3 }
-        geometry Cylinder { height 0.012 radius 0.008 }
+          appearance PBRAppearance { baseColor 0.1 0.5 0.9 roughness 0.3 }
+          geometry Cylinder { height 0.012 radius 0.008 }
+        }
+      ]
+    }
+
+    # Sensor Ultrasonico HC-SR04: us_center (Z=0.055m, yaw=0°)
+    DistanceSensor {
+      translation 0.1325 0.0 0.055
+      rotation 0 0 1 0
+      name "us_center"
+      type "generic"
+      numberOfRays 1
+      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
+      children [
+        DEF US_TRANSDUCER Shape {
+          appearance PBRAppearance { baseColor 0.1 0.5 0.9 roughness 0.3 }
+          geometry Cylinder { height 0.012 radius 0.008 }
+        }
+      ]
+    }
+
+    # Sensor Ultrasonico HC-SR04: us_right (Z=0.055m, yaw=0°)
+    DistanceSensor {
+      translation 0.1325 -0.054 0.055
+      rotation 0 0 1 0
+      name "us_right"
+      type "generic"
+      numberOfRays 1
+      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
+      children [
+        DEF US_TRANSDUCER Shape {
+          appearance PBRAppearance { baseColor 0.1 0.5 0.9 roughness 0.3 }
+          geometry Cylinder { height 0.012 radius 0.008 }
+        }
+      ]
+    }
+
+    # Servo SG90 + VL53L0X Izquierdo (Eje en X=+0.1405, Y=+0.083, Z=0.018)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        axis 0 0 1
+        anchor 0.1405 0.083 0.018
       }
+      device [
+        RotationalMotor {
+          name "servo_left"
+          minPosition -0.80
+          maxPosition 1.10
+          maxVelocity 15.0
+        }
+        PositionSensor {
+          name "servo_left_sensor"
+        }
       ]
-    }
-
-    DistanceSensor {
-      translation 0.134 0.0 0.012
-      rotation 0 0 1 0.0
-      name "us_low_center"
-      type "generic"
-      numberOfRays 17
-      aperture 0.35
-      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
-      children [
-        USE US_TRANSDUCER
-      ]
-    }
-
-    DistanceSensor {
-      translation 0.128 -0.052 0.012
-      rotation 0 0 1 -0.384
-      name "us_low_right"
-      type "generic"
-      numberOfRays 17
-      aperture 0.35
-      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
-      children [
-        USE US_TRANSDUCER
-      ]
-    }
-
-    DistanceSensor {
-      translation 0.122 0.052 0.095
-      rotation 0 0 1 0.384
-      name "us_high_left"
-      type "generic"
-      numberOfRays 17
-      aperture 0.35
-      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
-      children [
-        DEF US_TRANSDUCER_HIGH Shape {
-        appearance PBRAppearance { baseColor 0.9 0.8 0.1 roughness 0.3 }
-        geometry Cylinder { height 0.012 radius 0.008 }
+      endPoint Solid {
+        translation 0.1405 0.083 0.018
+        children [
+          DEF SERVO_HORN_L Shape {
+            appearance PBRAppearance { baseColor 0.2 0.2 0.25 roughness 0.4 }
+            geometry Box { size 0.022 0.006 0.005 }
+          }
+          DistanceSensor {
+            translation 0.020 0 0
+            rotation 0 1 0 -0.021
+            name "laser_left"
+            type "generic"
+            numberOfRays 7
+            aperture 0.4363
+            lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.00 200.0 0.02, 2.01 999.0 0.0 ]
+            children [
+              DEF LASER_CHIP Shape {
+                appearance PBRAppearance { baseColor 0.85 0.15 0.15 roughness 0.2 }
+                geometry Box { size 0.005 0.010 0.005 }
+              }
+            ]
+          }
+        ]
+        name "bracket_laser_left"
+        physics Physics {
+          density -1
+          mass 0.01
+        }
       }
-      ]
     }
 
-    DistanceSensor {
-      translation 0.128 0.0 0.095
-      rotation 0 0 1 0.0
-      name "us_high_center"
-      type "generic"
-      numberOfRays 17
-      aperture 0.35
-      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
-      children [
-        USE US_TRANSDUCER_HIGH
+    # Servo SG90 + VL53L0X Derecho (Eje en X=+0.1405, Y=-0.083, Z=0.018)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        axis 0 0 1
+        anchor 0.1405 -0.083 0.018
+      }
+      device [
+        RotationalMotor {
+          name "servo_right"
+          minPosition -1.10
+          maxPosition 0.80
+          maxVelocity 15.0
+        }
+        PositionSensor {
+          name "servo_right_sensor"
+        }
       ]
+      endPoint Solid {
+        translation 0.1405 -0.083 0.018
+        children [
+          DEF SERVO_HORN_R Shape {
+            appearance PBRAppearance { baseColor 0.2 0.2 0.25 roughness 0.4 }
+            geometry Box { size 0.022 0.006 0.005 }
+          }
+          DistanceSensor {
+            translation 0.020 0 0
+            rotation 0 1 0 -0.021
+            name "laser_right"
+            type "generic"
+            numberOfRays 7
+            aperture 0.4363
+            lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.00 200.0 0.02, 2.01 999.0 0.0 ]
+            children [
+              USE LASER_CHIP
+            ]
+          }
+        ]
+        name "bracket_laser_right"
+        physics Physics {
+          density -1
+          mass 0.01
+        }
+      }
     }
 
-    DistanceSensor {
-      translation 0.122 -0.052 0.095
-      rotation 0 0 1 -0.384
-      name "us_high_right"
-      type "generic"
-      numberOfRays 17
-      aperture 0.35
-      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
-      children [
-        USE US_TRANSDUCER_HIGH
-      ]
-    }
-
-    # -------------------------------------------------------------------------
-    # DISPLAY HUD: RADAR SONAR 2D EN TIEMPO REAL (EN PANTALLA)
-    # -------------------------------------------------------------------------
+    # Display HUD Radar
     Display {
       name "sensor_hud"
       width 340
@@ -1200,23 +1277,39 @@ DEF ORQUITA Robot {
   contactMaterial "chassis"
   boundingObject Group {
     children [
-      # Silueta física del chasis CAD: paragolpes completos y cuerpo central despejado de las ruedas
+      # Paragolpes frontal izquierdo (flanco Y ∈ [+0.035, +0.080] m, baja a Z=0.003m para rebotar canicas)
       Pose {
-        translation 0.095 0 0.048
+        translation 0.09875 0.0575 0.039
         children [
-          Box { size 0.065 0.150 0.055 }
+          Box { size 0.0675 0.045 0.072 }
         ]
       }
+      # Paragolpes frontal derecho (flanco Y ∈ [-0.080, -0.035] m, baja a Z=0.003m para rebotar canicas)
       Pose {
-        translation -0.095 0 0.048
+        translation 0.09875 -0.0575 0.039
         children [
-          Box { size 0.065 0.150 0.055 }
+          Box { size 0.0675 0.045 0.072 }
         ]
       }
+      # Techo superior sobre el hueco del picker (Y ∈ [-0.035, +0.035] m, Z >= 0.030m; hueco libre abajo de 7.0 cm)
+      Pose {
+        translation 0.09875 0 0.0525
+        children [
+          Box { size 0.0675 0.070 0.045 }
+        ]
+      }
+      # Cuerpo central
       Pose {
         translation 0 0 0.048
         children [
           Box { size 0.125 0.088 0.055 }
+        ]
+      }
+      # Paragolpes trasero
+      Pose {
+        translation -0.095 0 0.048
+        children [
+          Box { size 0.065 0.150 0.055 }
         ]
       }
     ]
