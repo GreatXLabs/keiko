@@ -178,8 +178,13 @@ public class PlanificadorNavegacion {
             int fallbackDir = (estado == EstadoRobot.ESCAPE) ? 1 : (ultimoLadoBloqueado <= 0 ? 1 : -1);
             int dir = calcularDireccionEvasiva(sensores, fallbackDir);
             boolean bucle = debeActivarAntiBucle();
-            int pasosGiro = bucle ? 28 : 20;
-            int pasosRetroceso = bucle ? PASOS_RETRO_ARCO_ANTIBUCLE : PASOS_RETRO_ARCO_TOTAL;
+            int pasosGiro = (sensores == null) ? (bucle ? 28 : 20) : (bucle ? 52 : 32);
+            boolean pegadoFrontal = (sensores == null) || (
+                sensores.getUsCenter() < 11.0 ||
+                sensores.getLaserLeft() < 9.0 ||
+                sensores.getLaserRight() < 9.0
+            );
+            int pasosRetroceso = pegadoFrontal ? (bucle ? PASOS_RETRO_ARCO_ANTIBUCLE : PASOS_RETRO_ARCO_TOTAL) : 0;
             EstadoRobot est = (estado == EstadoRobot.ESCAPE) ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
             double vRetroL = (sensores == null) ? VEL_RETRO_ARCO_RAPIDA : -2.6;
             double vRetroR = (sensores == null) ? VEL_RETRO_ARCO_RAPIDA : -2.6;
@@ -317,8 +322,8 @@ public class PlanificadorNavegacion {
         boolean lDer = "LOBITO".equals(der);
 
         boolean veCanicaCen = lCen && (!bCen || (sensores != null && sensores.getUsCenter() >= 6.0));
-        boolean veCanicaIzq = lIzq && !bIzq;
-        boolean veCanicaDer = lDer && !bDer;
+        boolean veCanicaIzq = lIzq && !bIzq && (sensores == null || sensores.getLaserLeft() >= 3.8);
+        boolean veCanicaDer = lDer && !bDer && (sensores == null || sensores.getLaserRight() >= 3.8);
 
         if (veCanicaCen) {
             pasosGiroComprometido = 0;
