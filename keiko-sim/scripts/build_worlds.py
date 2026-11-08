@@ -2,135 +2,149 @@
 """
 Generador Paramétrico de Mundos Webots 3D - Proyecto Orquitas (Keiko)
 Construye el escenario reglamentario de la Bahía de Caza según las especificaciones reales:
-1. Geometría de semielipse irregular (~1.80 m de base contra pared plana x ~1.20 m de profundidad,
+1. Geometría de semielipse (~1.80 m de base contra pared plana x ~1.20 m de profundidad,
    área ~1.70 m²), delimitada por muros de cartón de 5 mm de espesor y 18 cm de altura.
-2. Hueco de salida fijo de 30 cm en el centro del arco curvo, sin chaflanes, marcos ni túneles
-   exteriores (los ultrasonidos ven espacio libre > 200 cm únicamente a través de esta abertura).
-3. Obstáculos internos (2 a 3) del tamaño de un borrador de pizarra (14 cm x 6 cm x 12 cm).
-4. Tres Lobitos (canicas de 16 mm) con amplio margen respecto a muros y obstáculos.
-5. Modelo 3D real del robot exportado desde GreatXLabs/Keiko-Modelos-3D (chasis 257x150x76.1 mm,
-   ruedas giratorias TT de 67.2 mm y carcasa "Capote" opcional configurable).
+2. Hueco de salida fijo de 30 cm en el centro del arco curvo.
+3. Exactamente 2 obstáculos 3D reglamentarios (6 cm x 6 cm x 6 cm).
+4. Tres Lobitos (canicas de 16 mm de diámetro, vidrio blanco opaco "lechero").
+5. Modelo 3D del robot Orquita 4WD (chasis 257x150x76.1 mm, ruedas 67.2 mm):
+   - Fila superior: 3 sensores ultrasónicos HC-SR04 fijos (yaw=0°, pitch=0°, altura 5.5 cm).
+   - Fila inferior: 2 sensores láser ToF VL53L0X sobre 2 servos SG90 (altura 1.8 cm, brazo 2.0 cm).
+   - Hueco frontal del picker de exactamente 7.0 cm libres (|Y| <= 0.035 m) a ras de suelo.
+   - Paragolpes físicos laterales que desvían canicas fuera de los 7.0 cm.
 """
 
 import math
 import os
 import sys
 
-# Perfiles de deformación de la semielipse (simulando el armado manual con cartón)
 ARENA_PROFILES = {
     "standard": {
         "b": 0.90,         # Semieje menor sobre la pared (base = 2b = 1.80 m)
         "a": 1.20,         # Semieje mayor de profundidad hacia la salida (1.20 m)
-        "d_sin2": 0.00,    # Perturbación simétrica
-        "d_sin3": 0.00,    # Perturbación de 3er armónico
-        "d_asym": 0.00,    # Asimetría izquierda/derecha
-    },
-    "deformed_wide": {
-        "b": 0.96,
-        "a": 1.15,
-        "d_sin2": 0.03,
-        "d_sin3": -0.02,
-        "d_asym": 0.02,
-    },
-    "deformed_narrow": {
-        "b": 0.84,
-        "a": 1.25,
-        "d_sin2": -0.03,
-        "d_sin3": 0.02,
-        "d_asym": -0.02,
-    },
-    "asymmetric": {
-        "b": 0.90,
-        "a": 1.20,
-        "d_sin2": 0.02,
-        "d_sin3": 0.03,
-        "d_asym": 0.05,
-    },
-    "labyrinth": {
-        "b": 0.92,
-        "a": 1.20,
-        "d_sin2": 0.02,
-        "d_sin3": -0.02,
-        "d_asym": 0.03,
-    },
-    "corners": {
-        "b": 0.90,
-        "a": 1.20,
-        "d_sin2": -0.02,
-        "d_sin3": 0.02,
-        "d_asym": -0.04,
-    },
-    "corridors": {
-        "b": 0.86,
-        "a": 1.22,
         "d_sin2": 0.00,
-        "d_sin3": 0.02,
+        "d_sin3": 0.00,
         "d_asym": 0.00,
     },
 }
 
-# Configuración de elementos internos (2 a 3 obstáculos tamaño borrador 14x6x12 cm + 3 canicas con margen amplio)
+# Configuraciones de escenarios de evaluación (>= 8 escenarios variando obstáculos, canicas y spawn)
 # La pared plana del fondo está en Y = -0.60 m y el vértice de salida en (0.0, +0.60 m).
+# Obstáculos: exactamente 2 cubos de 6x6x6 cm (0.06 x 0.06 x 0.06 m, z=0.03 m).
+# Canicas: 3 esferas de 16 mm (radio 0.008 m, z=0.008 m), blancas opacas.
 MAP_CONFIGS = {
     "standard": {
         "marbles": [
             ("lobito_1", 0.28, 0.15),
             ("lobito_2", -0.35, -0.12),
-            ("lobito_3", 0.25, -0.28),
+            ("lobito_3", 0.22, -0.28),
         ],
         "boxes": [
-            # (def_id, name, x, y, z, sx, sy, sz, yaw, color)
-            ("OBSTACLE_BOX_1", "obstacle_eraser_1", -0.28, 0.18, 0.06, 0.14, 0.06, 0.12, 0.35, "0.85 0.35 0.15"),
-            ("OBSTACLE_BOX_2", "obstacle_eraser_2", 0.32, -0.08, 0.06, 0.14, 0.06, 0.12, -0.50, "0.25 0.45 0.80"),
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.25, 0.18, 0.03, 0.06, 0.06, 0.06, 0.35, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.28, -0.08, 0.03, 0.06, 0.06, 0.06, -0.50, "0.25 0.45 0.80"),
         ],
-        "cylinders": [],
+        "spawn": (0.0, -0.32, 1.5708),
     },
-    "labyrinth": {
+    "scen_1": {
         "marbles": [
-            ("lobito_1", 0.34, 0.18),
-            ("lobito_2", -0.36, 0.05),
-            ("lobito_3", 0.15, -0.30),
+            ("lobito_1", 0.25, 0.20),
+            ("lobito_2", -0.30, -0.15),
+            ("lobito_3", 0.15, -0.35),
         ],
         "boxes": [
-            ("OBSTACLE_BOX_1", "obstacle_eraser_1", -0.15, 0.22, 0.06, 0.14, 0.06, 0.12, 0.20, "0.85 0.35 0.15"),
-            ("OBSTACLE_BOX_2", "obstacle_eraser_2", -0.32, -0.22, 0.06, 0.14, 0.06, 0.12, 1.10, "0.25 0.45 0.80"),
-            ("OBSTACLE_BOX_3", "obstacle_eraser_3", 0.28, -0.12, 0.06, 0.14, 0.06, 0.12, -0.75, "0.75 0.60 0.15"),
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.22, 0.14, 0.03, 0.06, 0.06, 0.06, 0.20, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.28, -0.10, 0.03, 0.06, 0.06, 0.06, -0.40, "0.25 0.45 0.80"),
         ],
-        "cylinders": [],
+        "spawn": (0.0, -0.32, 1.5708),
     },
-    "corners": {
+    "scen_2": {
         "marbles": [
-            ("lobito_1", -0.45, -0.25),
-            ("lobito_2", 0.45, -0.25),
-            ("lobito_3", -0.25, 0.22),
+            ("lobito_1", -0.35, 0.18),
+            ("lobito_2", 0.32, 0.16),
+            ("lobito_3", 0.00, -0.30),
         ],
         "boxes": [
-            ("OBSTACLE_BOX_1", "obstacle_eraser_1", -0.18, -0.05, 0.06, 0.14, 0.06, 0.12, 0.60, "0.85 0.35 0.15"),
-            ("OBSTACLE_BOX_2", "obstacle_eraser_2", 0.22, 0.08, 0.06, 0.14, 0.06, 0.12, -0.40, "0.25 0.45 0.80"),
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.15, 0.00, 0.03, 0.06, 0.06, 0.06, 0.50, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.20, 0.10, 0.03, 0.06, 0.06, 0.06, -0.30, "0.25 0.45 0.80"),
         ],
-        "cylinders": [],
+        "spawn": (-0.15, -0.35, 1.40),
     },
-    "corridors": {
+    "scen_3": {
         "marbles": [
-            ("lobito_1", 0.00, 0.25),
-            ("lobito_2", -0.32, -0.05),
-            ("lobito_3", 0.32, -0.22),
+            ("lobito_1", -0.38, 0.10),
+            ("lobito_2", 0.28, 0.25),
+            ("lobito_3", 0.25, -0.25),
         ],
         "boxes": [
-            ("OBSTACLE_BOX_1", "obstacle_eraser_1", -0.22, 0.10, 0.06, 0.14, 0.06, 0.12, 1.57, "0.85 0.35 0.15"),
-            ("OBSTACLE_BOX_2", "obstacle_eraser_2", 0.22, 0.10, 0.06, 0.14, 0.06, 0.12, 1.57, "0.25 0.45 0.80"),
-            ("OBSTACLE_BOX_3", "obstacle_eraser_3", 0.00, -0.18, 0.06, 0.14, 0.06, 0.12, 0.00, "0.75 0.60 0.15"),
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.00, 0.12, 0.03, 0.06, 0.06, 0.06, 0.00, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.28, -0.15, 0.03, 0.06, 0.06, 0.06, 0.80, "0.25 0.45 0.80"),
         ],
-        "cylinders": [],
+        "spawn": (0.15, -0.35, 1.70),
+    },
+    "scen_4": {
+        "marbles": [
+            ("lobito_1", 0.28, 0.15),
+            ("lobito_2", -0.25, -0.10),
+            ("lobito_3", -0.10, -0.35),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.20, 0.20, 0.03, 0.06, 0.06, 0.06, 0.30, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.18, -0.05, 0.03, 0.06, 0.06, 0.06, -0.60, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.00, -0.30, 1.5708),
+    },
+    "scen_5": {
+        "marbles": [
+            ("lobito_1", 0.00, 0.28),
+            ("lobito_2", -0.35, -0.20),
+            ("lobito_3", 0.35, -0.20),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.26, 0.08, 0.03, 0.06, 0.06, 0.06, 0.45, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.26, 0.08, 0.03, 0.06, 0.06, 0.06, -0.45, "0.25 0.45 0.80"),
+        ],
+        "spawn": (-0.10, -0.35, 1.30),
+    },
+    "scen_6": {
+        "marbles": [
+            ("lobito_1", -0.30, 0.20),
+            ("lobito_2", 0.10, 0.25),
+            ("lobito_3", 0.20, -0.30),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.25, 0.10, 0.03, 0.06, 0.06, 0.06, -0.25, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.15, -0.15, 0.03, 0.06, 0.06, 0.06, 0.60, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.10, -0.35, 1.80),
+    },
+    "scen_7": {
+        "marbles": [
+            ("lobito_1", -0.36, -0.05),
+            ("lobito_2", 0.25, 0.22),
+            ("lobito_3", -0.05, -0.32),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.10, 0.18, 0.03, 0.06, 0.06, 0.06, 0.15, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.32, -0.05, 0.03, 0.06, 0.06, 0.06, -0.70, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.00, -0.32, 1.5708),
+    },
+    "scen_8": {
+        "marbles": [
+            ("lobito_1", -0.40, 0.05),
+            ("lobito_2", 0.40, 0.05),
+            ("lobito_3", 0.00, 0.26),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.12, 0.05, 0.03, 0.06, 0.06, 0.06, -0.35, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.22, -0.05, 0.03, 0.06, 0.06, 0.06, 0.40, "0.25 0.45 0.80"),
+        ],
+        "spawn": (-0.20, -0.32, 1.5708),
     },
 }
 
 
 def get_arena_geometry(variant="standard"):
-    """
-    Calcula los segmentos de muro de la semielipse (pared plana de fondo + arco curvo de cartón de 5mm)
-    con un hueco central exacto de 30 cm en el vértice de salida.
-    """
     prof = ARENA_PROFILES.get(variant, ARENA_PROFILES["standard"])
     b = prof["b"]
     a = prof["a"]
@@ -139,52 +153,36 @@ def get_arena_geometry(variant="standard"):
     d_asym = prof["d_asym"]
 
     y_back = -0.60
-    wall_thickness = 0.005  # 5 mm fijo (cartón)
-    wall_height = 0.18      # 18 cm fijo (rango 15-20 cm)
-    exit_width = 0.30       # 30 cm fijo
-    half_gap = exit_width / 2.0  # 0.15 m a cada lado de X = 0
+    wall_thickness = 0.005  # 5 mm
+    wall_height = 0.18      # 18 cm
+    exit_width = 0.30       # 30 cm
+    half_gap = exit_width / 2.0
 
     def point_on_arc(theta):
-        # En theta=0, pi y theta=pi/2 el factor de deformación radial se anula en los bordes de la salida
-        # y en los extremos de la pared para garantizar continuidad exacta.
         envelope = math.sin(theta) * abs(math.cos(theta))
-        r_mod = 1.0 + envelope * (d_sin2 * math.sin(2.0 * theta) + d_sin3 * math.sin(3.0 * theta) + d_asym * math.cos(theta))
-        x = b * r_mod * math.cos(theta)
-        y = y_back + a * r_mod * math.sin(theta)
-        return x, y
+        perturbation = (
+            d_sin2 * math.sin(2.0 * theta)
+            + d_sin3 * math.sin(3.0 * theta)
+            + d_asym * math.cos(theta)
+        )
+        r_mod = 1.0 + envelope * perturbation
+        x = b * math.cos(theta) * r_mod
+        y = y_back + a * math.sin(theta) * r_mod
+        return (x, y)
 
-    # Encontrar theta_right (en [0, pi/2]) donde x(theta) = +half_gap (+0.15 m)
-    lo, hi = 0.0, math.pi / 2.0
-    for _ in range(40):
-        mid = 0.5 * (lo + hi)
-        xm, _ = point_on_arc(mid)
-        if xm > half_gap:
-            lo = mid
-        else:
-            hi = mid
-    theta_right = 0.5 * (lo + hi)
-
-    # Encontrar theta_left (en [pi/2, pi]) donde x(theta) = -half_gap (-0.15 m)
-    lo, hi = math.pi / 2.0, math.pi
-    for _ in range(40):
-        mid = 0.5 * (lo + hi)
-        xm, _ = point_on_arc(mid)
-        if xm > -half_gap:
-            lo = mid
-        else:
-            hi = mid
-    theta_left = 0.5 * (lo + hi)
+    theta_exit_right = math.acos(min(0.999, half_gap / b))
+    theta_exit_left = math.pi - theta_exit_right
 
     n_half_segments = 16
-    segments = []
+    right_pts = [point_on_arc(0.0 + (theta_exit_right - 0.0) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
+    left_pts = [point_on_arc(theta_exit_left + (math.pi - theta_exit_left) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
 
-    # Arco derecho: desde theta = 0 (pared en +b) hasta theta_right (borde derecho de la salida en X=+0.15)
-    right_pts = [point_on_arc(theta_right * (i / n_half_segments)) for i in range(n_half_segments + 1)]
+    segments = []
     for i in range(n_half_segments):
         x0, y0 = right_pts[i]
         x1, y1 = right_pts[i + 1]
         cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
-        length = math.hypot(x1 - x0, y1 - y0) + 0.002  # solape de 2mm en uniones de cartón
+        length = math.hypot(x1 - x0, y1 - y0) + 0.002
         yaw = math.atan2(y1 - y0, x1 - x0)
         segments.append({
             "def": f"WALL_ARC_R{i+1:02d}",
@@ -195,8 +193,6 @@ def get_arena_geometry(variant="standard"):
             "yaw": yaw,
         })
 
-    # Arco izquierdo: desde theta_left (borde izquierdo de la salida en X=-0.15) hasta theta = pi (pared en -b)
-    left_pts = [point_on_arc(theta_left + (math.pi - theta_left) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
     for i in range(n_half_segments):
         x0, y0 = left_pts[i]
         x1, y1 = left_pts[i + 1]
@@ -212,7 +208,6 @@ def get_arena_geometry(variant="standard"):
             "yaw": yaw,
         })
 
-    # Calcular área interior por fórmula del polígono (Shoelace)
     poly_pts = [point_on_arc(math.pi * (i / 64.0)) for i in range(65)]
     area = 0.0
     for i in range(len(poly_pts)):
@@ -249,15 +244,14 @@ def get_arena_geometry(variant="standard"):
 
 
 def render_arena_walls(map_name="standard", exit_wall="north"):
-    geom = get_arena_geometry(map_name)
-    exit_rotation = EXIT_ROTATIONS.get(exit_wall, EXIT_ROTATIONS["north"])
+    geom = get_arena_geometry("standard")
+    exit_rotation = "0 0 1 0" if exit_wall == "north" else ("0 0 1 -1.5708" if exit_wall == "east" else "0 0 1 3.1416")
     t = geom["wall_thickness"]
     h = geom["wall_height"]
     z_center = h / 2.0
     bw = geom["back_wall"]
 
     nodes = []
-    # 1. Pared plana de fondo (la pared del aula donde apoya la base de ~1.80 m)
     nodes.append(f"""    # Pared Plana de Base (~1.80m sobre la pared del laboratorio)
     DEF {bw['def']} Solid {{
       translation {bw['cx']:.4f} {bw['cy']:.4f} {z_center:.4f}
@@ -279,7 +273,6 @@ def render_arena_walls(map_name="standard", exit_wall="north"):
       }}
     }}""")
 
-    # 2. Segmentos del arco semielíptico de cartón (5 mm de grosor, 18 cm de alto)
     defined_cardboard = False
     for seg in geom["arc_segments"]:
         if not defined_cardboard:
@@ -306,13 +299,12 @@ def render_arena_walls(map_name="standard", exit_wall="north"):
       name "{seg['name']}"
       contactMaterial "wall"
       boundingObject Box {{
-        size {seg['length']:.4f} {t:.4f} {h:.4f}
+        size {seg['length']:.4f} 0.020 {h:.4f}
       }}
     }}""")
 
-    # 3. Marcador de referencia de salida (sin geometría superpuesta con el piso para evitar Z-fighting)
     ey = geom["exit_pos"][1]
-    nodes.append(f"""    # Marcador de Referencia de Salida (sin malla ni colisionador que solape el piso)
+    nodes.append(f"""    # Marcador de Referencia de Salida (30 cm)
     DEF EXIT_PLATFORM Solid {{
       translation 0 {ey + 0.35:.4f} -0.10
       name "exit_platform"
@@ -332,14 +324,10 @@ def render_map_elements(map_name="standard"):
     cfg = MAP_CONFIGS.get(map_name, MAP_CONFIGS["standard"])
     lines = []
 
-    # Renderizar obstáculos tipo borrador de pizarra (Boxes)
+    # Renderizar exactamente 2 obstáculos 3D (6x6x6 cm)
     for ob in cfg.get("boxes", []):
-        if len(ob) == 10:
-            def_id, name, x, y, z, sx, sy, sz, yaw, color = ob
-        else:
-            def_id, name, x, y, z, sx, sy, sz, color = ob
-            yaw = 0.0
-        lines.append(f"""# Obstaculo (Borrador de Pizarra): {name}
+        def_id, name, x, y, z, sx, sy, sz, yaw, color = ob
+        lines.append(f"""# Obstaculo 3D ({sx*100:.0f}x{sy*100:.0f}x{sz*100:.0f} cm): {name}
 DEF {def_id} Solid {{
   translation {x} {y} {z}
   rotation 0 0 1 {yaw}
@@ -361,18 +349,18 @@ DEF {def_id} Solid {{
   }}
 }}""")
 
-    # Renderizar las 3 canicas (Lobitos)
+    # Renderizar exactamente 3 canicas (Lobitos) de 16 mm (blancas opacas "lecheras")
     for idx, (m_name, mx, my) in enumerate(cfg.get("marbles", []), start=1):
         def_name = f"LOBITO_{idx}"
-        lines.append(f"""# Canica {idx} (Lobito): 16mm de diametro
+        lines.append(f"""# Canica {idx} (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF {def_name} Solid {{
   translation {mx} {my} 0.008
   children [
     Shape {{
       appearance PBRAppearance {{
-        baseColor 0.0 0.9 0.9
-        roughness 0.1
-        metalness 0.3
+        baseColor 0.95 0.95 0.95
+        roughness 0.15
+        metalness 0.05
       }}
       geometry DEF MARBLE_GEOM Sphere {{
         radius 0.008
@@ -391,109 +379,156 @@ DEF {def_name} Solid {{
     return "\n\n".join(lines)
 
 
-EXIT_ROTATIONS = {
-    "north": "0 0 1 0",
-    "east": "0 0 1 -1.5708",
-    "south": "0 0 1 3.1416",
-}
-
-SENSOR_LOOKUP = "0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02"
-SENSOR_APERTURE_RAD = 0.50
-
-TRANSDUCERS = {
-    "LOW": ("US_TRANSDUCER", "0.1 0.5 0.9"),
-    "HIGH": ("US_TRANSDUCER_HIGH", "0.9 0.8 0.1"),
-    "SIDE": ("US_TRANSDUCER_SIDE", "0.2 0.8 0.4"),
-    "REAR": ("US_TRANSDUCER_REAR", "0.8 0.2 0.8"),
-}
-
-SENSOR_LAYOUTS = {
-    "trisector_front_6": {"front": "trisector", "side": False, "rear": False},
-    "dual_plane_4": {"front": "dual_plane", "side": False, "rear": False},
-    "dual_plane_6": {"front": "dual_plane", "side": True, "rear": False},
-    "dual_plane_8": {"front": "dual_plane", "side": True, "rear": True},
-    "trisector_10": {"front": "trisector", "side": True, "rear": True},
-}
-
-DUAL_PLANE_FRONT = [
-    ("us_low_left", 0.130, 0.035, 0.025, 0.0873, "LOW"),
-    ("us_low_right", 0.130, -0.035, 0.025, -0.0873, "LOW"),
-    ("us_high_left", 0.120, 0.050, 0.095, 0.3491, "HIGH"),
-    ("us_high_right", 0.120, -0.050, 0.095, -0.3491, "HIGH"),
-]
-
-TRISECTOR_FRONT = [
-    ("us_low_left", 0.128, 0.052, 0.012, 0.3840, "LOW"),
-    ("us_low_center", 0.134, 0.000, 0.012, 0.0000, "LOW"),
-    ("us_low_right", 0.128, -0.052, 0.012, -0.3840, "LOW"),
-    ("us_high_left", 0.122, 0.052, 0.095, 0.3840, "HIGH"),
-    ("us_high_center", 0.128, 0.000, 0.095, 0.0000, "HIGH"),
-    ("us_high_right", 0.122, -0.052, 0.095, -0.3840, "HIGH"),
-]
-
-SIDE_SENSORS = [
-    ("us_side_left", 0.0, 0.075, 0.065, 1.5708, "SIDE"),
-    ("us_side_right", 0.0, -0.075, 0.065, -1.5708, "SIDE"),
-]
-
-REAR_SENSORS = [
-    ("us_rear_left", -0.125, 0.040, 0.065, 3.1416, "REAR"),
-    ("us_rear_right", -0.125, -0.040, 0.065, 3.1416, "REAR"),
-]
-
-
-def render_sensor_rig(sensor_config="trisector_front_6"):
-    layout = SENSOR_LAYOUTS.get(sensor_config, SENSOR_LAYOUTS["trisector_front_6"])
-    sensors = list(TRISECTOR_FRONT if layout["front"] == "trisector" else DUAL_PLANE_FRONT)
-    if layout["side"]:
-        sensors += SIDE_SENSORS
-    if layout["rear"]:
-        sensors += REAR_SENSORS
-
-    defined = set()
+def render_sensor_rig():
+    """
+    Renderiza la nueva configuración real del hardware:
+    1. Fila superior: 3 sensores ultrasónicos HC-SR04 fijos (yaw=0°, pitch=0°, Z=0.055 m).
+    2. Fila inferior: 2 sensores láser ToF VL53L0X sobre 2 servos SG90 (Z=0.018 m, brazo 2.0 cm).
+    """
     nodes = []
-    for name, x, y, z, yaw, kind in sensors:
-        def_id, color = TRANSDUCERS[kind]
-        if kind in defined:
-            child = f"USE {def_id}"
-        else:
-            defined.add(kind)
-            child = f"""DEF {def_id} Shape {{
-        appearance PBRAppearance {{ baseColor {color} roughness 0.3 }}
-        geometry Cylinder {{ height 0.012 radius 0.008 }}
-      }}"""
-        nodes.append(f"""    DistanceSensor {{
+
+    # 1. ULTRASONICOS HC-SR04 FIJOS (Z = 0.055 m, yaw = 0°, pitch = 0°)
+    us_sensors = [
+        ("us_left",   0.1325,  0.054, 0.055),
+        ("us_center", 0.1325,  0.000, 0.055),
+        ("us_right",  0.1325, -0.054, 0.055),
+    ]
+
+    for name, x, y, z in us_sensors:
+        nodes.append(f"""    # Sensor Ultrasonico HC-SR04: {name} (Z={z}m, yaw=0°)
+    DistanceSensor {{
       translation {x} {y} {z}
-      rotation 0 0 1 {yaw}
+      rotation 0 0 1 0
       name "{name}"
       type "generic"
-      numberOfRays 17
-      aperture 0.35
-      lookupTable [ {SENSOR_LOOKUP} ]
+      numberOfRays 1
+      lookupTable [ 0.0 0.0 0.0, 0.02 2.0 0.02, 2.50 250.0 0.02 ]
       children [
-        {child}
+        DEF US_TRANSDUCER Shape {{
+          appearance PBRAppearance {{ baseColor 0.1 0.5 0.9 roughness 0.3 }}
+          geometry Cylinder {{ height 0.012 radius 0.008 }}
+        }}
       ]
     }}""")
 
-    hud_node = """    # -------------------------------------------------------------------------
-    # DISPLAY HUD: RADAR SONAR 2D EN TIEMPO REAL (EN PANTALLA)
-    # -------------------------------------------------------------------------
+    # 2. LASERES ToF VL53L0X SOBRE SERVOS SG90
+    laser_lookup = "0.0 0.0 0.0, 0.02 2.0 0.02, 2.00 200.0 0.02, 2.01 999.0 0.0"
+
+    # Servo Izquierdo (eje en X=+0.1405, Y=+0.083, Z=0.018)
+    # Rango en espejo: -45° (centro) a +60° (afuera)
+    nodes.append(f"""    # Servo SG90 + VL53L0X Izquierdo (Eje en X=+0.1405, Y=+0.083, Z=0.018)
+    HingeJoint {{
+      jointParameters HingeJointParameters {{
+        axis 0 0 1
+        anchor 0.1405 0.083 0.018
+      }}
+      device [
+        RotationalMotor {{
+          name "servo_left"
+          minPosition -0.80
+          maxPosition 1.10
+          maxVelocity 15.0
+        }}
+        PositionSensor {{
+          name "servo_left_sensor"
+        }}
+      ]
+      endPoint Solid {{
+        translation 0.1405 0.083 0.018
+        children [
+          DEF SERVO_HORN_L Shape {{
+            appearance PBRAppearance {{ baseColor 0.2 0.2 0.25 roughness 0.4 }}
+            geometry Box {{ size 0.022 0.006 0.005 }}
+          }}
+          DistanceSensor {{
+            translation 0.020 0 0
+            rotation 0 1 0 -0.021
+            name "laser_left"
+            type "generic"
+            numberOfRays 7
+            aperture 0.4363
+            lookupTable [ {laser_lookup} ]
+            children [
+              DEF LASER_CHIP Shape {{
+                appearance PBRAppearance {{ baseColor 0.85 0.15 0.15 roughness 0.2 }}
+                geometry Box {{ size 0.005 0.010 0.005 }}
+              }}
+            ]
+          }}
+        ]
+        name "bracket_laser_left"
+        physics Physics {{
+          density -1
+          mass 0.01
+        }}
+      }}
+    }}""")
+
+    # Servo Derecho (eje en X=+0.1405, Y=-0.083, Z=0.018)
+    # Movimiento en espejo: rotación invertida respecto al izquierdo
+    nodes.append(f"""    # Servo SG90 + VL53L0X Derecho (Eje en X=+0.1405, Y=-0.083, Z=0.018)
+    HingeJoint {{
+      jointParameters HingeJointParameters {{
+        axis 0 0 1
+        anchor 0.1405 -0.083 0.018
+      }}
+      device [
+        RotationalMotor {{
+          name "servo_right"
+          minPosition -1.10
+          maxPosition 0.80
+          maxVelocity 15.0
+        }}
+        PositionSensor {{
+          name "servo_right_sensor"
+        }}
+      ]
+      endPoint Solid {{
+        translation 0.1405 -0.083 0.018
+        children [
+          DEF SERVO_HORN_R Shape {{
+            appearance PBRAppearance {{ baseColor 0.2 0.2 0.25 roughness 0.4 }}
+            geometry Box {{ size 0.022 0.006 0.005 }}
+          }}
+          DistanceSensor {{
+            translation 0.020 0 0
+            rotation 0 1 0 -0.021
+            name "laser_right"
+            type "generic"
+            numberOfRays 7
+            aperture 0.4363
+            lookupTable [ {laser_lookup} ]
+            children [
+              USE LASER_CHIP
+            ]
+          }}
+        ]
+        name "bracket_laser_right"
+        physics Physics {{
+          density -1
+          mass 0.01
+        }}
+      }}
+    }}""")
+
+    hud_node = """    # Display HUD Radar
     Display {
       name "sensor_hud"
       width 340
       height 340
     }"""
+    nodes.append(hud_node)
 
-    return "\n\n".join(nodes) + "\n\n" + hud_node
+    return "\n\n".join(nodes)
 
 
-def generate_world(controller_name, map_name="standard", sensor_config="trisector_front_6", exit_wall="north", include_capote=None):
+def generate_world(controller_name, map_name="standard", exit_wall="north", include_capote=None):
     if include_capote is None:
         include_capote = os.environ.get("ORQUITAS_CAPOTE", "0").strip() in ("1", "true", "TRUE", "yes")
 
     capote_visual_node = ""
     if include_capote:
-        capote_visual_node = """    # Carcasa Exterior "Capote" (CAD Chassis.FCStd: frente en +X, aleta dorsal y cola en -X)
+        capote_visual_node = """    # Carcasa Exterior "Capote"
     DEF ORQUITA_CAPOTE_VISUAL Shape {
       appearance PBRAppearance {
         baseColor 0.12 0.14 0.18
@@ -506,88 +541,69 @@ def generate_world(controller_name, map_name="standard", sensor_config="trisecto
       }
     }"""
 
+    cfg = MAP_CONFIGS.get(map_name, MAP_CONFIGS["standard"])
+    spawn_x, spawn_y, spawn_yaw = cfg.get("spawn", (0.0, -0.32, 1.5708))
+
     return f"""#VRML_SIM R2025a utf8
 
 WorldInfo {{
   info [
     "Bahia de Caza - Entorno de simulacion 3D realista para el Proyecto Orquitas (Keiko)",
-    "Semielipse de ~1.80m x 1.20m (~1.70 m2) con muros de carton de 5mm, hueco de salida de 30cm y modelo CAD 3D."
+    "Semielipse de ~1.80m x 1.20m (~1.70 m2) con muros de carton de 5mm, hueco de salida de 30cm, 2 obstaculos 3D (6x6x6cm) y 3 canicas de 16mm."
   ]
-  title "Bahia de Caza - Orquitas (Semielipse Realista)"
+  title "Bahia de Caza - Orquitas 3US + 2Laser"
   basicTimeStep 32
   FPS 60
   contactProperties [
     ContactProperties {{
       material1 "wheel"
       material2 "floor"
-      coulombFriction [
-        0.82
-      ]
-      forceDependentSlip [
-        0.010
-      ]
+      coulombFriction [ 0.82 ]
+      forceDependentSlip [ 0.010 ]
       bounce 0.0
     }}
     ContactProperties {{
       material1 "wheel"
       material2 "wall"
-      coulombFriction [
-        0.05
-      ]
-      forceDependentSlip [
-        0.05
-      ]
+      coulombFriction [ 0.05 ]
+      forceDependentSlip [ 0.05 ]
       bounce 0.0
     }}
     ContactProperties {{
       material1 "marble"
       material2 "floor"
-      coulombFriction [
-        0.12
-      ]
+      coulombFriction [ 0.12 ]
       bounce 0.04
     }}
     ContactProperties {{
       material1 "marble"
       material2 "wheel"
-      coulombFriction [
-        0.45
-      ]
+      coulombFriction [ 0.45 ]
       bounce 0.0
     }}
     ContactProperties {{
       material1 "marble"
       material2 "chassis"
-      coulombFriction [
-        0.25
-      ]
+      coulombFriction [ 0.25 ]
       bounce 0.02
     }}
     ContactProperties {{
       material1 "marble"
       material2 "wall"
-      coulombFriction [
-        0.15
-      ]
+      coulombFriction [ 0.15 ]
       bounce 0.2
     }}
     ContactProperties {{
       material1 "chassis"
       material2 "floor"
-      coulombFriction [
-        0.18
-      ]
-      forceDependentSlip [
-        0.015
-      ]
+      coulombFriction [ 0.18 ]
+      forceDependentSlip [ 0.015 ]
       bounce 0.01
     }}
     ContactProperties {{
       material1 "chassis"
       material2 "wall"
-      coulombFriction [
-        0.05
-      ]
+      coulombFriction [ 0.05 ]
       bounce 0.01
     }}
   ]
@@ -600,9 +616,7 @@ Viewpoint {{
 }}
 
 Background {{
-  skyColor [
-    0.35 0.65 0.90
-  ]
+  skyColor [ 0.35 0.65 0.90 ]
 }}
 
 DirectionalLight {{
@@ -619,7 +633,7 @@ PointLight {{
   location 0 0 2.2
 }}
 
-# Suelo Único Continuo del Laboratorio y Bahía de Caza (12m x 12m x 0.20m, cota superior Z = 0.0)
+# Suelo Continuo
 DEF FLOOR Solid {{
   translation 0 0 -0.10
   children [
@@ -641,7 +655,7 @@ DEF FLOOR Solid {{
   }}
 }}
 
-# Muros de Contencion Lejanos (a 6.0m del centro, fuera del alcance de 2.5m-3.0m del HC-SR04)
+# Muros de Contencion Lejanos
 DEF SAFETY_WALL_NORTH Solid {{
   translation 0 6.0 0.25
   children [
@@ -698,12 +712,12 @@ DEF SAFETY_WALL_EAST Solid {{
 
 {render_map_elements(map_name)}
 
-# Robot Autonomo: La Orquita 4WD (Modelo 3D Real de GreatXLabs/Keiko-Modelos-3D: 257mm x 150mm x 76.1mm)
+# Robot Autonomo: La Orquita 4WD (Modelo 3D Real: 257mm x 150mm x 76.1mm)
 DEF ORQUITA Robot {{
-  translation 0 -0.32 0.001
-  rotation 0 0 1 1.5708
+  translation {spawn_x:.4f} {spawn_y:.4f} 0.001
+  rotation 0 0 1 {spawn_yaw:.4f}
   children [
-    # 1. Malla 3D Real del Chasis 4WD (Bandejas, Separadores de Bronce, Soportes y 4 Motores TT)
+    # Malla CAD del Chasis 4WD
     DEF ORQUITA_CHASSIS_VISUAL Shape {{
       appearance PBRAppearance {{
         baseColor 0.82 0.84 0.88
@@ -716,19 +730,76 @@ DEF ORQUITA Robot {{
     }}
 {capote_visual_node}
 
-    # 2. Sensor de Captura Bucal Frontal
-    TouchSensor {{
-      translation 0.085 0 0.016
-      name "capture_sensor"
-      boundingObject Box {{
-        size 0.010 0.060 0.020
-      }}
+    # -------------------------------------------------------------------------
+    # CONJUNTO VISUAL DEL PICKER MOUTH (7.0 cm libres, rodillo y guías embudo)
+    # -------------------------------------------------------------------------
+    # Rodillo activo del picker (cilindro horizontal giratorio en el túnel)
+    Pose {{
+      translation 0.095 0 0.016
+      rotation 1 0 0 1.5708
+      children [
+        DEF PICKER_ROLLER Shape {{
+          appearance PBRAppearance {{
+            baseColor 0.95 0.35 0.05
+            roughness 0.40
+            metalness 0.10
+          }}
+          geometry Cylinder {{
+            height 0.066
+            radius 0.010
+          }}
+        }}
+      ]
+    }}
+    # Guía embudo izquierda (alta visibilidad naranja flanqueando la boca de 7.0 cm)
+    Pose {{
+      translation 0.115 0.038 0.016
+      rotation 0 0 1 -0.2618
+      children [
+        DEF PICKER_GUIDE_L Shape {{
+          appearance PBRAppearance {{
+            baseColor 0.95 0.55 0.05
+            roughness 0.30
+          }}
+          geometry Box {{
+            size 0.035 0.005 0.024
+          }}
+        }}
+      ]
+    }}
+    # Guía embudo derecha (alta visibilidad naranja flanqueando la boca de 7.0 cm)
+    Pose {{
+      translation 0.115 -0.038 0.016
+      rotation 0 0 1 0.2618
+      children [
+        DEF PICKER_GUIDE_R Shape {{
+          appearance PBRAppearance {{
+            baseColor 0.95 0.55 0.05
+            roughness 0.30
+          }}
+          geometry Box {{
+            size 0.035 0.005 0.024
+          }}
+        }}
+      ]
+    }}
+    # Placa indicadora superior de la boca del picker (marcador frontal de 7.0 cm)
+    Pose {{
+      translation 0.095 0 0.029
+      children [
+        DEF PICKER_ROOF_LIP Shape {{
+          appearance PBRAppearance {{
+            baseColor 0.10 0.75 0.95
+            roughness 0.20
+          }}
+          geometry Box {{
+            size 0.040 0.070 0.004
+          }}
+        }}
+      ]
     }}
 
-    # -------------------------------------------------------------------------
-    # TREN DE TRACCION 4WD: 4 MOTORES DC TT Y RUEDAS CAD REALES (D = 67.2 mm)
-    # Coordenadas exactas del CAD: X = +-0.0586 m, Y = +-0.0596 m, Z = 0.0336 m
-    # -------------------------------------------------------------------------
+    # TREN DE TRACCION 4WD: 4 Motores DC TT
     # Motor 1: Delantero Izquierdo
     HingeJoint {{
       jointParameters HingeJointParameters {{
@@ -875,29 +946,45 @@ DEF ORQUITA Robot {{
       }}
     }}
 
-    {render_sensor_rig(sensor_config)}
+{render_sensor_rig()}
   ]
   name "orquita_robot"
   contactMaterial "chassis"
   boundingObject Group {{
     children [
-      # Silueta física del chasis CAD: paragolpes completos y cuerpo central despejado de las ruedas
+      # Paragolpes frontal izquierdo (flanco Y ∈ [+0.035, +0.080] m, baja a Z=0.003m para rebotar canicas)
       Pose {{
-        translation 0.095 0 0.048
+        translation 0.09875 0.0575 0.039
         children [
-          Box {{ size 0.065 0.150 0.055 }}
+          Box {{ size 0.0675 0.045 0.072 }}
         ]
       }}
+      # Paragolpes frontal derecho (flanco Y ∈ [-0.080, -0.035] m, baja a Z=0.003m para rebotar canicas)
       Pose {{
-        translation -0.095 0 0.048
+        translation 0.09875 -0.0575 0.039
         children [
-          Box {{ size 0.065 0.150 0.055 }}
+          Box {{ size 0.0675 0.045 0.072 }}
         ]
       }}
+      # Techo superior sobre el hueco del picker (Y ∈ [-0.035, +0.035] m, Z >= 0.030m; hueco libre abajo de 7.0 cm)
+      Pose {{
+        translation 0.09875 0 0.0525
+        children [
+          Box {{ size 0.0675 0.070 0.045 }}
+        ]
+      }}
+      # Cuerpo central
       Pose {{
         translation 0 0 0.048
         children [
           Box {{ size 0.125 0.088 0.055 }}
+        ]
+      }}
+      # Paragolpes trasero
+      Pose {{
+        translation -0.095 0 0.048
+        children [
+          Box {{ size 0.065 0.150 0.055 }}
         ]
       }}
     ]
@@ -913,40 +1000,29 @@ DEF ORQUITA Robot {{
 """
 
 
-# -----------------------------------------------------------------------------
-# GENERACION DE MUNDOS DE SIMULACION
-# -----------------------------------------------------------------------------
 WORLDS = [
-    ("bahia_de_caza.wbt", "live_visualizer", "standard", "trisector_front_6", "north"),
-    ("bahia_de_caza_client.wbt", "robot_client", "standard", "trisector_front_6", "north"),
-    ("bahia_de_caza_dataset.wbt", "dataset_collector", "standard", "trisector_front_6", "north"),
-    ("bahia_de_caza_dataset_dp4.wbt", "dataset_collector", "standard", "dual_plane_4", "north"),
-    ("bahia_de_caza_dataset_dp6.wbt", "dataset_collector", "standard", "dual_plane_6", "north"),
-    ("bahia_de_caza_dataset_dp8.wbt", "dataset_collector", "standard", "dual_plane_8", "north"),
-    ("bahia_de_caza_dataset_trisector.wbt", "dataset_collector", "standard", "trisector_10", "north"),
-    ("bahia_de_caza_labyrinth.wbt", "live_visualizer", "labyrinth", "trisector_front_6", "north"),
-    ("bahia_de_caza_labyrinth_client.wbt", "robot_client", "labyrinth", "trisector_front_6", "north"),
-    ("bahia_de_caza_corners.wbt", "live_visualizer", "corners", "trisector_front_6", "north"),
-    ("bahia_de_caza_corners_client.wbt", "robot_client", "corners", "trisector_front_6", "north"),
-    ("bahia_de_caza_corridors.wbt", "live_visualizer", "corridors", "trisector_front_6", "north"),
-    ("bahia_de_caza_corridors_client.wbt", "robot_client", "corridors", "trisector_front_6", "north"),
-    ("bahia_de_caza_dp4.wbt", "live_visualizer", "standard", "dual_plane_4", "north"),
-    ("bahia_de_caza_dp6.wbt", "live_visualizer", "standard", "dual_plane_6", "north"),
-    ("bahia_de_caza_dp8.wbt", "live_visualizer", "standard", "dual_plane_8", "north"),
-    ("bahia_de_caza_trisector.wbt", "live_visualizer", "standard", "trisector_10", "north"),
-    ("bahia_de_caza_trisector_client.wbt", "robot_client", "standard", "trisector_10", "north"),
-    ("bahia_de_caza_east.wbt", "live_visualizer", "standard", "trisector_front_6", "east"),
-    ("bahia_de_caza_south.wbt", "live_visualizer", "standard", "trisector_front_6", "south"),
+    ("bahia_de_caza.wbt", "live_visualizer", "standard", "north"),
+    ("bahia_de_caza_client.wbt", "robot_client", "standard", "north"),
+    ("bahia_de_caza_dataset.wbt", "dataset_collector", "standard", "north"),
+    ("bahia_de_caza_scen_1.wbt", "robot_client", "scen_1", "north"),
+    ("bahia_de_caza_scen_2.wbt", "robot_client", "scen_2", "north"),
+    ("bahia_de_caza_scen_3.wbt", "robot_client", "scen_3", "north"),
+    ("bahia_de_caza_scen_4.wbt", "robot_client", "scen_4", "north"),
+    ("bahia_de_caza_scen_5.wbt", "robot_client", "scen_5", "north"),
+    ("bahia_de_caza_scen_6.wbt", "robot_client", "scen_6", "north"),
+    ("bahia_de_caza_scen_7.wbt", "robot_client", "scen_7", "north"),
+    ("bahia_de_caza_scen_8.wbt", "robot_client", "scen_8", "north"),
 ]
 
 
 def build_all_worlds(include_capote=None):
     worlds_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "worlds")
     os.makedirs(worlds_dir, exist_ok=True)
-    for filename, controller, map_name, sensor_config, exit_wall in WORLDS:
-        with open(os.path.join(worlds_dir, filename), "w") as f:
-            f.write(generate_world(controller, map_name, sensor_config, exit_wall, include_capote=include_capote))
-    print(f"Se generaron {len(WORLDS)} mundos .wbt exitosamente (semielipse realista + CAD 3D).")
+    for filename, controller, map_name, exit_wall in WORLDS:
+        out_path = os.path.join(worlds_dir, filename)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(generate_world(controller, map_name, exit_wall, include_capote=include_capote))
+    print(f"Se generaron {len(WORLDS)} mundos .wbt exitosamente (3 US + 2 Laser/Servo, picker 7.0cm, 2 obstaculos 6x6x6cm).")
 
 
 if __name__ == "__main__":

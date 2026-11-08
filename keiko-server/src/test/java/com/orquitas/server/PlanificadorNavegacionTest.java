@@ -63,12 +63,12 @@ public class PlanificadorNavegacionTest {
                     "El retroceso anti-bucle debe continuar en el ciclo " + ciclo);
         }
 
-        // Fase 2: 16 ciclos de giro amplio asimetrico para romper la simetria del bucle.
+        // Fase 2: 16 ciclos de giro amplio con sesgo hacia adelante para romper la simetria del bucle.
         for (int ciclo = 0; ciclo < 16; ciclo++) {
             ComandoRobot giro = planner.evaluarPares(null, LIBRE);
             assertAll(
-                    () -> assertEquals(3.0, giro.getVLeft(), 1e-9),
-                    () -> assertEquals(-5.0, giro.getVRight(), 1e-9)
+                    () -> assertEquals(4.2, giro.getVLeft(), 1e-9),
+                    () -> assertEquals(-2.4, giro.getVRight(), 1e-9)
             );
         }
 
@@ -93,9 +93,9 @@ public class PlanificadorNavegacionTest {
 
     @Test
     public void testCenterBlockedBacksUpSixStepsBeforePivoting() {
-        assertSeisPasosRetrocesoYPivote(new String[]{"BLOQUEO", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
-        assertSeisPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "BLOQUEO"}, -1);
-        assertSeisPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
+        assertDiezPasosRetrocesoYPivote(new String[]{"BLOQUEO", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
+        assertDiezPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "BLOQUEO"}, -1);
+        assertDiezPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
     }
 
     @Test
@@ -106,8 +106,8 @@ public class PlanificadorNavegacionTest {
         ComandoRobot centrado = planner.evaluarPares(null, SALIDA_CEN);
         assertAll(
                 () -> assertEquals(EstadoRobot.ESCAPE, centrado.getEstado()),
-                () -> assertEquals(4.8, centrado.getVLeft(), 1e-9),
-                () -> assertEquals(4.8, centrado.getVRight(), 1e-9)
+                () -> assertEquals(3.4, centrado.getVLeft(), 1e-9),
+                () -> assertEquals(3.4, centrado.getVRight(), 1e-9)
         );
     }
 
@@ -116,22 +116,14 @@ public class PlanificadorNavegacionTest {
         PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
         planner.activarModoEscape();
 
-        // Jamba derecha a <= 10 cm: no empujar contra el borde, desenganchar con micro-retroceso.
+        // Jamba derecha bloqueada con centro en salida: desviar a la izquierda suavemente.
         String[] jambaDerecha = {"ESPACIO_LIBRE", "SALIDA", "BLOQUEO"};
-        for (int ciclo = 0; ciclo < 5; ciclo++) {
-            ComandoRobot retroceso = planner.evaluarPares(null, jambaDerecha);
-            assertAll(
-                    () -> assertEquals(-3.8, retroceso.getVLeft(), 1e-9),
-                    () -> assertEquals(-3.8, retroceso.getVRight(), 1e-9)
-            );
-        }
-        for (int ciclo = 0; ciclo < 6; ciclo++) {
-            ComandoRobot giro = planner.evaluarPares(null, jambaDerecha);
-            assertAll(
-                    () -> assertEquals(-4.4, giro.getVLeft(), 1e-9),
-                    () -> assertEquals(4.4, giro.getVRight(), 1e-9)
-            );
-        }
+        ComandoRobot escape = planner.evaluarPares(null, jambaDerecha);
+        assertAll(
+                () -> assertEquals(EstadoRobot.ESCAPE, escape.getEstado()),
+                () -> assertEquals(1.6, escape.getVLeft(), 1e-9),
+                () -> assertEquals(3.2, escape.getVRight(), 1e-9)
+        );
     }
 
     @Test
@@ -139,21 +131,14 @@ public class PlanificadorNavegacionTest {
         PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
         planner.activarModoEscape();
 
+        // Jamba izquierda bloqueada con centro en salida: desviar a la derecha suavemente.
         String[] jambaIzquierda = {"BLOQUEO", "SALIDA", "ESPACIO_LIBRE"};
-        for (int ciclo = 0; ciclo < 5; ciclo++) {
-            ComandoRobot retroceso = planner.evaluarPares(null, jambaIzquierda);
-            assertAll(
-                    () -> assertEquals(-3.8, retroceso.getVLeft(), 1e-9),
-                    () -> assertEquals(-3.8, retroceso.getVRight(), 1e-9)
-            );
-        }
-        for (int ciclo = 0; ciclo < 6; ciclo++) {
-            ComandoRobot giro = planner.evaluarPares(null, jambaIzquierda);
-            assertAll(
-                    () -> assertEquals(4.4, giro.getVLeft(), 1e-9),
-                    () -> assertEquals(-4.4, giro.getVRight(), 1e-9)
-            );
-        }
+        ComandoRobot escape = planner.evaluarPares(null, jambaIzquierda);
+        assertAll(
+                () -> assertEquals(EstadoRobot.ESCAPE, escape.getEstado()),
+                () -> assertEquals(3.2, escape.getVLeft(), 1e-9),
+                () -> assertEquals(1.6, escape.getVRight(), 1e-9)
+        );
     }
 
     @Test
@@ -161,14 +146,14 @@ public class PlanificadorNavegacionTest {
         PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
         planner.activarModoEscape();
 
-        // Pinzado entre ambas jambas: retroceder recto para volver a la bahia antes de recentrar.
+        // Pinzado entre ambas jambas: retroceder recto suave para volver a la bahia antes de recentrar.
         String[] pinzado = {"BLOQUEO", "SALIDA", "BLOQUEO"};
-        for (int ciclo = 0; ciclo < 8; ciclo++) {
+        for (int ciclo = 0; ciclo < 6; ciclo++) {
             ComandoRobot retroceso = planner.evaluarPares(null, pinzado);
             assertAll(
                     () -> assertEquals(EstadoRobot.ESCAPE, retroceso.getEstado()),
-                    () -> assertEquals(-4.0, retroceso.getVLeft(), 1e-9),
-                    () -> assertEquals(-4.0, retroceso.getVRight(), 1e-9)
+                    () -> assertEquals(-2.4, retroceso.getVLeft(), 1e-9),
+                    () -> assertEquals(-2.4, retroceso.getVRight(), 1e-9)
             );
         }
     }
@@ -210,13 +195,13 @@ public class PlanificadorNavegacionTest {
                 contexto + " debe resolverse con arco hacia adelante");
     }
 
-    private static void assertSeisPasosRetrocesoYPivote(String[] pares, int direccionEsperada) {
+    private static void assertDiezPasosRetrocesoYPivote(String[] pares, int direccionEsperada) {
         PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
-        for (int ciclo = 0; ciclo < 6; ciclo++) {
+        for (int ciclo = 0; ciclo < 10; ciclo++) {
             ComandoRobot retroceso = planner.evaluarPares(null, pares);
             assertAll(
-                    () -> assertEquals(-4.2, retroceso.getVLeft(), 1e-9),
-                    () -> assertEquals(-4.2, retroceso.getVRight(), 1e-9)
+                    () -> assertEquals(-3.6, retroceso.getVLeft(), 1e-9),
+                    () -> assertEquals(-3.6, retroceso.getVRight(), 1e-9)
             );
         }
         ComandoRobot giro = planner.evaluarPares(null, LIBRE);
