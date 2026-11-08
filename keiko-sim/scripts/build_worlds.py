@@ -16,6 +16,7 @@ Construye el escenario reglamentario de la Bahía de Caza según las especificac
 
 import math
 import os
+import random
 import sys
 
 ARENA_PROFILES = {
@@ -28,7 +29,7 @@ ARENA_PROFILES = {
     },
 }
 
-# Configuraciones de escenarios de evaluación (>= 8 escenarios variando obstáculos, canicas y spawn)
+# Configuraciones de escenarios de evaluación (14 escenarios fijos + aleatorio reglamentario)
 # La pared plana del fondo está en Y = -0.60 m y el vértice de salida en (0.0, +0.60 m).
 # Obstáculos: exactamente 2 cubos de 6x6x6 cm (0.06 x 0.06 x 0.06 m, z=0.03 m).
 # Canicas: 3 esferas de 16 mm (radio 0.008 m, z=0.008 m), blancas opacas.
@@ -141,7 +142,157 @@ MAP_CONFIGS = {
         ],
         "spawn": (-0.20, -0.32, 1.5708),
     },
+    # --- NUEVOS ESCENARIOS DE PRUEBA REGLAMENTARIOS (scen_9 a scen_14) ---
+    "scen_9": {
+        # Escolta de Obstáculos: canicas ubicadas a ~15 cm de los cubos 6x6x6 cm
+        # para evaluar la discriminación por ancho en tics entre canica y obstáculo.
+        "marbles": [
+            ("lobito_1", -0.10, 0.16),
+            ("lobito_2", 0.10, -0.04),
+            ("lobito_3", 0.02, 0.30),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.24, 0.10, 0.03, 0.06, 0.06, 0.06, 0.25, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.24, 0.02, 0.03, 0.06, 0.06, 0.06, -0.35, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.00, -0.32, 1.5708),
+    },
+    "scen_10": {
+        # Corredor Diagonal (Slalom): los 2 obstáculos forman una chicana central diagonal
+        # obligando a esquivar por el centro mientras busca canicas en los flancos y norte.
+        "marbles": [
+            ("lobito_1", 0.00, 0.30),
+            ("lobito_2", -0.34, 0.08),
+            ("lobito_3", 0.30, -0.18),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.14, -0.04, 0.03, 0.06, 0.06, 0.06, 0.40, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.14, 0.16, 0.03, 0.06, 0.06, 0.06, -0.40, "0.25 0.45 0.80"),
+        ],
+        "spawn": (-0.18, -0.34, 1.45),
+    },
+    "scen_11": {
+        # Perímetro Curvo: canicas próximas al arco elíptico exterior para evaluar
+        # que el filtro anti-pared no descarte canicas cercanas a los muros curvos.
+        "marbles": [
+            ("lobito_1", -0.44, -0.08),
+            ("lobito_2", 0.44, -0.06),
+            ("lobito_3", -0.18, 0.28),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.16, 0.06, 0.03, 0.06, 0.06, 0.06, 0.15, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.18, 0.12, 0.03, 0.06, 0.06, 0.06, -0.25, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.00, -0.34, 1.5708),
+    },
+    "scen_12": {
+        # Racimo Cercano (Cluster): dos canicas próximas entre sí en el sector noroeste
+        # (~17 cm de separación) y una tercera al sureste.
+        "marbles": [
+            ("lobito_1", -0.24, 0.18),
+            ("lobito_2", -0.08, 0.24),
+            ("lobito_3", 0.34, -0.18),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.22, 0.08, 0.03, 0.06, 0.06, 0.06, -0.50, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.20, -0.12, 0.03, 0.06, 0.06, 0.06, 0.30, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.12, -0.34, 1.68),
+    },
+    "scen_13": {
+        # Guardia de Salida: los 2 obstáculos flanquean la aproximación al hueco norte
+        # de 30 cm (-0.18, 0.22) y (+0.18, 0.22), con canica central frontal y en el sur.
+        "marbles": [
+            ("lobito_1", 0.00, 0.04),
+            ("lobito_2", -0.36, -0.14),
+            ("lobito_3", 0.36, -0.14),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.18, 0.22, 0.03, 0.06, 0.06, 0.06, 0.20, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.18, 0.22, 0.03, 0.06, 0.06, 0.06, -0.20, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.00, -0.32, 1.5708),
+    },
+    "scen_14": {
+        # Triángulo Profundo Asimétrico: spawn en extremo Este apuntando al Noroeste (105°)
+        # con un obstáculo directamente en la diagonal inicial de salida.
+        "marbles": [
+            ("lobito_1", -0.04, 0.26),
+            ("lobito_2", -0.38, -0.06),
+            ("lobito_3", 0.28, 0.14),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.04, -0.06, 0.03, 0.06, 0.06, 0.06, 0.65, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.26, 0.16, 0.03, 0.06, 0.06, 0.06, -0.35, "0.25 0.45 0.80"),
+        ],
+        "spawn": (0.22, -0.34, 1.83),
+    },
 }
+
+
+def generate_random_scenario_config(seed=None):
+    """
+    Genera una configuración aleatoria 100% reglamentaria:
+    - Semielipse estándar (1.80 m x 1.20 m, salida norte de 30 cm en (0, +0.60)).
+    - Spawn del robot cerca de la pared sur: X ∈ [-0.22, +0.22], Y ∈ [-0.35, -0.30], yaw ∈ [75°, 105°].
+    - Exactamente 2 obstáculos de 6x6x6 cm dentro de la arena sin bloquear la salida ni el spawn.
+    - Exactamente 3 canicas de 16 mm separadas de muros, obstáculos y spawn.
+    """
+    rng = random.Random(seed)
+    sx = round(rng.uniform(-0.22, 0.22), 3)
+    sy = round(rng.uniform(-0.35, -0.30), 3)
+    syaw = round(rng.uniform(1.31, 1.83), 4)
+
+    def inside_safe_ellipse(x, y, max_rho=0.74):
+        rho = math.hypot(x / 0.90, (y + 0.60) / 1.20)
+        return rho <= max_rho
+
+    boxes = []
+    colors = ["0.85 0.35 0.15", "0.25 0.45 0.80"]
+    for idx in range(2):
+        for _ in range(500):
+            bx = round(rng.uniform(-0.36, 0.36), 2)
+            by = round(rng.uniform(-0.16, 0.22), 2)
+            if not inside_safe_ellipse(bx, by, max_rho=0.70):
+                continue
+            # No bloquear el corredor directo al hueco de salida norte
+            if abs(bx) < 0.14 and by > 0.16:
+                continue
+            # Distancia mínima al spawn del robot
+            if math.hypot(bx - sx, by - sy) < 0.28:
+                continue
+            # Distancia mínima entre los 2 obstáculos
+            if any(math.hypot(bx - ox, by - oy) < 0.28 for _, _, ox, oy, *_ in boxes):
+                continue
+            byaw = round(rng.uniform(-0.80, 0.80), 2)
+            boxes.append((
+                f"OBSTACLE_BOX_{idx + 1}",
+                f"obstacle_3d_{idx + 1}",
+                bx, by, 0.03, 0.06, 0.06, 0.06, byaw, colors[idx]
+            ))
+            break
+
+    marbles = []
+    for idx in range(3):
+        for _ in range(500):
+            mx = round(rng.uniform(-0.44, 0.44), 2)
+            my = round(rng.uniform(-0.30, 0.30), 2)
+            if not inside_safe_ellipse(mx, my, max_rho=0.74):
+                continue
+            if math.hypot(mx - sx, my - sy) < 0.24:
+                continue
+            if any(math.hypot(mx - ox, my - oy) < 0.15 for _, _, ox, oy, *_ in boxes):
+                continue
+            if any(math.hypot(mx - omx, my - omy) < 0.18 for _, omx, omy in marbles):
+                continue
+            marbles.append((f"lobito_{idx + 1}", mx, my))
+            break
+
+    return {
+        "marbles": marbles,
+        "boxes": boxes,
+        "spawn": (sx, sy, syaw),
+    }
 
 
 def get_arena_geometry(variant="standard"):
@@ -1012,7 +1163,31 @@ WORLDS = [
     ("bahia_de_caza_scen_6.wbt", "robot_client", "scen_6", "north"),
     ("bahia_de_caza_scen_7.wbt", "robot_client", "scen_7", "north"),
     ("bahia_de_caza_scen_8.wbt", "robot_client", "scen_8", "north"),
+    ("bahia_de_caza_scen_9.wbt", "robot_client", "scen_9", "north"),
+    ("bahia_de_caza_scen_10.wbt", "robot_client", "scen_10", "north"),
+    ("bahia_de_caza_scen_11.wbt", "robot_client", "scen_11", "north"),
+    ("bahia_de_caza_scen_12.wbt", "robot_client", "scen_12", "north"),
+    ("bahia_de_caza_scen_13.wbt", "robot_client", "scen_13", "north"),
+    ("bahia_de_caza_scen_14.wbt", "robot_client", "scen_14", "north"),
 ]
+
+
+def build_random_world(include_capote=None, seed=None):
+    worlds_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "worlds")
+    os.makedirs(worlds_dir, exist_ok=True)
+    cfg = generate_random_scenario_config(seed=seed)
+    MAP_CONFIGS["scen_random"] = cfg
+    out_path = os.path.join(worlds_dir, "bahia_de_caza_scen_random.wbt")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(generate_world("robot_client", "scen_random", "north", include_capote=include_capote))
+    sx, sy, syaw = cfg["spawn"]
+    print(f"🎲 Escenario aleatorio generado: {out_path}")
+    print(f"   Spawn Robot : ({sx:+.2f}, {sy:+.2f}) m, yaw={math.degrees(syaw):.1f}°")
+    for _, name, bx, by, *_ in cfg["boxes"]:
+        print(f"   Obstáculo 6cm: {name} en ({bx:+.2f}, {by:+.2f}) m")
+    for mname, mx, my in cfg["marbles"]:
+        print(f"   Canica 16mm  : {mname} en ({mx:+.2f}, {my:+.2f}) m")
+    return out_path
 
 
 def build_all_worlds(include_capote=None):
@@ -1027,4 +1202,9 @@ def build_all_worlds(include_capote=None):
 
 if __name__ == "__main__":
     use_capote = ("--capote" in sys.argv) or (os.environ.get("ORQUITAS_CAPOTE", "0") in ("1", "true", "TRUE"))
-    build_all_worlds(include_capote=use_capote)
+    if "--random" in sys.argv:
+        build_random_world(include_capote=use_capote)
+    else:
+        build_all_worlds(include_capote=use_capote)
+        build_random_world(include_capote=use_capote)
+

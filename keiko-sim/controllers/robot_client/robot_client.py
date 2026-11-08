@@ -128,7 +128,7 @@ def main():
     for name in ["servo_left", "servo_right"]:
         m = robot.getDevice(name)
         if m is not None:
-            m.setVelocity(10.0)
+            m.setVelocity(18.0)
             servo_motors[name] = m
         s = robot.getDevice(f"{name}_sensor")
         if s is not None:
@@ -190,22 +190,25 @@ def main():
 
     mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=exit_pos)
 
-    # 6. Máquina de Barrido de Servos en Espejo
-    # Paso a paso realista (~96-128 ms por paso = 3-4 ticks de 32 ms)
-    sweep_step_ticks = int(os.environ.get("ORQUITAS_SWEEP_TICKS", "2"))
-    sweep_deg_step = float(os.environ.get("ORQUITAS_SWEEP_STEP_DEG", "14.0"))
-    sweep_min_deg = float(os.environ.get("ORQUITAS_SWEEP_MIN_DEG", "-35.0"))
-    sweep_max_deg = float(os.environ.get("ORQUITAS_SWEEP_MAX_DEG", "14.0"))
+    # 6. Máquina de Barrido de Radar por Tics en Espejo
+    # Barrido fino tic a tic (5.0° por unidad) desde -30° (boca central) hasta +35° (flancos laterales)
+    sweep_step_ticks = int(os.environ.get("ORQUITAS_RADAR_TICKS", "1"))
+    sweep_deg_step = float(os.environ.get("ORQUITAS_RADAR_STEP_DEG", "5.0"))
+    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", "-30.0"))
+    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", "35.0"))
 
-    # Generar tabla de ángulos de ida y vuelta (ping-pong)
-    sweep_angles = []
+    radar_full_angles = []
     a = sweep_min_deg
     while a <= sweep_max_deg + 1e-5:
-        sweep_angles.append(round(a, 1))
+        radar_full_angles.append(round(a, 1))
         a += sweep_deg_step
-    if sweep_angles[-1] < sweep_max_deg - 1e-5:
-        sweep_angles.append(round(sweep_max_deg, 1))
+    if radar_full_angles[-1] < sweep_max_deg - 1e-5:
+        radar_full_angles.append(round(sweep_max_deg, 1))
 
+    approach_binocular_angles = [-30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0.0, 5.0, 10.0, 15.0, 20.0]
+    escape_guard_angles = [-10.0, 0.0, 10.0, 20.0, 30.0, 35.0]
+
+    sweep_angles = list(radar_full_angles)
     sweep_idx = 0
     sweep_dir = 1  # +1 aumentando, -1 disminuyendo
     current_servo_deg = sweep_angles[0]
@@ -262,23 +265,25 @@ def main():
             continue
 
         # -----------------------------------------------------------------
-        # 1. CONTROL DE BARRIDO DE SERVOS PASO A PASO (LATENCIA REALISTA)
+        # 1. CONTROL DE BARRIDO DE SERVOS POR TICS (RADAR + BINOCULAR + LATERAL)
         # -----------------------------------------------------------------
         ticks_in_current_step += 1
         if ticks_in_current_step >= sweep_step_ticks:
             ticks_in_current_step = 0
-            max_idx = len(sweep_angles) - 1
             if current_server_state == "APROXIMACION":
-                for i, ang in enumerate(sweep_angles):
-                    if ang <= -7.0:
-                        max_idx = i
+                target_table = approach_binocular_angles
             elif current_server_state == "ESCAPE":
-                escape_angles = [0.0, 7.0, 14.0]
-                if sweep_angles != escape_angles:
-                    sweep_angles = escape_angles
-                    sweep_idx = 0
-                    sweep_dir = 1
-                max_idx = len(sweep_angles) - 1
+                target_table = escape_guard_angles
+            else:
+                target_table = radar_full_angles
+
+            if sweep_angles != target_table:
+                # Reenganchar en el tic más cercano al ángulo actual para no saltar brusco
+                closest_i = min(range(len(target_table)), key=lambda i: abs(target_table[i] - current_servo_deg))
+                sweep_angles = list(target_table)
+                sweep_idx = closest_i
+
+            max_idx = len(sweep_angles) - 1
             sweep_idx += sweep_dir
             if sweep_idx >= max_idx:
                 sweep_idx = max_idx

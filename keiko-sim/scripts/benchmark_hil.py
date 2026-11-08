@@ -80,6 +80,48 @@ SCENARIOS = [
         "desc": "Spawn (-0.20, -0.32, 90°), canicas en extremos laterales",
         "timeout": 180
     },
+    {
+        "id": "SCEN-9",
+        "name": "Escenario 9 (Escolta de Obstáculos)",
+        "world": "bahia_de_caza_scen_9.wbt",
+        "desc": "Spawn (0.00, -0.32, 90°), canicas a ~15cm de los cubos 6x6x6cm",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-10",
+        "name": "Escenario 10 (Corredor Diagonal Slalom)",
+        "world": "bahia_de_caza_scen_10.wbt",
+        "desc": "Spawn (-0.18, -0.34, 83°), obstáculos en chicana diagonal central",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-11",
+        "name": "Escenario 11 (Perímetro Curvo)",
+        "world": "bahia_de_caza_scen_11.wbt",
+        "desc": "Spawn (0.00, -0.34, 90°), canicas próximas al arco elíptico exterior",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-12",
+        "name": "Escenario 12 (Racimo Cercano / Cluster)",
+        "world": "bahia_de_caza_scen_12.wbt",
+        "desc": "Spawn (0.12, -0.34, 96°), 2 canicas cercanas en noroeste + 1 en sureste",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-13",
+        "name": "Escenario 13 (Guardia de Salida)",
+        "world": "bahia_de_caza_scen_13.wbt",
+        "desc": "Spawn (0.00, -0.32, 90°), obstáculos flanqueando aproximación al hueco norte",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-14",
+        "name": "Escenario 14 (Triángulo Profundo Este)",
+        "world": "bahia_de_caza_scen_14.wbt",
+        "desc": "Spawn (0.22, -0.34, 105°), obstáculo en diagonal inicial y canicas dispersas",
+        "timeout": 180
+    },
 ]
 
 
@@ -137,6 +179,8 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
     # Limpiar procesos previos y archivos
     subprocess.run(["pkill", "-9", "-f", "[j]ava.*keiko-server"], stderr=subprocess.DEVNULL)
     subprocess.run(["pkill", "-9", "webots-bin"], stderr=subprocess.DEVNULL)
+    subprocess.run(["pkill", "-9", "-f", "robot_client.py"], stderr=subprocess.DEVNULL)
+    subprocess.run(["bash", "-c", "rm -rf /tmp/webots/$(whoami)/* 2>/dev/null || true"])
     time.sleep(1.0)
 
     if os.path.exists(ESTOMAGO_FILE):
