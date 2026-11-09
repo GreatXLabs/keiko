@@ -64,12 +64,20 @@ def detect_exit(supervisor):
     if ex is not None and ey is not None:
         if ey > 0.45:
             wall = "north"
+            exit_pos = (float(ex), float(ey - 0.35))
+            return wall, exit_pos, math.pi / 2
         elif ex > 0.45:
             wall = "east"
+            exit_pos = (float(ex - 0.35), float(ey))
+            return wall, exit_pos, 0.0
         elif ey < -0.45:
             wall = "south"
+            exit_pos = (float(ex), float(ey + 0.35))
+            return wall, exit_pos, -math.pi / 2
         else:
             wall = "west"
+            exit_pos = (float(ex + 0.35), float(ey))
+            return wall, exit_pos, math.pi
     else:
         wall = os.environ.get("EXIT_WALL", "").strip().lower()
         if wall not in EXIT_GEOM:
@@ -79,8 +87,8 @@ def detect_exit(supervisor):
                 world_name = ""
             wall = next((w for w in ("east", "south", "west", "north") if w in world_name), "north")
 
-    exit_pos, exit_yaw = EXIT_GEOM[wall]
-    return wall, exit_pos, exit_yaw
+        exit_pos, exit_yaw = EXIT_GEOM[wall]
+        return wall, exit_pos, exit_yaw
 
 
 def main():
@@ -188,7 +196,7 @@ def main():
     exit_dir = (math.cos(exit_yaw), math.sin(exit_yaw))
     log_msg(f"[HARDWARE] Salida detectada: {exit_wall.upper()} @ ({exit_pos[0]:.2f}, {exit_pos[1]:.2f}) | yaw={exit_yaw:.2f}")
 
-    mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=exit_pos)
+    mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=max(0.65, exit_pos[1] + 0.15), res=0.10, exit_pos=exit_pos)
 
     # 6. Máquina de Barrido de Radar por Tics en Espejo
     # Barrido fino tic a tic (5.0° por unidad) desde -20° (boca central despejada) hasta +35° (flancos laterales)

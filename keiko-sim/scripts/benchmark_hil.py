@@ -122,6 +122,13 @@ SCENARIOS = [
         "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), obstáculo en diagonal inicial y canicas dispersas",
         "timeout": 180
     },
+    {
+        "id": "SCEN-CIRCULAR",
+        "name": "Escenario Circular (Bahía Redonda)",
+        "world": "bahia_de_caza_circular_client.wbt",
+        "desc": "Bahía circular R=0.90m, base cortada a Y=-0.60m, salida norte Y=+0.80m",
+        "timeout": 240
+    },
 ]
 
 
@@ -337,7 +344,11 @@ def main():
         indices = set()
         for part in args.scenarios.split(","):
             part = part.strip().upper()
-            if part.startswith("SCEN-"):
+            if part in ("CIRCULAR", "ROUND", "CIRCULO", "SCEN-CIRCULAR"):
+                for s in SCENARIOS:
+                    if s["id"] == "SCEN-CIRCULAR" and s not in active_scenarios:
+                        active_scenarios.append(s)
+            elif part.startswith("SCEN-"):
                 num = part.replace("SCEN-", "")
                 if num.isdigit():
                     indices.add(int(num))
@@ -347,7 +358,9 @@ def main():
                     indices.add(i)
             elif part.isdigit():
                 indices.add(int(part))
-        active_scenarios = [s for idx, s in enumerate(SCENARIOS, 1) if idx in indices]
+        for idx, s in enumerate(SCENARIOS, 1):
+            if idx in indices and s not in active_scenarios:
+                active_scenarios.append(s)
 
     if not active_scenarios:
         active_scenarios = SCENARIOS

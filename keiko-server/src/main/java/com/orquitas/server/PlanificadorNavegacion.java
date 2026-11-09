@@ -394,17 +394,20 @@ public class PlanificadorNavegacion {
                 double py = sensores.getPosY();
                 double th = sensores.getTheta();
 
-                // Si ya cruzó la salida (y > 0.60 m), crucero a fondo en el espacio exterior
-                if (py > 0.60) {
+                // Si ya cruzó la salida (y > metaSalidaY), crucero a fondo en el espacio exterior
+                if (py > metaSalidaY) {
                     return new ComandoRobot(4.8, 4.8, EstadoRobot.ESCAPE);
                 }
 
                 double dl = Math.min(sensores.getUsLeft(), sensores.getLaserLeft());
                 double dr = Math.min(sensores.getUsRight(), sensores.getLaserRight());
 
+                double yUmbralCorredor = metaSalidaY - 0.32;
+                double yPuntoEntrada = metaSalidaY - 0.34;
+
                 // FASE 2: Pasillo final de salida (centrado en el corredor central)
                 // Hueco de 30 cm en [-0.15, +0.15]. El chasis de 15 cm cruza centrado en x ≈ 0.0 con 7.5 cm de luz.
-                boolean enCorredorCentral = (Math.abs(px) < 0.05 && py >= 0.28);
+                boolean enCorredorCentral = (Math.abs(px) < 0.05 && py >= yUmbralCorredor);
                 if (enCorredorCentral) {
                     double diffNorth = 1.5708 - th;
                     while (diffNorth > Math.PI) diffNorth -= 2 * Math.PI;
@@ -432,12 +435,12 @@ public class PlanificadorNavegacion {
                     return new ComandoRobot(4.4 - steer, 4.4 + steer, EstadoRobot.ESCAPE);
                 }
 
-                // Si está en la zona alta (py >= 0.28) pero fuera del corredor (|px| >= 0.05):
-                // PROHIBIDO avanzar contra los postes del hueco (x = ±0.15, y = 0.57).
-                // Recentrarse hacia el punto de entrada (0.0, 0.26) donde no hay ningún obstáculo.
-                if (py >= 0.28) {
+                // Si está en la zona alta (py >= yUmbralCorredor) pero fuera del corredor (|px| >= 0.05):
+                // PROHIBIDO avanzar contra los postes del hueco (x = ±0.15).
+                // Recentrarse hacia el punto de entrada (0.0, yPuntoEntrada) donde no hay ningún obstáculo.
+                if (py >= yUmbralCorredor) {
                     double dx = 0.0 - px;
-                    double dy = 0.26 - py;
+                    double dy = yPuntoEntrada - py;
                     double targetAngle = Math.atan2(dy, dx);
                     double diff = targetAngle - th;
                     while (diff > Math.PI) diff -= 2 * Math.PI;
@@ -450,7 +453,7 @@ public class PlanificadorNavegacion {
                     return new ComandoRobot(3.2, 3.2, EstadoRobot.ESCAPE);
                 }
 
-                // FASE 1 (py < 0.28): Navegación hacia el norte por los corredores libres de la bahía
+                // FASE 1 (py < yUmbralCorredor): Navegación hacia el norte por los corredores libres de la bahía
                 // (Idéntica a la corrida récord de task-4856 que esquivó todos los obstáculos y canicas)
                 double angleOffset = Math.max(-0.65, Math.min(0.65, px * 2.8));
                 double targetAngle = 1.5708 - angleOffset;
@@ -1225,12 +1228,21 @@ public class PlanificadorNavegacion {
     // Comprueba si un punto (x, y) en coordenadas de la arena coincide con la pared perimetral
     private boolean esPuntoEnPared(double x, double y) {
         if (y <= -0.55) return true;
-        if (y >= 0.32 && Math.abs(x) > 0.15) return true;
-        double yRel = y + 0.60;
-        if (yRel < 0.0 || yRel > 1.20) return true;
-        double arg = 1.0 - (yRel * yRel) / (1.20 * 1.20);
-        double xWall = 0.90 * Math.sqrt(Math.max(0.0, arg));
-        return Math.abs(x) >= (xWall - 0.06);
+        if (metaSalidaY >= 0.70) {
+            // Geometría Circular: R = 0.90, yc = -0.10, salida norte en (0, +0.80) con ancho 0.30 m
+            if (y >= 0.65 && Math.abs(x) < 0.16) return false;
+            double dx = x - 0.0;
+            double dy = y - (-0.10);
+            return (dx * dx + dy * dy) >= ((0.90 - 0.06) * (0.90 - 0.06));
+        } else {
+            // Geometría Semielíptica Clásica: a = 1.20, b = 0.90, y_back = -0.60
+            if (y >= 0.32 && Math.abs(x) > 0.15) return true;
+            double yRel = y + 0.60;
+            if (yRel < 0.0 || yRel > 1.20) return true;
+            double arg = 1.0 - (yRel * yRel) / (1.20 * 1.20);
+            double xWall = 0.90 * Math.sqrt(Math.max(0.0, arg));
+            return Math.abs(x) >= (xWall - 0.06);
+        }
     }
 
     // Calcula si el impacto físico del rayo láser VL53L0X cae sobre el muro exterior
@@ -1381,8 +1393,8 @@ public class PlanificadorNavegacion {
     }
 
     // Escudo preventivo perimetral analítico con histéresis y maniobra comprometida:
-    // modela el arco superior y el muro sur de la bahía (y_back = -0.60, a = 1.20, b = 0.90),
-    // orientando al robot hacia el centro de caza (0.0, -0.04) sin oscilaciones ni bucles límite.
+    // modela el arco perimetral y el muro sur de la bahía (semielíptica o circular),
+    // orientando al robot hacia el centro de caza sin oscilaciones ni bucles límite.
     private ComandoRobot verificarEscudoPerimetral(VectorSensores sensores, EstadoRobot estadoActual, boolean cazandoCanica) {
         if (sensores == null || !sensores.hasPose()) {
             return null;
@@ -1391,9 +1403,12 @@ public class PlanificadorNavegacion {
         double px = sensores.getPosX();
         double py = sensores.getPosY();
         double th = sensores.getTheta();
+        boolean esCircular = (metaSalidaY >= 0.70);
+        double rCenter = Math.hypot(px, py - (-0.10));
 
-        // En ESCAPE, permitir paso libre por el embudo y pasillo de salida (|px| < 0.18 y py > 0.28)
-        if (estadoActual == EstadoRobot.ESCAPE && Math.abs(px) < 0.18 && py > 0.28) {
+        // En ESCAPE, permitir paso libre por el embudo y pasillo de salida
+        double umbralSalidaY = esCircular ? 0.48 : 0.28;
+        if (estadoActual == EstadoRobot.ESCAPE && Math.abs(px) < 0.18 && py > umbralSalidaY) {
             pasosEscudoPerimetral = 0;
             return null;
         }
@@ -1403,7 +1418,11 @@ public class PlanificadorNavegacion {
         double yRelCheck = py + 0.60;
         double argCheck = 1.0 - (yRelCheck * yRelCheck) / (1.20 * 1.20);
         double xWallCheck = 0.90 * Math.sqrt(Math.max(0.0, argCheck));
-        if (cazandoCanica && py >= -0.44 && py <= 0.22 && Math.abs(px) < (xWallCheck - 0.18)
+        boolean canicaMargenSeguro = esCircular
+                ? (rCenter < (0.90 - 0.18) && py >= -0.44 && py <= 0.45)
+                : (Math.abs(px) < (xWallCheck - 0.18) && py >= -0.44 && py <= 0.22);
+
+        if (cazandoCanica && canicaMargenSeguro
                 && sensores.getUsCenter() >= 18.0 && sensores.getLaserLeft() >= 8.0 && sensores.getLaserRight() >= 8.0) {
             pasosEscudoPerimetral = 0;
             return null;
@@ -1427,9 +1446,9 @@ public class PlanificadorNavegacion {
             }
         }
 
-        // En BUSQUEDA, impedir terminantemente filtrarse por la puerta norte (hueco central |px| < 0.16 y py > 0.28):
-        // virar en el lugar hacia el sur y regresar al centro
-        if (estadoActual != EstadoRobot.ESCAPE && Math.abs(px) < 0.16 && py > 0.28) {
+        // En BUSQUEDA, impedir terminantemente filtrarse por la puerta norte:
+        double umbralBloqueoNorte = esCircular ? 0.68 : 0.28;
+        if (estadoActual != EstadoRobot.ESCAPE && Math.abs(px) < 0.16 && py > umbralBloqueoNorte) {
             pasosEscudoPerimetral = 0;
             if (Math.sin(th) > -0.30) {
                 return (px >= 0) ? new ComandoRobot(2.4, -2.4, estadoActual)
@@ -1442,19 +1461,20 @@ public class PlanificadorNavegacion {
         // Pared sur plana (y = -0.60 m): activa si py < -0.42 y apunta hacia el sur o paralelo
         boolean cercaSur = (py < -0.42 && Math.sin(th) < 0.20);
 
-        // Arco elíptico este/oeste: x_wall(y) = 0.90 * sqrt(1 - ((y+0.60)/1.20)^2)
+        // Pared curva
         double yRel = py + 0.60;
         double arg = 1.0 - (yRel * yRel) / (1.20 * 1.20);
         double xWall = 0.90 * Math.sqrt(Math.max(0.0, arg));
-        boolean cercaArco = (Math.abs(px) > (xWall - 0.22));
+        boolean cercaArco = esCircular ? (rCenter > (0.90 - 0.22)) : (Math.abs(px) > (xWall - 0.22));
 
         if (!cercaSur && !cercaArco) {
             return null;
         }
 
-        // Rumbo hacia el centro de la zona de caza (0.0, -0.04)
+        // Rumbo hacia el centro de la zona de caza
+        double targetY = esCircular ? -0.10 : -0.04;
         double dx = 0.0 - px;
-        double dy = -0.04 - py;
+        double dy = targetY - py;
         double anguloCentro = Math.atan2(dy, dx);
         double diff = anguloCentro - th;
         while (diff > Math.PI) diff -= 2 * Math.PI;
@@ -1464,7 +1484,9 @@ public class PlanificadorNavegacion {
         // NO desactivar el escudo para no caer en oscilación reactiva.
         // Avanzar decididamente hacia el interior de la pista hasta cruzar el margen seguro.
         if (Math.abs(diff) < 0.45) {
-            boolean enZonaSegura = (Math.abs(px) < (xWall - 0.28)) && (py > -0.40) && (py < 0.24);
+            boolean enZonaSegura = esCircular
+                    ? ((rCenter < (0.90 - 0.26)) && (py > -0.40) && (py < 0.50))
+                    : ((Math.abs(px) < (xWall - 0.28)) && (py > -0.40) && (py < 0.24));
             if (enZonaSegura) {
                 return null; // Ya despegó de la pared: control libre para buscar canicas
             }
@@ -1472,9 +1494,15 @@ public class PlanificadorNavegacion {
             return new ComandoRobot(3.2, 3.2, estadoActual);
         }
 
-        // 3. Caso especial Spawn inicial en esquina SO (-0.74, -0.42) mirando al norte:
-        if (px < -0.60 && py < -0.26 && Math.sin(th) > 0.30) {
-            return new ComandoRobot(3.4, 1.8, estadoActual);
+        // 3. Caso especial Spawn inicial en esquina SO mirando al norte:
+        if (esCircular) {
+            if (px < -0.48 && py < -0.30 && Math.sin(th) > 0.30) {
+                return new ComandoRobot(3.4, 1.8, estadoActual);
+            }
+        } else {
+            if (px < -0.60 && py < -0.26 && Math.sin(th) > 0.30) {
+                return new ComandoRobot(3.4, 1.8, estadoActual);
+            }
         }
 
         // 4. Activar maniobra perimetral comprometida (latch de 16 ciclos ≈ 0.5 s)

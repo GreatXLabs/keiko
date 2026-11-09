@@ -19,6 +19,12 @@ if [[ "${SCEN_ARG,,}" == "random" || "${SCEN_ARG,,}" == "rand" ]]; then
     echo ">> Generando escenario aleatorio reglamentario (3 canicas 16mm, 2 obstaculos 6x6x6cm)..."
     python3 "${SCRIPT_DIR}/keiko-sim/scripts/build_worlds.py" --random
     WORLD_FILE="${SCRIPT_DIR}/keiko-sim/worlds/bahia_de_caza_scen_random.wbt"
+elif [[ "${SCEN_ARG,,}" == "circular" || "${SCEN_ARG,,}" == "circulo" || "${SCEN_ARG,,}" == "round" ]]; then
+    WORLD_FILE="${SCRIPT_DIR}/keiko-sim/worlds/bahia_de_caza_circular_client.wbt"
+    if [ ! -f "${WORLD_FILE}" ]; then
+        echo ">> Generando mundos .wbt con build_worlds.py..."
+        python3 "${SCRIPT_DIR}/keiko-sim/scripts/build_worlds.py"
+    fi
 elif [[ "${SCEN_ARG}" =~ ^[0-9]+$ ]]; then
     WORLD_FILE="${SCRIPT_DIR}/keiko-sim/worlds/bahia_de_caza_scen_${SCEN_ARG}.wbt"
     if [ ! -f "${WORLD_FILE}" ]; then
@@ -31,7 +37,7 @@ elif [ -f "${SCRIPT_DIR}/keiko-sim/worlds/${SCEN_ARG}" ]; then
     WORLD_FILE="${SCRIPT_DIR}/keiko-sim/worlds/${SCEN_ARG}"
 else
     echo -e "\n[ERROR] Escenario '${SCEN_ARG}' no encontrado."
-    echo "Uso: ./iniciar_simulacion.sh [1..14 | random]"
+    echo "Uso: ./iniciar_simulacion.sh [1..14 | random | circular]"
     exit 1
 fi
 

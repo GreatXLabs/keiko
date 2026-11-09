@@ -27,10 +27,17 @@ ARENA_PROFILES = {
         "d_sin3": 0.00,
         "d_asym": 0.00,
     },
+    "circular": {
+        "type": "circle",
+        "R": 0.90,         # Radio del círculo (diámetro 1.80 m)
+        "yc": -0.10,        # Centro del círculo en Y (-0.10 m)
+        "y_back": -0.60,    # Pared plana sur (cuerda que corta el círculo a y = -0.60 m)
+        "exit_width": 0.30, # Hueco de salida norte de 30 cm en y = +0.80 m
+    },
 }
 
-# Configuraciones de escenarios de evaluación (14 escenarios fijos + aleatorio reglamentario)
-# La pared plana del fondo está en Y = -0.60 m y el vértice de salida en (0.0, +0.60 m).
+# Configuraciones de escenarios de evaluación (14 escenarios fijos + circular + aleatorio reglamentario)
+# La pared plana del fondo está en Y = -0.60 m y el vértice de salida en (0.0, +0.60 m) o (0.0, +0.80 m).
 # Obstáculos: exactamente 2 cubos de 6x6x6 cm (0.06 x 0.06 x 0.06 m, z=0.03 m).
 # Canicas: 3 esferas de 16 mm (radio 0.008 m, z=0.008 m), blancas opacas.
 MAP_CONFIGS = {
@@ -45,6 +52,19 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.28, -0.08, 0.03, 0.06, 0.06, 0.06, -0.50, "0.25 0.45 0.80"),
         ],
         "spawn": (-0.74, -0.42, 1.5708),
+    },
+    "circular": {
+        "variant": "circular",
+        "marbles": [
+            ("lobito_1", -0.62, 0.15),
+            ("lobito_2", 0.15, 0.38),
+            ("lobito_3", 0.20, -0.40),
+        ],
+        "boxes": [
+            ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.22, 0.14, 0.03, 0.06, 0.06, 0.06, 0.20, "0.85 0.35 0.15"),
+            ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.28, -0.10, 0.03, 0.06, 0.06, 0.06, -0.40, "0.25 0.45 0.80"),
+        ],
+        "spawn": (-0.62, -0.44, 1.5708),
     },
     "scen_1": {
         "marbles": [
@@ -298,6 +318,91 @@ def generate_random_scenario_config(seed=None):
 
 def get_arena_geometry(variant="standard"):
     prof = ARENA_PROFILES.get(variant, ARENA_PROFILES["standard"])
+    if prof.get("type") == "circle" or variant == "circular":
+        R = prof.get("R", 0.90)
+        yc = prof.get("yc", -0.10)
+        y_back = prof.get("y_back", -0.60)
+        wall_thickness = 0.005  # 5 mm
+        wall_height = 0.18      # 18 cm
+        exit_width = prof.get("exit_width", 0.30)
+        half_gap = exit_width / 2.0
+
+        sin_cut = (y_back - yc) / R
+        alpha = math.asin(max(-0.999, min(0.999, sin_cut)))
+        theta_SE = alpha
+        theta_SW = math.pi - alpha
+
+        cos_gap = half_gap / R
+        theta_exit_right = math.acos(min(0.999, max(-0.999, cos_gap)))
+        theta_exit_left = math.pi - theta_exit_right
+
+        def point_on_circle(theta):
+            return (R * math.cos(theta), yc + R * math.sin(theta))
+
+        n_half_segments = 16
+        right_pts = [point_on_circle(theta_SE + (theta_exit_right - theta_SE) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
+        left_pts = [point_on_circle(theta_exit_left + (theta_SW - theta_exit_left) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
+
+        segments = []
+        for i in range(n_half_segments):
+            x0, y0 = right_pts[i]
+            x1, y1 = right_pts[i + 1]
+            cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
+            length = math.hypot(x1 - x0, y1 - y0) + 0.002
+            yaw = math.atan2(y1 - y0, x1 - x0)
+            segments.append({
+                "def": f"WALL_ARC_R{i+1:02d}",
+                "name": f"wall_arc_r{i+1:02d}",
+                "cx": cx,
+                "cy": cy,
+                "length": length,
+                "yaw": yaw,
+            })
+
+        for i in range(n_half_segments):
+            x0, y0 = left_pts[i]
+            x1, y1 = left_pts[i + 1]
+            cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
+            length = math.hypot(x1 - x0, y1 - y0) + 0.002
+            yaw = math.atan2(y1 - y0, x1 - x0)
+            segments.append({
+                "def": f"WALL_ARC_L{i+1:02d}",
+                "name": f"wall_arc_l{i+1:02d}",
+                "cx": cx,
+                "cy": cy,
+                "length": length,
+                "yaw": yaw,
+            })
+
+        chord_half_width = R * math.cos(alpha)
+        back_wall_length = 2.0 * chord_half_width + 0.01
+
+        gap_r = right_pts[-1]
+        gap_l = left_pts[0]
+        actual_gap = math.hypot(gap_r[0] - gap_l[0], gap_r[1] - gap_l[1])
+
+        return {
+            "variant": variant,
+            "b": R,
+            "a": R,
+            "y_back": y_back,
+            "exit_pos": (0.0, yc + R),
+            "wall_thickness": wall_thickness,
+            "wall_height": wall_height,
+            "exit_width": exit_width,
+            "actual_exit_gap_m": actual_gap,
+            "area_m2": 2.12,
+            "back_wall": {
+                "def": "WALL_SOUTH",
+                "name": "wall_back",
+                "cx": 0.0,
+                "cy": y_back,
+                "length": back_wall_length,
+                "yaw": 0.0,
+            },
+            "arc_segments": segments,
+        }
+
     b = prof["b"]
     a = prof["a"]
     d_sin2 = prof["d_sin2"]
@@ -395,8 +500,11 @@ def get_arena_geometry(variant="standard"):
     }
 
 
-def render_arena_walls(map_name="standard", exit_wall="north"):
-    geom = get_arena_geometry("standard")
+def render_arena_walls(map_name="standard", exit_wall="north", variant=None):
+    if variant is None:
+        cfg = MAP_CONFIGS.get(map_name, {})
+        variant = cfg.get("variant", "circular" if "circular" in map_name else "standard")
+    geom = get_arena_geometry(variant)
     exit_rotation = "0 0 1 0" if exit_wall == "north" else ("0 0 1 -1.5708" if exit_wall == "east" else "0 0 1 3.1416")
     t = geom["wall_thickness"]
     h = geom["wall_height"]
@@ -1156,6 +1264,8 @@ WORLDS = [
     ("bahia_de_caza.wbt", "live_visualizer", "standard", "north"),
     ("bahia_de_caza_client.wbt", "robot_client", "standard", "north"),
     ("bahia_de_caza_dataset.wbt", "dataset_collector", "standard", "north"),
+    ("bahia_de_caza_circular.wbt", "live_visualizer", "circular", "north"),
+    ("bahia_de_caza_circular_client.wbt", "robot_client", "circular", "north"),
     ("bahia_de_caza_scen_1.wbt", "robot_client", "scen_1", "north"),
     ("bahia_de_caza_scen_2.wbt", "robot_client", "scen_2", "north"),
     ("bahia_de_caza_scen_3.wbt", "robot_client", "scen_3", "north"),
