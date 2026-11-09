@@ -893,7 +893,7 @@ DEF LOBITO_3 Solid {
 
 # Robot Autonomo: La Orquita 4WD (Modelo 3D Real: 257mm x 150mm x 76.1mm)
 DEF ORQUITA Robot {
-  translation 0.0000 -0.3000 0.001
+  translation -0.7400 -0.4200 0.001
   rotation 0 0 1 1.5708
   children [
     # Malla CAD del Chasis 4WD

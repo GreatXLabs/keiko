@@ -44,7 +44,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.25, 0.18, 0.03, 0.06, 0.06, 0.06, 0.35, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.28, -0.08, 0.03, 0.06, 0.06, 0.06, -0.50, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.0, -0.32, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_1": {
         "marbles": [
@@ -56,7 +56,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.22, 0.14, 0.03, 0.06, 0.06, 0.06, 0.20, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.28, -0.10, 0.03, 0.06, 0.06, 0.06, -0.40, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.0, -0.32, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_2": {
         "marbles": [
@@ -68,7 +68,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.15, 0.00, 0.03, 0.06, 0.06, 0.06, 0.50, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.20, 0.10, 0.03, 0.06, 0.06, 0.06, -0.30, "0.25 0.45 0.80"),
         ],
-        "spawn": (-0.15, -0.35, 1.40),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_3": {
         "marbles": [
@@ -80,7 +80,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.00, 0.12, 0.03, 0.06, 0.06, 0.06, 0.00, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.28, -0.15, 0.03, 0.06, 0.06, 0.06, 0.80, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.15, -0.35, 1.70),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_4": {
         "marbles": [
@@ -92,7 +92,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.20, 0.20, 0.03, 0.06, 0.06, 0.06, 0.30, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.18, -0.05, 0.03, 0.06, 0.06, 0.06, -0.60, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.00, -0.30, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_5": {
         "marbles": [
@@ -104,7 +104,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.26, 0.08, 0.03, 0.06, 0.06, 0.06, 0.45, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.26, 0.08, 0.03, 0.06, 0.06, 0.06, -0.45, "0.25 0.45 0.80"),
         ],
-        "spawn": (-0.10, -0.35, 1.30),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_6": {
         "marbles": [
@@ -116,7 +116,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.25, 0.10, 0.03, 0.06, 0.06, 0.06, -0.25, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.15, -0.15, 0.03, 0.06, 0.06, 0.06, 0.60, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.10, -0.35, 1.80),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_7": {
         "marbles": [
@@ -128,7 +128,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.10, 0.18, 0.03, 0.06, 0.06, 0.06, 0.15, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.32, -0.05, 0.03, 0.06, 0.06, 0.06, -0.70, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.00, -0.32, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_8": {
         "marbles": [
@@ -140,7 +140,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.12, 0.05, 0.03, 0.06, 0.06, 0.06, -0.35, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.22, -0.05, 0.03, 0.06, 0.06, 0.06, 0.40, "0.25 0.45 0.80"),
         ],
-        "spawn": (-0.20, -0.32, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     # --- NUEVOS ESCENARIOS DE PRUEBA REGLAMENTARIOS (scen_9 a scen_14) ---
     "scen_9": {
@@ -155,7 +155,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.24, 0.10, 0.03, 0.06, 0.06, 0.06, 0.25, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.24, 0.02, 0.03, 0.06, 0.06, 0.06, -0.35, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.00, -0.32, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_10": {
         # Corredor Diagonal (Slalom): los 2 obstáculos forman una chicana central diagonal
@@ -169,7 +169,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.14, -0.04, 0.03, 0.06, 0.06, 0.06, 0.40, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.14, 0.16, 0.03, 0.06, 0.06, 0.06, -0.40, "0.25 0.45 0.80"),
         ],
-        "spawn": (-0.18, -0.34, 1.45),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_11": {
         # Perímetro Curvo: canicas próximas al arco elíptico exterior para evaluar
@@ -183,7 +183,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.16, 0.06, 0.03, 0.06, 0.06, 0.06, 0.15, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.18, 0.12, 0.03, 0.06, 0.06, 0.06, -0.25, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.00, -0.34, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_12": {
         # Racimo Cercano (Cluster): dos canicas próximas entre sí en el sector noroeste
@@ -197,7 +197,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.22, 0.08, 0.03, 0.06, 0.06, 0.06, -0.50, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.20, -0.12, 0.03, 0.06, 0.06, 0.06, 0.30, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.12, -0.34, 1.68),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_13": {
         # Guardia de Salida: los 2 obstáculos flanquean la aproximación al hueco norte
@@ -211,7 +211,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.18, 0.22, 0.03, 0.06, 0.06, 0.06, 0.20, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", 0.18, 0.22, 0.03, 0.06, 0.06, 0.06, -0.20, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.00, -0.32, 1.5708),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
     "scen_14": {
         # Triángulo Profundo Asimétrico: spawn en extremo Este apuntando al Noroeste (105°)
@@ -225,7 +225,7 @@ MAP_CONFIGS = {
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.04, -0.06, 0.03, 0.06, 0.06, 0.06, 0.65, "0.85 0.35 0.15"),
             ("OBSTACLE_BOX_2", "obstacle_3d_2", -0.26, 0.16, 0.03, 0.06, 0.06, 0.06, -0.35, "0.25 0.45 0.80"),
         ],
-        "spawn": (0.22, -0.34, 1.83),
+        "spawn": (-0.74, -0.42, 1.5708),
     },
 }
 
@@ -239,9 +239,9 @@ def generate_random_scenario_config(seed=None):
     - Exactamente 3 canicas de 16 mm separadas de muros, obstáculos y spawn.
     """
     rng = random.Random(seed)
-    sx = round(rng.uniform(-0.22, 0.22), 3)
-    sy = round(rng.uniform(-0.35, -0.30), 3)
-    syaw = round(rng.uniform(1.31, 1.83), 4)
+    sx = -0.74
+    sy = -0.42
+    syaw = 1.5708
 
     def inside_safe_ellipse(x, y, max_rho=0.74):
         rho = math.hypot(x / 0.90, (y + 0.60) / 1.20)
@@ -693,7 +693,7 @@ def generate_world(controller_name, map_name="standard", exit_wall="north", incl
     }"""
 
     cfg = MAP_CONFIGS.get(map_name, MAP_CONFIGS["standard"])
-    spawn_x, spawn_y, spawn_yaw = cfg.get("spawn", (0.0, -0.32, 1.5708))
+    spawn_x, spawn_y, spawn_yaw = cfg.get("spawn", (-0.74, -0.42, 1.5708))
 
     return f"""#VRML_SIM R2025a utf8
 
