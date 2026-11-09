@@ -27,6 +27,7 @@ __pycache__/
 # Webots
 *.wbproj
 keiko-sim/logs/audit/
+keiko-sim/logs/*.csv
 keiko-sim/worlds/*random*.wbt
 
 # IDEs

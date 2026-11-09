@@ -250,33 +250,51 @@ MAP_CONFIGS = {
 }
 
 
-def generate_random_scenario_config(seed=None):
+def generate_random_scenario_config(variant="standard", seed=None):
     """
     Genera una configuración aleatoria 100% reglamentaria y libre de atascos:
-    - Semielipse estándar (1.80 m x 1.20 m, salida norte de 30 cm en (0, +0.60)).
-    - Spawn del robot en esquina suroeste (-0.74, -0.42, 90°).
-    - Canicas lejos de muros (rho <= 0.66, y in [-0.38, 0.30]), lejos de obstáculos (>= 0.25m),
-      lejos entre sí (>= 0.28m) y lejos del spawn (>= 0.40m).
+    - Sometida a la geometría seleccionada: 'standard' (semielíptica) o 'circular' (redonda).
+    - Spawn del robot:
+        - standard: (-0.74, -0.42, 90°)
+        - circular: (-0.62, -0.44, 90°)
+    - Canicas lejos de muros (margen >= 18 cm), lejos de obstáculos (>= 0.25 m),
+      lejos entre sí (>= 0.28 m) y lejos del spawn (>= 0.35 m).
     - Exactamente 2 obstáculos de 6x6x6 cm dentro de la arena sin bloquear la salida ni el spawn.
     """
     rng = random.Random(seed)
-    sx = -0.74
-    sy = -0.42
-    syaw = 1.5708
+    is_circular = (variant == "circular")
 
-    def inside_safe_ellipse(x, y, max_rho=0.66):
-        rho = math.hypot(x / 0.90, (y + 0.60) / 1.20)
-        return rho <= max_rho and -0.38 <= y <= 0.30
+    if is_circular:
+        sx, sy, syaw = -0.62, -0.44, 1.5708
+        yc = -0.10
+        def inside_safe(x, y, max_dist=0.68):
+            r = math.hypot(x, y - yc)
+            return r <= max_dist and y >= -0.42 and y <= 0.50
+        box_x_range = (-0.38, 0.38)
+        box_y_range = (-0.25, 0.35)
+        marble_x_range = (-0.60, 0.60)
+        marble_y_range = (-0.42, 0.45)
+        exit_corridor_y = 0.45
+    else:
+        sx, sy, syaw = -0.74, -0.42, 1.5708
+        def inside_safe(x, y, max_dist=0.66):
+            rho = math.hypot(x / 0.90, (y + 0.60) / 1.20)
+            return rho <= max_dist and -0.38 <= y <= 0.30
+        box_x_range = (-0.35, 0.35)
+        box_y_range = (-0.16, 0.20)
+        marble_x_range = (-0.55, 0.55)
+        marble_y_range = (-0.38, 0.30)
+        exit_corridor_y = 0.14
 
     boxes = []
     colors = ["0.85 0.35 0.15", "0.25 0.45 0.80"]
     for idx in range(2):
         for _ in range(1000):
-            bx = round(rng.uniform(-0.35, 0.35), 2)
-            by = round(rng.uniform(-0.16, 0.20), 2)
-            if not inside_safe_ellipse(bx, by, max_rho=0.64):
+            bx = round(rng.uniform(*box_x_range), 2)
+            by = round(rng.uniform(*box_y_range), 2)
+            if not inside_safe(bx, by, max_dist=0.62 if is_circular else 0.64):
                 continue
-            if abs(bx) < 0.16 and by > 0.14:
+            if abs(bx) < 0.16 and by > exit_corridor_y:
                 continue
             if math.hypot(bx - sx, by - sy) < 0.35:
                 continue
@@ -293,12 +311,15 @@ def generate_random_scenario_config(seed=None):
     marbles = []
     for idx in range(3):
         for _ in range(2000):
-            mx = round(rng.uniform(-0.55, 0.55), 2)
-            my = round(rng.uniform(-0.38, 0.30), 2)
-            if not inside_safe_ellipse(mx, my, max_rho=0.66):
+            mx = round(rng.uniform(*marble_x_range), 2)
+            my = round(rng.uniform(*marble_y_range), 2)
+            if not inside_safe(mx, my, max_dist=0.68 if is_circular else 0.66):
                 continue
-            # Lejos de la posición de inicio del auto (mínimo 40 cm)
-            if math.hypot(mx - sx, my - sy) < 0.40:
+            # Lejos de la posición de inicio del auto (mínimo 35 cm)
+            if math.hypot(mx - sx, my - sy) < 0.35:
+                continue
+            # Lejos del pasillo de escape directo en la puerta
+            if abs(mx) < 0.16 and my > exit_corridor_y:
                 continue
             # Lejos de obstáculos (mínimo 25 cm al centro de la caja)
             if any(math.hypot(mx - ox, my - oy) < 0.25 for _, _, ox, oy, *_ in boxes):
@@ -310,6 +331,7 @@ def generate_random_scenario_config(seed=None):
             break
 
     return {
+        "variant": variant,
         "marbles": marbles,
         "boxes": boxes,
         "spawn": (sx, sy, syaw),
@@ -1283,16 +1305,16 @@ WORLDS = [
 ]
 
 
-def build_random_world(include_capote=None, seed=None):
+def build_random_world(variant="standard", include_capote=None, seed=None):
     worlds_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "worlds")
     os.makedirs(worlds_dir, exist_ok=True)
-    cfg = generate_random_scenario_config(seed=seed)
+    cfg = generate_random_scenario_config(variant=variant, seed=seed)
     MAP_CONFIGS["scen_random"] = cfg
     out_path = os.path.join(worlds_dir, "bahia_de_caza_scen_random.wbt")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(generate_world("robot_client", "scen_random", "north", include_capote=include_capote))
     sx, sy, syaw = cfg["spawn"]
-    print(f"🎲 Escenario aleatorio generado: {out_path}")
+    print(f"🎲 Escenario aleatorio generado [{variant.upper()}]: {out_path}")
     print(f"   Spawn Robot : ({sx:+.2f}, {sy:+.2f}) m, yaw={math.degrees(syaw):.1f}°")
     for _, name, bx, by, *_ in cfg["boxes"]:
         print(f"   Obstáculo 6cm: {name} en ({bx:+.2f}, {by:+.2f}) m")
@@ -1313,9 +1335,10 @@ def build_all_worlds(include_capote=None):
 
 if __name__ == "__main__":
     use_capote = ("--capote" in sys.argv) or (os.environ.get("ORQUITAS_CAPOTE", "0") in ("1", "true", "TRUE"))
+    target_variant = "circular" if ("--circular" in sys.argv or "--variant=circular" in sys.argv) else "standard"
     if "--random" in sys.argv:
-        build_random_world(include_capote=use_capote)
+        build_random_world(variant=target_variant, include_capote=use_capote)
     else:
         build_all_worlds(include_capote=use_capote)
-        build_random_world(include_capote=use_capote)
+        build_random_world(variant=target_variant, include_capote=use_capote)
 
