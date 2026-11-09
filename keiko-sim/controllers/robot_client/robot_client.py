@@ -194,8 +194,8 @@ def main():
     # Barrido fino tic a tic (5.0° por unidad) desde -30° (boca central) hasta +35° (flancos laterales)
     sweep_step_ticks = int(os.environ.get("ORQUITAS_RADAR_TICKS", "1"))
     sweep_deg_step = float(os.environ.get("ORQUITAS_RADAR_STEP_DEG", "5.0"))
-    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", "-30.0"))
-    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", "35.0"))
+    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", "-35.0"))
+    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", "20.0"))
 
     radar_full_angles = []
     a = sweep_min_deg
@@ -205,7 +205,7 @@ def main():
     if radar_full_angles[-1] < sweep_max_deg - 1e-5:
         radar_full_angles.append(round(sweep_max_deg, 1))
 
-    approach_binocular_angles = [-30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0.0, 5.0, 10.0, 15.0, 20.0]
+    approach_binocular_angles = [-35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0.0]
     escape_guard_angles = [-10.0, 0.0, 10.0, 20.0, 30.0, 35.0]
 
     sweep_angles = list(radar_full_angles)

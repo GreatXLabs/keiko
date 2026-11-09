@@ -199,23 +199,22 @@ public class ClasificadorNeuroph {
             }
         }
 
-        // Confirmación binocular o proyección trigonométrica dentro del hueco central (|Y| <= 3.5 cm):
-        if (!"NINGUNA".equals(clase) && servoDeg <= -15.0 && sensores.getUsCenter() >= 18.0) {
-            double rad = Math.toRadians(servoDeg);
+        // Confirmación binocular estricta para el hueco central (|Y| <= 3.5 cm):
+        // Dado que cada VL53L0X tiene un cono óptico de ±12.5°, cuando solo un láser detecta la canica
+        // ésta aún se encuentra frente al paragolpes lateral (|Y| > 3.5 cm). Solo es LOBITO_CENTRO
+        // cuando AMBOS láseres detectan la canica a distancias equilibradas.
+        if (!"NINGUNA".equals(clase) && sensores.getUsCenter() >= 16.0) {
             double dl = sensores.getLaserLeft();
             double dr = sensores.getLaserRight();
-            if (dl <= 22.5 && dr <= 22.5 && Math.abs(dl - dr) <= 4.5) {
+            if (servoDeg <= -10.0 && dl <= 23.0 && dr <= 23.0 && Math.abs(dl - dr) <= 3.8) {
                 return "LOBITO_CENTRO";
             }
-            if ("LOBITO_IZQ".equals(clase) && dl >= 3.5 && dl <= 22.5) {
-                double yObj = 8.3 + (2.0 + dl) * Math.sin(rad);
-                if (Math.abs(yObj) <= 3.4) {
-                    return "LOBITO_CENTRO";
+            if ("LOBITO_CENTRO".equals(clase)) {
+                if (dl < dr - 3.5) {
+                    return "LOBITO_IZQ";
                 }
-            } else if ("LOBITO_DER".equals(clase) && dr >= 3.5 && dr <= 22.5) {
-                double yObj = -8.3 - (2.0 + dr) * Math.sin(rad);
-                if (Math.abs(yObj) <= 3.4) {
-                    return "LOBITO_CENTRO";
+                if (dr < dl - 3.5) {
+                    return "LOBITO_DER";
                 }
             }
         }

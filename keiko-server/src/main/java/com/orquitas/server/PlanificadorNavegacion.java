@@ -75,12 +75,19 @@ public class PlanificadorNavegacion {
     private static final int TAM_VECTOR_RADAR = 17;
     private static final double ANGULO_MIN_RADAR = -40.0;
     private static final double PASO_TIC_RADAR = 5.0;
-    private static final int MAX_TICS_ANCHO_CANICA = 6;
+    private static final int MAX_TICS_ANCHO_CANICA = 5;
+    private static final int TAM_VENTANA_US = 20;
     private final double[] vectorRadarIzq = new double[TAM_VECTOR_RADAR];
     private final double[] vectorRadarDer = new double[TAM_VECTOR_RADAR];
     private final boolean[] vectorCandidatoIzq = new boolean[TAM_VECTOR_RADAR];
     private final boolean[] vectorCandidatoDer = new boolean[TAM_VECTOR_RADAR];
     private final int[] cicloLecturaRadar = new int[TAM_VECTOR_RADAR];
+
+    // Ventana deslizante de lecturas ultrasónicas recientes para detectar la sombra de los cubos 6x6x6 cm
+    private final double[] ventanaUsIzq = new double[TAM_VENTANA_US];
+    private final double[] ventanaUsCen = new double[TAM_VENTANA_US];
+    private final double[] ventanaUsDer = new double[TAM_VENTANA_US];
+    private int idxVentanaUs = 0;
 
     // Estado para estrategia Stop-and-Scan (pausa breve de escaneo estacionario) y escudo lateral
     private int pasosPausaEscaneo = 0;
@@ -89,6 +96,8 @@ public class PlanificadorNavegacion {
     private int ciclosAlertaFlancoIzq = 0;
     private int ciclosAlertaFlancoDer = 0;
     private double ultimaYEstimadaCanica = 0.0;
+    private int pasosAlineacionMeta = 6;
+    private int ciclosInhibicionCanica = 0;
     private int ultimoSentidoGiroEvasivo = 0;
     private int ciclosDesdeUltimoGiroEvasivo = 200;
     private int pasosGiroAcumulados = 0;
@@ -100,6 +109,11 @@ public class PlanificadorNavegacion {
             vectorRadarIzq[i] = 250.0;
             vectorRadarDer[i] = 250.0;
             cicloLecturaRadar[i] = -1000;
+        }
+        for (int i = 0; i < TAM_VENTANA_US; i++) {
+            ventanaUsIzq[i] = 250.0;
+            ventanaUsCen[i] = 250.0;
+            ventanaUsDer[i] = 250.0;
         }
         if (gestorEstomago != null && gestorEstomago.contarCapturasValidas() >= ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE) {
             this.estado = EstadoRobot.ESCAPE;
@@ -119,6 +133,7 @@ public class PlanificadorNavegacion {
         ciclosSinPausaEscaneo++;
         if (ciclosAlertaFlancoIzq > 0) ciclosAlertaFlancoIzq--;
         if (ciclosAlertaFlancoDer > 0) ciclosAlertaFlancoDer--;
+        if (ciclosInhibicionCanica > 0) ciclosInhibicionCanica--;
         if (ciclosDesdeUltimoReverso > 100) {
             contadorReversosConsecutivos = 0;
         }
@@ -127,28 +142,64 @@ public class PlanificadorNavegacion {
         String cen = pares[1] != null ? pares[1] : "ESPACIO_LIBRE";
         String der = pares[2] != null ? pares[2] : "ESPACIO_LIBRE";
 
-        if (estado == EstadoRobot.ESCAPE) {
+        if (estado == EstadoRobot.ESCAPE || ciclosInhibicionCanica > 0) {
             if ("LOBITO".equals(izq)) izq = "ESPACIO_LIBRE";
             if ("LOBITO".equals(cen)) cen = "ESPACIO_LIBRE";
             if ("LOBITO".equals(der)) der = "ESPACIO_LIBRE";
         }
 
-        // Actualizar vector radar por tics y validar ancho angular de candidatos a canica
+        // Actualizar vector radar por tics, ventana ultrasónica y validar candidatos a canica vs cubo 6x6x6 cm
         if (sensores != null && sensores.getCantidadSensores() >= 6) {
+            registrarVentanaUltrasonica(sensores);
             actualizarVectorRadar(sensores, "LOBITO".equals(izq), "LOBITO".equals(cen), "LOBITO".equals(der));
             int idxActual = anguloATicIndex(sensores.getAnguloServo());
-            if ("LOBITO".equals(izq) && !esAnchoTicsCanicaValido(true, idxActual)) {
-                izq = (sensores.getUsLeft() < 22.0) ? "BLOQUEO" : "ESPACIO_LIBRE";
+            double dl = sensores.getLaserLeft();
+            double dr = sensores.getLaserRight();
+            boolean sombraIzq = esSombraObstaculoUltrasonico(true, dl, sensores);
+            boolean sombraDer = esSombraObstaculoUltrasonico(false, dr, sensores);
+
+            if ("LOBITO".equals(izq)) {
+                if (!esAnchoTicsCanicaValido(true, idxActual, dl) || sombraIzq) {
+                    izq = (sensores.getUsLeft() < 22.0 || (sombraIzq && dl < 11.5)) ? "BLOQUEO" : "ESPACIO_LIBRE";
+                }
             }
-            if ("LOBITO".equals(der) && !esAnchoTicsCanicaValido(false, idxActual)) {
-                der = (sensores.getUsRight() < 22.0) ? "BLOQUEO" : "ESPACIO_LIBRE";
+            if ("LOBITO".equals(der)) {
+                if (!esAnchoTicsCanicaValido(false, idxActual, dr) || sombraDer) {
+                    der = (sensores.getUsRight() < 22.0 || (sombraDer && dr < 11.5)) ? "BLOQUEO" : "ESPACIO_LIBRE";
+                }
             }
-            // Protección de impacto inminente: una canica nunca está a < 3.6 cm de los láseres laterales
+            if ("LOBITO".equals(cen)) {
+                double dMinLaser = Math.min(dl, dr);
+                boolean ladoIzqMasCerca = dl <= dr;
+                boolean sombraCen = ladoIzqMasCerca ? sombraIzq : sombraDer;
+                if (!esAnchoTicsCanicaValido(ladoIzqMasCerca, idxActual, dMinLaser) || sombraCen) {
+                    cen = (sensores.getUsCenter() < 22.0 || (sombraCen && dMinLaser < 10.5)) ? "BLOQUEO" : "ESPACIO_LIBRE";
+                }
+            }
+            // Reflejo anticolisión de canica: si ningún sector fue marcado como LOBITO por la red en ese tic,
+            // pero los láseres ven un objeto bajo (<= 20.0 cm) con fondo ultrasónico totalmente despejado (> 26 cm)
+            // y sin sombra de obstáculo 3D, es una canica frente al paragolpes que no debe ser atropellada.
+            if (estado != EstadoRobot.ESCAPE && ciclosInhibicionCanica == 0 && sensores.getAnguloServo() <= 15.0
+                    && !"LOBITO".equals(izq) && !"LOBITO".equals(cen) && !"LOBITO".equals(der)) {
+                if (dl <= 20.5 && dr <= 20.5 && Math.abs(dl - dr) <= 3.8 && !sombraIzq && !sombraDer
+                        && sensores.getUsCenter() > 26.0) {
+                    cen = "LOBITO";
+                } else if (dl <= 20.0 && dl < dr - 3.5 && !sombraIzq
+                        && sensores.getUsLeft() > 26.0 && sensores.getUsCenter() > 26.0
+                        && esAnchoTicsCanicaValido(true, idxActual, dl)) {
+                    izq = "LOBITO";
+                } else if (dr <= 20.0 && dr < dl - 3.5 && !sombraDer
+                        && sensores.getUsRight() > 26.0 && sensores.getUsCenter() > 26.0
+                        && esAnchoTicsCanicaValido(false, idxActual, dr)) {
+                    der = "LOBITO";
+                }
+            }
+            // Protección de impacto inminente solo cuando existe sombra ultrasónica de obstáculo/muro
             if (sensores.getAnguloServo() >= -20.0) {
-                if (sensores.getLaserLeft() < 3.6) {
+                if (dl < 3.6 && sombraIzq) {
                     izq = "BLOQUEO";
                 }
-                if (sensores.getLaserRight() < 3.6) {
+                if (dr < 3.6 && sombraDer) {
                     der = "BLOQUEO";
                 }
             }
@@ -172,7 +223,7 @@ public class PlanificadorNavegacion {
             EstadoRobot est = (estado == EstadoRobot.ESCAPE) ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
             if (velRetrocesoIzq > 0 && velRetrocesoDer > 0) {
                 // Maniobra de avance (para despegar cola de colisión trasera o post-captura)
-                if (bCen && pasosRetrocesoRestantes <= 4 && (sensores == null || sensores.getUsCenter() < 10.0)) {
+                if (bCen && pasosRetrocesoRestantes <= 4 && (sensores == null || sensores.getUsCenter() < 8.0)) {
                     pasosRetrocesoRestantes = 0;
                 } else {
                     return new ComandoRobot(velRetrocesoIzq, velRetrocesoDer, est);
@@ -229,6 +280,17 @@ public class PlanificadorNavegacion {
                 pasosGiroAcumulados = 0;
             }
             EstadoRobot est = (estado == EstadoRobot.ESCAPE) ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
+            // Si hay despeje frontal suficiente en simulación 6-DOF, desplazar el eje de giro levemente hacia adelante
+            // para evitar que la cola de 14.8 cm barra hacia afuera contra el muro lateral
+            if (sensores != null && sensores.getCantidadSensores() >= 6 && giroEsEvasivo
+                    && sensores.getUsCenter() > 18.5
+                    && sensores.getLaserLeft() > 11.0
+                    && sensores.getLaserRight() > 11.0) {
+                if (direccionGiroComprometido >= 0) {
+                    return new ComandoRobot(3.5, -2.2, est);
+                }
+                return new ComandoRobot(-2.2, 3.5, est);
+            }
             if (direccionGiroComprometido >= 0) {
                 return new ComandoRobot(velGiroComprometido + sesgoGiroComprometido, -velGiroComprometido, est);
             }
@@ -394,8 +456,8 @@ public class PlanificadorNavegacion {
         boolean lDer = "LOBITO".equals(der);
 
         boolean veCanicaCen = lCen && (!bCen || (sensores != null && sensores.getUsCenter() >= 6.0));
-        boolean veCanicaIzq = lIzq && !bIzq && (sensores == null || sensores.getLaserLeft() >= 3.8);
-        boolean veCanicaDer = lDer && !bDer && (sensores == null || sensores.getLaserRight() >= 3.8);
+        boolean veCanicaIzq = lIzq && !bIzq && (sensores == null || sensores.getLaserLeft() >= 2.0);
+        boolean veCanicaDer = lDer && !bDer && (sensores == null || sensores.getLaserRight() >= 2.0);
 
         // Seguridad ultrasónica continua: cancelar cualquier pausa de escaneo si hay riesgo cercano
         boolean riesgoUltrasonico = bIzq || bCen || bDer || (sensores != null && (
@@ -409,13 +471,15 @@ public class PlanificadorNavegacion {
         if (!riesgoUltrasonico && sensores != null && sensores.getCantidadSensores() >= 6
                 && (veCanicaCen || veCanicaIzq || veCanicaDer)
                 && ciclosPersistenciaLobito == 0
-                && (contadorCiclos - ultimoCicloPausaCandidato) >= 28) {
+                && (contadorCiclos - ultimoCicloPausaCandidato) >= 26) {
             double dMinCand = Math.min(sensores.getLaserLeft(), sensores.getLaserRight());
-            if (dMinCand > 11.5 && dMinCand <= 23.0) {
-                pasosPausaEscaneo = 3; // 3 tics adicionales (4 lecturas limpias en total)
+            if (dMinCand > 11.0 && dMinCand <= 23.0) {
+                pasosPausaEscaneo = 5; // 5 tics adicionales (6 lecturas limpias en reposo, ~0.19 s)
                 ultimoCicloPausaCandidato = contadorCiclos;
                 ciclosSinPausaEscaneo = 0;
-                ciclosPersistenciaLobito = 45;
+                ciclosPersistenciaLobito = 38;
+                ciclosAlineacionLobito = 0;
+                pasosAlineacionMeta = calcularPasosAlineacionMeta();
                 if (veCanicaCen) ultimoLobito = "LOBITO_CENTRO";
                 else if (veCanicaIzq) ultimoLobito = "LOBITO_IZQ";
                 else ultimoLobito = "LOBITO_DER";
@@ -429,13 +493,16 @@ public class PlanificadorNavegacion {
             ciclosSinPausaEscaneo = 0;
             if (veCanicaCen) {
                 ultimoLobito = "LOBITO_CENTRO";
-                ciclosPersistenciaLobito = Math.max(ciclosPersistenciaLobito, 48);
+                ciclosPersistenciaLobito = Math.max(ciclosPersistenciaLobito, 40);
+                pasosAlineacionMeta = 0;
             } else if (veCanicaIzq) {
                 ultimoLobito = "LOBITO_IZQ";
-                ciclosPersistenciaLobito = Math.max(ciclosPersistenciaLobito, 42);
+                ciclosPersistenciaLobito = Math.max(ciclosPersistenciaLobito, 38);
+                pasosAlineacionMeta = calcularPasosAlineacionMeta();
             } else if (veCanicaDer) {
                 ultimoLobito = "LOBITO_DER";
-                ciclosPersistenciaLobito = Math.max(ciclosPersistenciaLobito, 42);
+                ciclosPersistenciaLobito = Math.max(ciclosPersistenciaLobito, 38);
+                pasosAlineacionMeta = calcularPasosAlineacionMeta();
             }
             EstadoRobot estPausa = (ciclosPersistenciaLobito > 0) ? EstadoRobot.APROXIMACION : EstadoRobot.BUSQUEDA;
             return new ComandoRobot(0.0, 0.0, estPausa);
@@ -445,10 +512,12 @@ public class PlanificadorNavegacion {
             pasosGiroComprometido = 0;
             giroEsEvasivo = false;
             ultimoLobito = "LOBITO_CENTRO";
-            ciclosPersistenciaLobito = 50;
+            ciclosPersistenciaLobito = 40;
+            ciclosAlineacionLobito = 0;
+            pasosAlineacionMeta = 0;
             // Desaceleración suave al 40-50% en los últimos 10-15 cm para embocar sin rebote
             boolean enZonaBucal = sensores != null && (sensores.getLaserLeft() <= 18.0 || sensores.getLaserRight() <= 18.0);
-            double vApproach = enZonaBucal ? 2.4 : 3.4;
+            double vApproach = enZonaBucal ? 2.4 : 3.2;
 
             double diff = 0.0;
             if (sensores != null) {
@@ -457,9 +526,6 @@ public class PlanificadorNavegacion {
                 if (dl < 25.0 && dr < 25.0) {
                     // Centrado binocular directo: cuando ambos láseres ven la canica, igualar distancias (dl ≈ dr)
                     diff = (dl - dr) * 1.65;
-                } else if (Math.abs(ultimaYEstimadaCanica) > 0.4) {
-                    // Guiado por coordenada lateral Y estimada por el vector radar (-Y = derecha, +Y = izquierda)
-                    diff = -ultimaYEstimadaCanica * 1.4;
                 } else if (dr < 25.0 && dl >= 25.0) {
                     diff = (25.0 - dr) + 3.0;
                 } else if (dl < 25.0 && dr >= 25.0) {
@@ -480,58 +546,62 @@ public class PlanificadorNavegacion {
         if (veCanicaIzq) {
             pasosGiroComprometido = 0;
             giroEsEvasivo = false;
-            ciclosPersistenciaLobito = 44;
+            ciclosPersistenciaLobito = 38;
             ciclosAlineacionLobito = 0;
+            pasosAlineacionMeta = calcularPasosAlineacionMeta();
             ultimoLobito = "LOBITO_IZQ";
             if (sensores == null) {
                 return new ComandoRobot(2.0, 3.0, EstadoRobot.APROXIMACION);
             }
             double dl = sensores.getLaserLeft();
-            // Acomodarse primero en dirección a la canica con giro marcado y poco avance longitudinal
-            double vL = (dl < 15.0) ? 0.2 : 0.7;
-            double vR = (dl < 15.0) ? 3.0 : 3.2;
-            return new ComandoRobot(vL, vR, EstadoRobot.APROXIMACION);
+            if (dl < 12.0) {
+                // Canica muy cerca del paragolpes izquierdo: retroceder levemente mientras rota a la izquierda
+                // para despegar el paragolpes de la canica y presentar la boca central de 7.0 cm sin patearla
+                return new ComandoRobot(-2.0, 1.4, EstadoRobot.APROXIMACION);
+            }
+            // Pivotar casi en el lugar hacia la izquierda sin avanzar encima de la canica antes de alinear
+            return new ComandoRobot(-0.8, 2.4, EstadoRobot.APROXIMACION);
         }
 
         if (veCanicaDer) {
             pasosGiroComprometido = 0;
             giroEsEvasivo = false;
-            ciclosPersistenciaLobito = 44;
+            ciclosPersistenciaLobito = 38;
             ciclosAlineacionLobito = 0;
+            pasosAlineacionMeta = calcularPasosAlineacionMeta();
             ultimoLobito = "LOBITO_DER";
             if (sensores == null) {
                 return new ComandoRobot(3.0, 2.0, EstadoRobot.APROXIMACION);
             }
             double dr = sensores.getLaserRight();
-            // Acomodarse primero en dirección a la canica con giro marcado y poco avance longitudinal
-            double vL = (dr < 15.0) ? 3.0 : 3.2;
-            double vR = (dr < 15.0) ? 0.2 : 0.7;
-            return new ComandoRobot(vL, vR, EstadoRobot.APROXIMACION);
+            if (dr < 12.0) {
+                // Canica muy cerca del paragolpes derecho: retroceder levemente mientras rota a la derecha
+                // para despegar el paragolpes de la canica y presentar la boca central de 7.0 cm sin patearla
+                return new ComandoRobot(1.4, -2.0, EstadoRobot.APROXIMACION);
+            }
+            // Pivotar casi en el lugar hacia la derecha sin avanzar encima de la canica antes de alinear
+            return new ComandoRobot(2.4, -0.8, EstadoRobot.APROXIMACION);
         }
 
         // Persistencia de aproximacion durante barrido de servos (para no perder el objetivo mientras el servo barre)
-        boolean bloqueoEnTrayectoria = (sensores != null && sensores.getUsCenter() < 8.0)
+        boolean bloqueoEnTrayectoria = (sensores != null && sensores.getUsCenter() < 8.5)
                 || (bIzq && bDer)
                 || ("LOBITO_IZQ".equals(ultimoLobito) && bIzq)
                 || ("LOBITO_DER".equals(ultimoLobito) && bDer)
-                || (bCen && (sensores == null || sensores.getUsCenter() < 8.0));
+                || (bCen && (sensores == null || sensores.getUsCenter() < 11.0));
         if (ciclosPersistenciaLobito > 0 && !bloqueoEnTrayectoria) {
             ciclosPersistenciaLobito--;
             ciclosAlineacionLobito++;
 
-            // Si ambos láseres están balanceados a corta distancia o el vector radar la ubica en [-2.8, +2.8] cm:
-            // canica centrada frente a la boca de 7.0 cm -> embocar recto
+            // Solo declarar yaCentrada cuando AMBOS láseres confirman la canica equilibrada frente a la boca de 7.0 cm
             boolean yaCentrada = false;
             double steerBinocular = 0.0;
             if (sensores != null) {
                 double dl = sensores.getLaserLeft();
                 double dr = sensores.getLaserRight();
-                if (dl < 22.5 && dr < 22.5 && Math.abs(dl - dr) < 4.2) {
+                if (dl < 22.5 && dr < 22.5 && Math.abs(dl - dr) <= 3.8) {
                     yaCentrada = true;
                     steerBinocular = Math.max(-0.45, Math.min(0.45, (dl - dr) * 0.14));
-                } else if (sensores.getCantidadSensores() >= 6 && Math.abs(ultimaYEstimadaCanica) <= 2.8) {
-                    yaCentrada = true;
-                    steerBinocular = Math.max(-0.45, Math.min(0.45, -ultimaYEstimadaCanica * 0.12));
                 }
             }
             if (yaCentrada || "LOBITO_CENTRO".equals(ultimoLobito)) {
@@ -539,19 +609,38 @@ public class PlanificadorNavegacion {
                 return new ComandoRobot(vBase + steerBinocular, vBase - steerBinocular, EstadoRobot.APROXIMACION);
             }
             if ("LOBITO_IZQ".equals(ultimoLobito)) {
-                if (sensores != null && ciclosAlineacionLobito <= 12) {
-                    return new ComandoRobot(0.9, 3.0, EstadoRobot.APROXIMACION);
+                if (sensores == null) {
+                    return new ComandoRobot(1.8, 2.8, EstadoRobot.APROXIMACION);
                 }
-                return new ComandoRobot(1.8, 2.8, EstadoRobot.APROXIMACION);
+                if (ciclosAlineacionLobito <= pasosAlineacionMeta) {
+                    return new ComandoRobot(-0.6, 2.2, EstadoRobot.APROXIMACION);
+                }
+                if (ciclosAlineacionLobito <= pasosAlineacionMeta + 5) {
+                    return new ComandoRobot(1.8, 2.6, EstadoRobot.APROXIMACION);
+                }
+                // Una vez alineado con la canica, avanzar recto para tragarla por la boca central de 7.0 cm
+                return new ComandoRobot(2.5, 2.5, EstadoRobot.APROXIMACION);
             }
             if ("LOBITO_DER".equals(ultimoLobito)) {
-                if (sensores != null && ciclosAlineacionLobito <= 12) {
-                    return new ComandoRobot(3.0, 0.9, EstadoRobot.APROXIMACION);
+                if (sensores == null) {
+                    return new ComandoRobot(2.8, 1.8, EstadoRobot.APROXIMACION);
                 }
-                return new ComandoRobot(2.8, 1.8, EstadoRobot.APROXIMACION);
+                if (ciclosAlineacionLobito <= pasosAlineacionMeta) {
+                    return new ComandoRobot(2.2, -0.6, EstadoRobot.APROXIMACION);
+                }
+                if (ciclosAlineacionLobito <= pasosAlineacionMeta + 5) {
+                    return new ComandoRobot(2.6, 1.8, EstadoRobot.APROXIMACION);
+                }
+                // Una vez alineado con la canica, avanzar recto para tragarla por la boca central de 7.0 cm
+                return new ComandoRobot(2.5, 2.5, EstadoRobot.APROXIMACION);
             }
             return new ComandoRobot(2.2, 2.2, EstadoRobot.APROXIMACION);
         } else if (bloqueoEnTrayectoria) {
+            // Si abortó una aproximación por bloqueo ultrasónico real, era un obstáculo 6x6x6 cm o muro
+            if (ciclosPersistenciaLobito > 0 && sensores != null && sensores.getCantidadSensores() >= 6
+                    && (sensores.getUsCenter() < 16.0 || sensores.getUsLeft() < 18.0 || sensores.getUsRight() < 18.0)) {
+                ciclosInhibicionCanica = 34;
+            }
             ciclosPersistenciaLobito = 0;
             ultimoLobito = null;
         }
@@ -652,17 +741,17 @@ public class PlanificadorNavegacion {
             }
         }
 
-        // Stop-and-Scan en exploración: si algún láser detecta una caída de distancia (< 27 cm)
-        // con fondo ultrasónico despejado (> 30 cm), o cada 95 ciclos en zona abierta, detenerse
-        // durante 4 tics para realizar un barrido láser estacionario de alta precisión
+        // Stop-and-Scan en exploración: si algún láser detecta una caída de distancia (< 26.5 cm)
+        // con fondo ultrasónico despejado (> 30 cm), o cada 70 ciclos en zona abierta, detenerse
+        // durante 7 tics (~0.22 s, muy lejos del límite de 10 s) para barrido láser estacionario
         if (sensores != null && sensores.getCantidadSensores() >= 6
                 && sensores.getUsCenter() > 30.0
                 && sensores.getUsLeft() > 26.0
                 && sensores.getUsRight() > 26.0) {
-            boolean anomaliaLaser = (sensores.getLaserLeft() < 27.0 && sensores.getLaserLeft() >= 4.0)
-                    || (sensores.getLaserRight() < 27.0 && sensores.getLaserRight() >= 4.0);
-            if ((anomaliaLaser && ciclosSinPausaEscaneo >= 35) || ciclosSinPausaEscaneo >= 95) {
-                pasosPausaEscaneo = 4;
+            boolean anomaliaLaser = (sensores.getLaserLeft() < 26.5 && sensores.getLaserLeft() >= 4.0)
+                    || (sensores.getLaserRight() < 26.5 && sensores.getLaserRight() >= 4.0);
+            if ((anomaliaLaser && ciclosSinPausaEscaneo >= 30) || ciclosSinPausaEscaneo >= 70) {
+                pasosPausaEscaneo = 7;
                 ciclosSinPausaEscaneo = 0;
                 return new ComandoRobot(0.0, 0.0, EstadoRobot.BUSQUEDA);
             }
@@ -823,6 +912,7 @@ public class PlanificadorNavegacion {
         iniciarAvanceArco(2.8, 2.8, 10);
         ciclosPersistenciaLobito = 0;
         pasosPausaEscaneo = 0;
+        ciclosInhibicionCanica = 0;
         ultimoLobito = null;
         ultimaYEstimadaCanica = 0.0;
     }
@@ -836,28 +926,39 @@ public class PlanificadorNavegacion {
         pasosPausaEscaneo = 0;
         ciclosPersistenciaLobito = 0;
         ultimoLobito = null;
+        if (ultimoSensores != null && ultimoSensores.getCantidadSensores() >= 6) {
+            ciclosInhibicionCanica = 28;
+        }
 
-        // Si el impacto es trasero (rear_left / rear_right) y el frente está libre, avanzar en arco
-        // para despegar inmediatamente la cola del muro u obstáculo en vez de barrerla girando en el lugar
-        boolean frenteDespejado = (ultimoSensores != null)
-                && ultimoSensores.getUsCenter() > 16.0
-                && ultimoSensores.getLaserLeft() > 10.0
-                && ultimoSensores.getLaserRight() > 10.0;
+        // Si el impacto es trasero (rear_left / rear_right) y el frente tiene margen (> 10.5 cm),
+        // avanzar inmediatamente hacia adelante durante 12 pasos para alejar la cola del muro u obstáculo
+        // sin exigir condición de láseres laterales (que impedía el desatasco y causaba ráfagas de 5-7 golpes)
+        boolean frenteTransitable = (ultimoSensores != null) && ultimoSensores.getUsCenter() > 10.5;
 
-        if ("rear_left".equals(lado) && frenteDespejado) {
-            iniciarAvanceArco(3.6, 2.0, 8);
+        if ("rear_left".equals(lado) && frenteTransitable) {
+            iniciarAvanceArco(3.5, 2.8, 12);
             return;
         }
-        if ("rear_right".equals(lado) && frenteDespejado) {
-            iniciarAvanceArco(2.0, 3.6, 8);
+        if ("rear_right".equals(lado) && frenteTransitable) {
+            iniciarAvanceArco(2.8, 3.5, 12);
             return;
         }
 
         int dir;
-        if ("rear_left".equals(lado) || "front_left".equals(lado)) {
-            dir = 1;  // Obstáculo a la izquierda: girar a la derecha (+1)
-        } else if ("rear_right".equals(lado) || "front_right".equals(lado)) {
-            dir = -1; // Obstáculo a la derecha: girar a la izquierda (-1)
+        if ("front_left".equals(lado)) {
+            dir = 1;  // Obstáculo frontal izquierdo: girar a la derecha (+1)
+        } else if ("front_right".equals(lado)) {
+            dir = -1; // Obstáculo frontal derecho: girar a la izquierda (-1)
+        } else if ("rear_left".equals(lado)) {
+            // Si el frente está bloqueado y chocó rear_left (por girar a la derecha), invertir giro con avance
+            iniciarGiroComprometido(-1, 14, 2.2, 1.2);
+            giroEsEvasivo = true;
+            return;
+        } else if ("rear_right".equals(lado)) {
+            // Si el frente está bloqueado y chocó rear_right (por girar a la izquierda), invertir giro con avance
+            iniciarGiroComprometido(1, 14, 2.2, 1.2);
+            giroEsEvasivo = true;
+            return;
         } else {
             dir = (ultimoSensores != null) ? calcularDireccionEvasiva(ultimoSensores, 1)
                                            : ((ultimoLadoBloqueado <= 0) ? 1 : -1);
@@ -865,7 +966,7 @@ public class PlanificadorNavegacion {
 
         // Si el impacto es frontal en simulación real, desenganchar primero con micro-retroceso
         if (ultimoSensores != null && ("front_left".equals(lado) || "front_right".equals(lado))) {
-            iniciarRetrocesoArco(-2.8, -2.8, 5);
+            iniciarRetrocesoArco(-2.8, -2.8, 6);
         } else {
             pasosRetrocesoRestantes = 0;
         }
@@ -934,6 +1035,54 @@ public class PlanificadorNavegacion {
         return fallback;
     }
 
+    // Registra las 3 lecturas ultrasónicas actuales en la ventana deslizante de 20 ciclos (~0.64 s).
+    private void registrarVentanaUltrasonica(VectorSensores sensores) {
+        ventanaUsIzq[idxVentanaUs] = sensores.getUsLeft();
+        ventanaUsCen[idxVentanaUs] = sensores.getUsCenter();
+        ventanaUsDer[idxVentanaUs] = sensores.getUsRight();
+        idxVentanaUs = (idxVentanaUs + 1) % TAM_VENTANA_US;
+    }
+
+    // Detecta si la lectura láser actual corresponde a la sombra de un cubo 6x6x6 cm o muro cercano:
+    // dado que las canicas miden 1.6 cm y jamás son vistas por el ultrasonido (Z = 5.5 cm), si el ultrasonido
+    // de ese lado o del centro midió recientemente una distancia corta comparable al láser (<= dLaser + 8.5 cm
+    // ante asimetría de obstáculo 3D, o <= dLaser + 4.5 cm ante muro plano), es un obstáculo 3D y no una canica.
+    private boolean esSombraObstaculoUltrasonico(boolean esIzquierda, double dLaser, VectorSensores sensores) {
+        double minL = 250.0;
+        double minC = 250.0;
+        double minR = 250.0;
+        for (int i = 0; i < TAM_VENTANA_US; i++) {
+            if (ventanaUsIzq[i] < minL) minL = ventanaUsIzq[i];
+            if (ventanaUsCen[i] < minC) minC = ventanaUsCen[i];
+            if (ventanaUsDer[i] < minR) minR = ventanaUsDer[i];
+        }
+        double minLado = esIzquierda ? Math.min(minL, minC) : Math.min(minR, minC);
+        if (minLado <= dLaser + 8.5) {
+            return true;
+        }
+        // Si un rayo ultrasónico ve un salto abrupto (> 26 cm más cerca que su vecino y < 32 cm),
+        // está tocando el borde de un cubo 6x6x6 cm en ese sector
+        double usLado = esIzquierda ? sensores.getUsLeft() : sensores.getUsRight();
+        double usCen = sensores.getUsCenter();
+        if (usLado < 32.0 && (usCen - usLado) > 26.0 && dLaser >= usLado - 9.0) {
+            return true;
+        }
+        if (usCen < 32.0 && (usLado - usCen) > 26.0 && dLaser >= usCen - 9.0) {
+            return true;
+        }
+        return false;
+    }
+
+    // Calcula cuántos pasos de giro necesita el robot para alinear la canica con el centro de la boca
+    // según la distancia lateral estimada |Y|, evitando avanzar recto cuando solo un láser lateral la vio.
+    private int calcularPasosAlineacionMeta() {
+        double absY = Math.abs(ultimaYEstimadaCanica);
+        if (absY <= 3.0) {
+            return 0;
+        }
+        return Math.min(12, Math.max(6, (int) Math.round((absY - 1.5) * 0.85)));
+    }
+
     // Convierte un ángulo de servo [-40°, +40°] al índice discreto de tic [0 .. 16].
     private int anguloATicIndex(double anguloDeg) {
         int idx = (int) Math.round((anguloDeg - ANGULO_MIN_RADAR) / PASO_TIC_RADAR);
@@ -953,57 +1102,60 @@ public class PlanificadorNavegacion {
         cicloLecturaRadar[idx] = contadorCiclos;
 
         boolean candL = (lIzq || (lCen && dl <= dr + 2.5))
-                && dl >= 3.5 && dl <= 23.0
+                && dl >= 2.0 && dl <= 23.0
                 && sensores.getUsLeft() >= dl + 10.0;
         boolean candR = (lDer || (lCen && dr <= dl + 2.5))
-                && dr >= 3.5 && dr <= 23.0
+                && dr >= 2.0 && dr <= 23.0
                 && sensores.getUsRight() >= dr + 10.0;
 
         vectorCandidatoIzq[idx] = candL;
         vectorCandidatoDer[idx] = candR;
 
-        // Detección de obstáculos en los flancos laterales cuando el servo abre hacia afuera (+15° a +40°)
+        // Detección de obstáculos en los flancos laterales cuando el servo abre hacia afuera (+15° a +40°):
+        // solo se activa si hay sombra ultrasónica real para no desviar el auto contra una canica lateral.
         if (theta >= 15.0) {
-            if (dl < 14.5 && !candL) {
+            if (dl < 14.5 && !candL && esSombraObstaculoUltrasonico(true, dl, sensores)) {
                 ciclosAlertaFlancoIzq = 6;
             }
-            if (dr < 14.5 && !candR) {
+            if (dr < 14.5 && !candR && esSombraObstaculoUltrasonico(false, dr, sensores)) {
                 ciclosAlertaFlancoDer = 6;
             }
         }
 
         // Proyección trigonométrica de la coordenada lateral Y de la canica respecto al eje central (boca en [-3.5, +3.5] cm)
-        double thetaRad = Math.toRadians(theta);
-        if (candL && candR && Math.abs(dl - dr) <= 4.5) {
+        // considerando el semicono exterior (+10°) cuando un solo láser detecta la canica.
+        double thetaConeRad = Math.toRadians(theta + 10.0);
+        if (candL && candR && Math.abs(dl - dr) <= 4.0) {
             ultimaYEstimadaCanica = (dr - dl) * 0.65;
         } else if (candL) {
-            ultimaYEstimadaCanica = 8.3 + (2.0 + dl) * Math.sin(thetaRad);
+            ultimaYEstimadaCanica = Math.max(4.5, 8.3 + (2.0 + dl) * Math.sin(thetaConeRad));
         } else if (candR) {
-            ultimaYEstimadaCanica = -8.3 - (2.0 + dr) * Math.sin(thetaRad);
+            ultimaYEstimadaCanica = Math.min(-4.5, -8.3 - (2.0 + dr) * Math.sin(thetaConeRad));
         }
     }
 
     // Verifica que el objeto detectado como posible canica tenga un ancho angular angosto en tics
-    // (1 a MAX_TICS_ANCHO_CANICA tics). Si abarca demasiados tics continuos, es una pared oblicua u obstáculo ancho.
-    private boolean esAnchoTicsCanicaValido(boolean esIzquierda, int idxActual) {
+    // acorde al cono óptico de 25° del VL53L0X (6 tics de 5° para un punto) y no sea una pared ancha.
+    private boolean esAnchoTicsCanicaValido(boolean esIzquierda, int idxActual, double dLaser) {
         double[] vecDist = esIzquierda ? vectorRadarIzq : vectorRadarDer;
         int anchoTics = 1;
 
         for (int i = idxActual - 1; i >= 0; i--) {
-            if ((contadorCiclos - cicloLecturaRadar[i]) <= 22 && vecDist[i] >= 3.5 && vecDist[i] <= 23.0) {
+            if ((contadorCiclos - cicloLecturaRadar[i]) <= 22 && vecDist[i] >= 2.0 && vecDist[i] <= 23.0) {
                 anchoTics++;
             } else {
                 break;
             }
         }
         for (int i = idxActual + 1; i < TAM_VECTOR_RADAR; i++) {
-            if ((contadorCiclos - cicloLecturaRadar[i]) <= 22 && vecDist[i] >= 3.5 && vecDist[i] <= 23.0) {
+            if ((contadorCiclos - cicloLecturaRadar[i]) <= 22 && vecDist[i] >= 2.0 && vecDist[i] <= 23.0) {
                 anchoTics++;
             } else {
                 break;
             }
         }
-        return anchoTics <= MAX_TICS_ANCHO_CANICA;
+        int maxPermitido = (dLaser > 14.5) ? 7 : 10;
+        return anchoTics <= maxPermitido;
     }
 
     // Activa la transicion formal hacia el modo escape.
