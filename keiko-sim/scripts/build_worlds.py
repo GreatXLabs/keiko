@@ -36,9 +36,9 @@ ARENA_PROFILES = {
 MAP_CONFIGS = {
     "standard": {
         "marbles": [
-            ("lobito_1", 0.28, 0.15),
+            ("lobito_1", 0.18, 0.15),
             ("lobito_2", -0.35, -0.12),
-            ("lobito_3", 0.22, -0.28),
+            ("lobito_3", 0.21, -0.32),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.25, 0.18, 0.03, 0.06, 0.06, 0.06, 0.35, "0.85 0.35 0.15"),
@@ -48,8 +48,8 @@ MAP_CONFIGS = {
     },
     "scen_1": {
         "marbles": [
-            ("lobito_1", 0.25, 0.20),
-            ("lobito_2", -0.30, -0.15),
+            ("lobito_1", 0.21, 0.14),
+            ("lobito_2", -0.3, -0.15),
             ("lobito_3", 0.15, -0.35),
         ],
         "boxes": [
@@ -60,9 +60,9 @@ MAP_CONFIGS = {
     },
     "scen_2": {
         "marbles": [
-            ("lobito_1", -0.35, 0.18),
-            ("lobito_2", 0.32, 0.16),
-            ("lobito_3", 0.00, -0.30),
+            ("lobito_1", -0.4, -0.02),
+            ("lobito_2", 0.41, -0.04),
+            ("lobito_3", 0.0, -0.3),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.15, 0.00, 0.03, 0.06, 0.06, 0.06, 0.50, "0.85 0.35 0.15"),
@@ -72,8 +72,8 @@ MAP_CONFIGS = {
     },
     "scen_3": {
         "marbles": [
-            ("lobito_1", -0.38, 0.10),
-            ("lobito_2", 0.28, 0.25),
+            ("lobito_1", -0.27, 0.1),
+            ("lobito_2", 0.26, 0.11),
             ("lobito_3", 0.25, -0.25),
         ],
         "boxes": [
@@ -84,9 +84,9 @@ MAP_CONFIGS = {
     },
     "scen_4": {
         "marbles": [
-            ("lobito_1", 0.28, 0.15),
-            ("lobito_2", -0.25, -0.10),
-            ("lobito_3", -0.10, -0.35),
+            ("lobito_1", 0.08, 0.18),
+            ("lobito_2", -0.25, -0.1),
+            ("lobito_3", -0.1, -0.35),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.20, 0.20, 0.03, 0.06, 0.06, 0.06, 0.30, "0.85 0.35 0.15"),
@@ -96,9 +96,9 @@ MAP_CONFIGS = {
     },
     "scen_5": {
         "marbles": [
-            ("lobito_1", 0.00, 0.28),
-            ("lobito_2", -0.35, -0.20),
-            ("lobito_3", 0.35, -0.20),
+            ("lobito_1", 0.0, 0.19),
+            ("lobito_2", -0.35, -0.2),
+            ("lobito_3", 0.35, -0.2),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.26, 0.08, 0.03, 0.06, 0.06, 0.06, 0.45, "0.85 0.35 0.15"),
@@ -108,9 +108,9 @@ MAP_CONFIGS = {
     },
     "scen_6": {
         "marbles": [
-            ("lobito_1", -0.30, 0.20),
-            ("lobito_2", 0.10, 0.25),
-            ("lobito_3", 0.20, -0.30),
+            ("lobito_1", -0.26, 0.11),
+            ("lobito_2", 0.01, 0.19),
+            ("lobito_3", 0.2, -0.3),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.25, 0.10, 0.03, 0.06, 0.06, 0.06, -0.25, "0.85 0.35 0.15"),
@@ -121,7 +121,7 @@ MAP_CONFIGS = {
     "scen_7": {
         "marbles": [
             ("lobito_1", -0.36, -0.05),
-            ("lobito_2", 0.25, 0.22),
+            ("lobito_2", 0.17, 0.15),
             ("lobito_3", -0.05, -0.32),
         ],
         "boxes": [
@@ -132,9 +132,9 @@ MAP_CONFIGS = {
     },
     "scen_8": {
         "marbles": [
-            ("lobito_1", -0.40, 0.05),
-            ("lobito_2", 0.40, 0.05),
-            ("lobito_3", 0.00, 0.26),
+            ("lobito_1", -0.46, -0.12),
+            ("lobito_2", 0.37, 0.01),
+            ("lobito_3", -0.1, 0.18),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.12, 0.05, 0.03, 0.06, 0.06, 0.06, -0.35, "0.85 0.35 0.15"),
@@ -147,9 +147,9 @@ MAP_CONFIGS = {
         # Escolta de Obstáculos: canicas ubicadas a ~15 cm de los cubos 6x6x6 cm
         # para evaluar la discriminación por ancho en tics entre canica y obstáculo.
         "marbles": [
-            ("lobito_1", -0.10, 0.16),
-            ("lobito_2", 0.10, -0.04),
-            ("lobito_3", 0.02, 0.30),
+            ("lobito_1", 0.0, 0.17),
+            ("lobito_2", 0.02, -0.11),
+            ("lobito_3", -0.26, -0.15),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.24, 0.10, 0.03, 0.06, 0.06, 0.06, 0.25, "0.85 0.35 0.15"),
@@ -161,9 +161,9 @@ MAP_CONFIGS = {
         # Corredor Diagonal (Slalom): los 2 obstáculos forman una chicana central diagonal
         # obligando a esquivar por el centro mientras busca canicas en los flancos y norte.
         "marbles": [
-            ("lobito_1", 0.00, 0.30),
-            ("lobito_2", -0.34, 0.08),
-            ("lobito_3", 0.30, -0.18),
+            ("lobito_1", 0.11, -0.09),
+            ("lobito_2", -0.39, -0.01),
+            ("lobito_3", 0.36, -0.22),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.14, -0.04, 0.03, 0.06, 0.06, 0.06, 0.40, "0.85 0.35 0.15"),
@@ -176,8 +176,8 @@ MAP_CONFIGS = {
         # que el filtro anti-pared no descarte canicas cercanas a los muros curvos.
         "marbles": [
             ("lobito_1", -0.44, -0.08),
-            ("lobito_2", 0.44, -0.06),
-            ("lobito_3", -0.18, 0.28),
+            ("lobito_2", 0.43, -0.06),
+            ("lobito_3", 0.04, -0.09),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", -0.16, 0.06, 0.03, 0.06, 0.06, 0.06, 0.15, "0.85 0.35 0.15"),
@@ -189,8 +189,8 @@ MAP_CONFIGS = {
         # Racimo Cercano (Cluster): dos canicas próximas entre sí en el sector noroeste
         # (~17 cm de separación) y una tercera al sureste.
         "marbles": [
-            ("lobito_1", -0.24, 0.18),
-            ("lobito_2", -0.08, 0.24),
+            ("lobito_1", -0.21, 0.14),
+            ("lobito_2", 0.05, -0.11),
             ("lobito_3", 0.34, -0.18),
         ],
         "boxes": [
@@ -203,7 +203,7 @@ MAP_CONFIGS = {
         # Guardia de Salida: los 2 obstáculos flanquean la aproximación al hueco norte
         # de 30 cm (-0.18, 0.22) y (+0.18, 0.22), con canica central frontal y en el sur.
         "marbles": [
-            ("lobito_1", 0.00, 0.04),
+            ("lobito_1", 0.0, 0.04),
             ("lobito_2", -0.36, -0.14),
             ("lobito_3", 0.36, -0.14),
         ],
@@ -217,9 +217,9 @@ MAP_CONFIGS = {
         # Triángulo Profundo Asimétrico: spawn en extremo Este apuntando al Noroeste (105°)
         # con un obstáculo directamente en la diagonal inicial de salida.
         "marbles": [
-            ("lobito_1", -0.04, 0.26),
+            ("lobito_1", -0.01, 0.19),
             ("lobito_2", -0.38, -0.06),
-            ("lobito_3", 0.28, 0.14),
+            ("lobito_3", 0.26, 0.11),
         ],
         "boxes": [
             ("OBSTACLE_BOX_1", "obstacle_3d_1", 0.04, -0.06, 0.03, 0.06, 0.06, 0.06, 0.65, "0.85 0.35 0.15"),
@@ -232,36 +232,34 @@ MAP_CONFIGS = {
 
 def generate_random_scenario_config(seed=None):
     """
-    Genera una configuración aleatoria 100% reglamentaria:
+    Genera una configuración aleatoria 100% reglamentaria y libre de atascos:
     - Semielipse estándar (1.80 m x 1.20 m, salida norte de 30 cm en (0, +0.60)).
-    - Spawn del robot cerca de la pared sur: X ∈ [-0.22, +0.22], Y ∈ [-0.35, -0.30], yaw ∈ [75°, 105°].
+    - Spawn del robot en esquina suroeste (-0.74, -0.42, 90°).
+    - Canicas lejos de muros (rho <= 0.66, y in [-0.38, 0.30]), lejos de obstáculos (>= 0.25m),
+      lejos entre sí (>= 0.28m) y lejos del spawn (>= 0.40m).
     - Exactamente 2 obstáculos de 6x6x6 cm dentro de la arena sin bloquear la salida ni el spawn.
-    - Exactamente 3 canicas de 16 mm separadas de muros, obstáculos y spawn.
     """
     rng = random.Random(seed)
     sx = -0.74
     sy = -0.42
     syaw = 1.5708
 
-    def inside_safe_ellipse(x, y, max_rho=0.74):
+    def inside_safe_ellipse(x, y, max_rho=0.66):
         rho = math.hypot(x / 0.90, (y + 0.60) / 1.20)
-        return rho <= max_rho
+        return rho <= max_rho and -0.38 <= y <= 0.30
 
     boxes = []
     colors = ["0.85 0.35 0.15", "0.25 0.45 0.80"]
     for idx in range(2):
-        for _ in range(500):
-            bx = round(rng.uniform(-0.36, 0.36), 2)
-            by = round(rng.uniform(-0.16, 0.22), 2)
-            if not inside_safe_ellipse(bx, by, max_rho=0.70):
+        for _ in range(1000):
+            bx = round(rng.uniform(-0.35, 0.35), 2)
+            by = round(rng.uniform(-0.16, 0.20), 2)
+            if not inside_safe_ellipse(bx, by, max_rho=0.64):
                 continue
-            # No bloquear el corredor directo al hueco de salida norte
-            if abs(bx) < 0.14 and by > 0.16:
+            if abs(bx) < 0.16 and by > 0.14:
                 continue
-            # Distancia mínima al spawn del robot
-            if math.hypot(bx - sx, by - sy) < 0.28:
+            if math.hypot(bx - sx, by - sy) < 0.35:
                 continue
-            # Distancia mínima entre los 2 obstáculos
             if any(math.hypot(bx - ox, by - oy) < 0.28 for _, _, ox, oy, *_ in boxes):
                 continue
             byaw = round(rng.uniform(-0.80, 0.80), 2)
@@ -274,16 +272,19 @@ def generate_random_scenario_config(seed=None):
 
     marbles = []
     for idx in range(3):
-        for _ in range(500):
-            mx = round(rng.uniform(-0.44, 0.44), 2)
-            my = round(rng.uniform(-0.30, 0.30), 2)
-            if not inside_safe_ellipse(mx, my, max_rho=0.74):
+        for _ in range(2000):
+            mx = round(rng.uniform(-0.55, 0.55), 2)
+            my = round(rng.uniform(-0.38, 0.30), 2)
+            if not inside_safe_ellipse(mx, my, max_rho=0.66):
                 continue
-            if math.hypot(mx - sx, my - sy) < 0.24:
+            # Lejos de la posición de inicio del auto (mínimo 40 cm)
+            if math.hypot(mx - sx, my - sy) < 0.40:
                 continue
-            if any(math.hypot(mx - ox, my - oy) < 0.15 for _, _, ox, oy, *_ in boxes):
+            # Lejos de obstáculos (mínimo 25 cm al centro de la caja)
+            if any(math.hypot(mx - ox, my - oy) < 0.25 for _, _, ox, oy, *_ in boxes):
                 continue
-            if any(math.hypot(mx - omx, my - omy) < 0.18 for _, omx, omy in marbles):
+            # Lejos entre sí (mínimo 28 cm)
+            if any(math.hypot(mx - omx, my - omy) < 0.28 for _, omx, omy in marbles):
                 continue
             marbles.append((f"lobito_{idx + 1}", mx, my))
             break

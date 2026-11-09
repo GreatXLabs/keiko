@@ -278,6 +278,8 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
                 pass
 
         if passed or webots_proc.poll() is not None:
+            if webots_proc.poll() is not None:
+                print(f"  [DEBUG] webots_proc finished with returncode: {webots_proc.poll()} after {time.time() - start_time:.1f}s")
             break
 
     # Detener procesos limpiamente

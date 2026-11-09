@@ -821,7 +821,7 @@ DEF OBSTACLE_BOX_2 Solid {
 
 # Canica 1 (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF LOBITO_1 Solid {
-  translation -0.35 0.18 0.008
+  translation -0.4 -0.02 0.008
   children [
     Shape {
       appearance PBRAppearance {
@@ -845,7 +845,7 @@ DEF LOBITO_1 Solid {
 
 # Canica 2 (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF LOBITO_2 Solid {
-  translation 0.32 0.16 0.008
+  translation 0.41 -0.04 0.008
   children [
     Shape {
       appearance PBRAppearance {

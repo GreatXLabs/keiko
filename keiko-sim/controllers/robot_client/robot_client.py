@@ -191,11 +191,11 @@ def main():
     mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=exit_pos)
 
     # 6. Máquina de Barrido de Radar por Tics en Espejo
-    # Barrido fino tic a tic (5.0° por unidad) desde -30° (boca central) hasta +35° (flancos laterales)
-    sweep_step_ticks = int(os.environ.get("ORQUITAS_RADAR_TICKS", "1"))
-    sweep_deg_step = float(os.environ.get("ORQUITAS_RADAR_STEP_DEG", "5.0"))
-    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", "-35.0"))
-    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", "20.0"))
+    # Barrido fino tic a tic (5.0° por unidad) desde -20° (boca central despejada) hasta +35° (flancos laterales)
+    sweep_step_ticks = int(os.environ.get("ORQUITAS_RADAR_TICKS", os.environ.get("ORQUITAS_SWEEP_TICKS", "1")))
+    sweep_deg_step = float(os.environ.get("ORQUITAS_RADAR_STEP_DEG", os.environ.get("ORQUITAS_SWEEP_STEP_DEG", "5.0")))
+    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", os.environ.get("ORQUITAS_SWEEP_MIN_DEG", "-15.0")))
+    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", os.environ.get("ORQUITAS_SWEEP_MAX_DEG", "35.0")))
 
     radar_full_angles = []
     a = sweep_min_deg
@@ -205,8 +205,8 @@ def main():
     if radar_full_angles[-1] < sweep_max_deg - 1e-5:
         radar_full_angles.append(round(sweep_max_deg, 1))
 
-    approach_binocular_angles = [-35.0, -30.0, -25.0, -20.0, -15.0, -10.0, -5.0, 0.0]
-    escape_guard_angles = [-10.0, 0.0, 10.0, 20.0, 30.0, 35.0]
+    approach_binocular_angles = [-12.0, -6.0, 0.0, 6.0, 12.0]
+    escape_guard_angles = [-10.0, 0.0, 10.0, 20.0]
 
     sweep_angles = list(radar_full_angles)
     sweep_idx = 0
@@ -243,6 +243,11 @@ def main():
             last_command_wall_time = time.monotonic()
             in_failsafe = False
             log_msg(f"[CONEXIÓN] Enlace establecido con Servidor Central en {server_host}:{server_port}")
+            try:
+                init_event = f"EVENT:SALIDA_META:{exit_pos[0]:.2f},{exit_pos[1]:.2f}\n"
+                s.sendall(init_event.encode("utf-8"))
+            except Exception:
+                pass
             return True
         except Exception:
             set_drive_velocities(0.0, 0.0)
@@ -309,6 +314,8 @@ def main():
         rot = self_node.getOrientation()
         fwd_x = rot[0]
         fwd_y = rot[3]
+        if math.isnan(rx) or math.isnan(ry) or math.isnan(fwd_x) or math.isnan(fwd_y):
+            continue
         yaw = math.atan2(fwd_y, fwd_x)
 
         active_marbles_xy = []
@@ -453,12 +460,16 @@ def main():
                 break
 
         # -----------------------------------------------------------------
-        # 5. TRANSMISIÓN DE TELEMETRÍA (7 CAMPOS CRUDOS)
+        # 5. TRANSMISIÓN DE TELEMETRÍA (6 SENSORES + TS + 3 POSE = 10 CAMPOS)
         # -----------------------------------------------------------------
+        if sim_time < 0.15:
+            robot.step(time_step)
+            continue
+
         telemetry_msg = (
             f"TELEMETRY:{d_us_izq:.2f},{d_us_cen:.2f},{d_us_der:.2f},"
             f"{d_laser_izq:.2f},{d_laser_der:.2f},{current_servo_deg:.1f},"
-            f"{int(sim_time*1000)}\n"
+            f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n"
         )
         try:
             sock.sendall(telemetry_msg.encode("utf-8"))

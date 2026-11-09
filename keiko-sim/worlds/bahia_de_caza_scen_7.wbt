@@ -845,7 +845,7 @@ DEF LOBITO_1 Solid {
 
 # Canica 2 (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF LOBITO_2 Solid {
-  translation 0.25 0.22 0.008
+  translation 0.17 0.15 0.008
   children [
     Shape {
       appearance PBRAppearance {

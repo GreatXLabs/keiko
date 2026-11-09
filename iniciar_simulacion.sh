@@ -80,10 +80,19 @@ trap cleanup EXIT INT TERM
 echo ">> Esperando inicializacion del servidor (2 segundos)..."
 sleep 2
 
-# 5. Abrir Webots con el escenario 1 (con soporte NVIDIA PRIME si esta disponible)
+# 5. Abrir Webots con el escenario (en modo realtime y redirigiendo stdout/stderr a la terminal)
+export DISPLAY="${DISPLAY:-:0.0}"
 echo ">> Lanzando Webots con escenario: $(basename "${WORLD_FILE}")..."
+WEBOTS_ARGS=(--mode=realtime --stdout --stderr "${WORLD_FILE}")
+
 if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
-    __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia webots "${WORLD_FILE}"
+    # Si la GPU NVIDIA ya es la pantalla primaria activa, ejecutar de forma nativa
+    if nvidia-smi | grep -q "Disp.A.*On"; then
+        webots "${WEBOTS_ARGS[@]}"
+    else
+        __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia webots "${WEBOTS_ARGS[@]}"
+    fi
 else
-    webots "${WORLD_FILE}"
+    webots "${WEBOTS_ARGS[@]}"
 fi
+
