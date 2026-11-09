@@ -101,6 +101,10 @@ public class PlanificadorNavegacion {
     private int ultimoSentidoGiroEvasivo = 0;
     private int ciclosDesdeUltimoGiroEvasivo = 200;
     private int pasosGiroAcumulados = 0;
+    private int ciclosPersistenciaSalida = 0;
+    private int ultimaDireccionSalida = 0;
+    private int ciclosSinVerSalidaEscape = 0;
+    private int pasosEscaneoSalidaEscape = 0;
 
     // Inicializa el planificador evaluando si el estomago ya posee capturas suficientes para escape.
     public PlanificadorNavegacion(GestorEstomago gestorEstomago) {
@@ -134,6 +138,7 @@ public class PlanificadorNavegacion {
         if (ciclosAlertaFlancoIzq > 0) ciclosAlertaFlancoIzq--;
         if (ciclosAlertaFlancoDer > 0) ciclosAlertaFlancoDer--;
         if (ciclosInhibicionCanica > 0) ciclosInhibicionCanica--;
+        if (ciclosPersistenciaSalida > 0) ciclosPersistenciaSalida--;
         if (ciclosDesdeUltimoReverso > 100) {
             contadorReversosConsecutivos = 0;
         }
@@ -194,12 +199,13 @@ public class PlanificadorNavegacion {
                     der = "LOBITO";
                 }
             }
-            // Protección de impacto inminente solo cuando existe sombra ultrasónica de obstáculo/muro
+            // Protección de impacto inminente: en ESCAPE ya no quedan canicas en pista, por lo que cualquier
+            // lectura láser corta (< 3.6 cm) es pared u obstáculo; en BUSQUEDA/APROXIMACION exige sombra ultrasónica.
             if (sensores.getAnguloServo() >= -20.0) {
-                if (dl < 3.6 && sombraIzq) {
+                if (dl < 3.6 && (estado == EstadoRobot.ESCAPE || sombraIzq)) {
                     izq = "BLOQUEO";
                 }
-                if (dr < 3.6 && sombraDer) {
+                if (dr < 3.6 && (estado == EstadoRobot.ESCAPE || sombraDer)) {
                     der = "BLOQUEO";
                 }
             }
@@ -211,6 +217,23 @@ public class PlanificadorNavegacion {
 
         if (estado == EstadoRobot.FINALIZACION || estado == EstadoRobot.ERROR_SEGURO) {
             return new ComandoRobot(0.0, 0.0, estado);
+        }
+
+        // Si en modo ESCAPE cualquiera de los 3 sensores ultrasónicos detecta el hueco de SALIDA (> 160 cm),
+        // cancelar inmediatamente cualquier giro comprometido o avance post-captura para enfilar la salida sin demora.
+        boolean veSalidaDirecta = (estado == EstadoRobot.ESCAPE) && (
+                "SALIDA".equals(izq) || "SALIDA".equals(cen) || "SALIDA".equals(der)
+                || (sensores != null && sensores.getCantidadSensores() >= 6
+                    && (sensores.getUsLeft() > 160.0 || sensores.getUsCenter() > 160.0 || sensores.getUsRight() > 160.0))
+        );
+        if (veSalidaDirecta) {
+            pasosGiroComprometido = 0;
+            giroEsEvasivo = false;
+            pasosEscaneoSalidaEscape = 0;
+            ciclosSinVerSalidaEscape = 0;
+            if (sensores != null && sensores.getUsCenter() >= 14.0 && velRetrocesoIzq > 0 && velRetrocesoDer > 0) {
+                pasosRetrocesoRestantes = 0;
+            }
         }
 
         // ---------------------------------------------------------------------
@@ -268,7 +291,7 @@ public class PlanificadorNavegacion {
                         && sensores.getLaserLeft() > 18.0
                         && sensores.getLaserRight() > 18.0) {
                     pasosGiroComprometido = 0;
-                } else if (pasosGiroComprometido <= 1 && pasosGiroAcumulados < 76
+                } else if (estado != EstadoRobot.ESCAPE && pasosGiroComprometido <= 1 && pasosGiroAcumulados < 76
                         && (sensores.getUsCenter() < 25.0 || sensores.getUsLeft() < 17.0 || sensores.getUsRight() < 17.0)) {
                     // Si aún apunta hacia la pared de una esquina a 90°, continuar girando en el MISMO sentido
                     pasosGiroComprometido = 10;
@@ -342,108 +365,123 @@ public class PlanificadorNavegacion {
         // ---------------------------------------------------------------------
         if (estado == EstadoRobot.ESCAPE) {
             // En ESCAPE cualquier LOBITO se ignora y se trata como ESPACIO_LIBRE
-            boolean sIzq = "SALIDA".equals(izq);
-            boolean sCen = "SALIDA".equals(cen);
-            boolean sDer = "SALIDA".equals(der);
+            boolean sIzq = "SALIDA".equals(izq) || (sensores != null && sensores.getUsLeft() > 160.0);
+            boolean sCen = "SALIDA".equals(cen) || (sensores != null && sensores.getUsCenter() > 160.0);
+            boolean sDer = "SALIDA".equals(der) || (sensores != null && sensores.getUsRight() > 160.0);
 
             // Caso 4a: El sensor central ya enfila el hueco de salida de 30 cm.
             // Protocolo de alineacion proactiva: centrar el chasis y desenganchar
-            // las jambas con micro-retrocesos en lugar de empujar contra el borde.
+            // las jambas para cruzar velozmente a máxima potencia.
             if (sCen) {
-                if (bIzq && bDer) {
-                    iniciarRetrocesoArco(-2.4, -2.4, 6);
-                    return new ComandoRobot(-2.4, -2.4, EstadoRobot.ESCAPE);
-                }
-                if (bDer) {
-                    return new ComandoRobot(1.6, 3.2, EstadoRobot.ESCAPE); // Despegar jamba derecha suavemente
-                }
-                if (bIzq) {
-                    return new ComandoRobot(3.2, 1.6, EstadoRobot.ESCAPE); // Despegar jamba izquierda suavemente
-                }
+                ciclosSinVerSalidaEscape = 0;
                 double dl = (sensores != null) ? sensores.getUsLeft() : 250.0;
                 double dr = (sensores != null) ? sensores.getUsRight() : 250.0;
                 if (sensores != null) {
-                    if (sensores.getLaserLeft() < 25.0) {
+                    if (sensores.getLaserLeft() < 30.0) {
                         dl = Math.min(dl, sensores.getLaserLeft());
                     }
-                    if (sensores.getLaserRight() < 25.0) {
+                    if (sensores.getLaserRight() < 30.0) {
                         dr = Math.min(dr, sensores.getLaserRight());
                     }
                 }
-                boolean cercaDeJambas = (dl < 40.0 || dr < 40.0);
+
+                // Detección de peligro de roce contra jamba derecha (<= 11 cm)
+                if (dr < 11.0 || (bDer && dr < dl)) {
+                    return new ComandoRobot(0.8, 3.6, EstadoRobot.ESCAPE); // Despegar jamba derecha
+                }
+                // Detección de peligro de roce contra jamba izquierda (<= 11 cm)
+                if (dl < 11.0 || (bIzq && dl < dr)) {
+                    return new ComandoRobot(3.6, 0.8, EstadoRobot.ESCAPE); // Despegar jamba izquierda
+                }
+
+                boolean cercaDeJambas = (dl < 45.0 || dr < 45.0);
                 if (cercaDeJambas) {
-                    // Si un sensor ve la pared de la jamba (<=35 cm) y el otro ve el hueco (>45 cm)
-                    if (dr <= 35.0 && dl > 45.0) {
-                        return new ComandoRobot(1.6, 3.2, EstadoRobot.ESCAPE); // Muy pegado a jamba der: virar a izq
-                    } else if (dl <= 35.0 && dr > 45.0) {
-                        return new ComandoRobot(3.2, 1.6, EstadoRobot.ESCAPE); // Muy pegado a jamba izq: virar a der
-                    }
                     double diff = dl - dr;
-                    if (diff < -2.0) {
-                        return new ComandoRobot(2.8, 1.8, EstadoRobot.ESCAPE); // Centrar alejándose de jamba izq
-                    } else if (diff > 2.0) {
-                        return new ComandoRobot(1.8, 2.8, EstadoRobot.ESCAPE); // Centrar alejándose de jamba der
+                    if (diff < -2.5) {
+                        return new ComandoRobot(3.8, 2.6, EstadoRobot.ESCAPE); // Centrar alejándose de jamba izq
+                    } else if (diff > 2.5) {
+                        return new ComandoRobot(2.6, 3.8, EstadoRobot.ESCAPE); // Centrar alejándose de jamba der
                     }
-                    return new ComandoRobot(2.4, 2.4, EstadoRobot.ESCAPE); // Cruzar centro de la salida de 30 cm
+                    // Perfectamente centrado en el pasillo de 30 cm: acelerar a fondo
+                    return new ComandoRobot(4.6, 4.6, EstadoRobot.ESCAPE);
                 }
-                return new ComandoRobot(3.4, 3.4, EstadoRobot.ESCAPE);
+                // Línea de visión libre hacia la salida: avanzar a velocidad máxima
+                return new ComandoRobot(4.6, 4.6, EstadoRobot.ESCAPE);
             }
 
-            // Caso 4b: El sensor izquierdo ve la SALIDA (>185 cm), aunque centro o derecha vean pared
+            // Caso 4b: El sensor izquierdo ve la SALIDA (>160 cm), aunque centro o derecha vean pared
             if (sIzq) {
-                if (bCen) {
-                    return iniciarRetrocesoArcoYPivote(-1, 7, EstadoRobot.ESCAPE);
+                ciclosSinVerSalidaEscape = 0;
+                if (bCen && sensores != null && sensores.getUsCenter() < 12.0) {
+                    return iniciarRetrocesoArcoYPivote(-1, 5, EstadoRobot.ESCAPE);
                 }
-                if (bDer) {
-                    registrarBloqueoLateral(1);
-                    if (debeActivarAntiBucle()) {
-                        return activarManiobraAntiBucle(-1, EstadoRobot.ESCAPE);
-                    }
-                    return new ComandoRobot(VEL_ARCO_LENTA, VEL_AVANCE_ARCO, EstadoRobot.ESCAPE);
-                }
-                return new ComandoRobot(2.4, 4.6, EstadoRobot.ESCAPE);
+                return new ComandoRobot(1.8, 4.6, EstadoRobot.ESCAPE); // Virar resuelto a la izquierda hacia la salida
             }
 
-            // Caso 4c: El sensor derecho ve la SALIDA (>185 cm), aunque centro o izquierda vean pared
+            // Caso 4c: El sensor derecho ve la SALIDA (>160 cm), aunque centro o izquierda vean pared
             if (sDer) {
-                if (bCen) {
-                    return iniciarRetrocesoArcoYPivote(1, 7, EstadoRobot.ESCAPE);
+                ciclosSinVerSalidaEscape = 0;
+                if (bCen && sensores != null && sensores.getUsCenter() < 12.0) {
+                    return iniciarRetrocesoArcoYPivote(1, 5, EstadoRobot.ESCAPE);
                 }
-                if (bIzq) {
-                    registrarBloqueoLateral(-1);
-                    if (debeActivarAntiBucle()) {
-                        return activarManiobraAntiBucle(1, EstadoRobot.ESCAPE);
-                    }
-                    return new ComandoRobot(VEL_AVANCE_ARCO, VEL_ARCO_LENTA, EstadoRobot.ESCAPE);
-                }
-                return new ComandoRobot(4.6, 2.4, EstadoRobot.ESCAPE);
+                return new ComandoRobot(4.6, 1.8, EstadoRobot.ESCAPE); // Virar resuelto a la derecha hacia la salida
             }
 
-            // Caso 4d: Aún no ve SALIDA; navegación en bahía para localizar el estrecho de salida
-            boolean frenteObstruido = bCen || (sensores != null && sensores.getUsCenter() < 20.0);
-            boolean flancoIzqCerca = bIzq || (sensores != null && (sensores.getUsLeft() < 22.0 || sensores.getLaserLeft() < 16.0));
-            boolean flancoDerCerca = bDer || (sensores != null && (sensores.getUsRight() < 22.0 || sensores.getLaserRight() < 16.0));
+            // Caso 4d: Aún no ve SALIDA; bordeo perimetral activo (Wall-Following) para localizar el hueco norte
+            ciclosSinVerSalidaEscape++;
 
-            if (frenteObstruido || (flancoIzqCerca && flancoDerCerca)) {
-                int dir = calcularDireccionEvasiva(sensores, (bIzq ? 1 : -1));
-                return iniciarRetrocesoArcoYPivote(dir, 18, EstadoRobot.ESCAPE);
-            }
-            if (flancoIzqCerca) {
-                if (sensores != null && sensores.getLaserLeft() < 10.0) {
-                    return new ComandoRobot(2.8, -2.8, EstadoRobot.ESCAPE);
-                }
-                return new ComandoRobot(3.6, 1.2, EstadoRobot.ESCAPE);
-            }
-            if (flancoDerCerca) {
-                if (sensores != null && sensores.getLaserRight() < 10.0) {
-                    return new ComandoRobot(-2.8, 2.8, EstadoRobot.ESCAPE);
-                }
-                return new ComandoRobot(1.2, 3.6, EstadoRobot.ESCAPE);
+            double usCen = (sensores != null) ? sensores.getUsCenter() : 250.0;
+            double usIzq = (sensores != null) ? sensores.getUsLeft() : 250.0;
+            double usDer = (sensores != null) ? sensores.getUsRight() : 250.0;
+            double lasIzq = (sensores != null) ? sensores.getLaserLeft() : 40.0;
+            double lasDer = (sensores != null) ? sensores.getLaserRight() : 40.0;
+
+            double distLadoIzq = Math.min(usIzq, lasIzq);
+            double distLadoDer = Math.min(usDer, lasDer);
+
+            // Inicializar sentido de seguimiento al muro más cercano o con mejor despeje
+            if (ladoSeguimientoEscape == 0) {
+                ladoSeguimientoEscape = (distLadoIzq < distLadoDer) ? -1 : 1;
             }
 
-            // Espacio libre al frente y a los flancos: avanzar con oscilación suave
-            double bias = ((contadorCiclos / 35) % 2 == 0) ? 0.35 : -0.35;
-            return new ComandoRobot(3.6 + bias, 3.6 - bias, EstadoRobot.ESCAPE);
+            // Bordeo siguiendo pared a la DERECHA (ladoSeguimientoEscape == 1)
+            if (ladoSeguimientoEscape == 1) {
+                if (bCen || usCen < 18.0) {
+                    // Frente cerrado: doblar a la izquierda para continuar el contorno del muro
+                    return new ComandoRobot(-1.6, 3.8, EstadoRobot.ESCAPE);
+                }
+                if (distLadoDer < 13.0) {
+                    // Demasiado cerca de la pared derecha: separar el chasis suavemente
+                    return new ComandoRobot(2.4, 4.2, EstadoRobot.ESCAPE);
+                }
+                if (distLadoDer > 38.0) {
+                    // Pared alejándose hacia la derecha: cerrar curva para no perder el perímetro
+                    return new ComandoRobot(4.2, 2.2, EstadoRobot.ESCAPE);
+                }
+                // Rango óptimo (13.0 - 38.0 cm): navegar rápido siguiendo el contorno
+                return new ComandoRobot(4.2, 3.6, EstadoRobot.ESCAPE);
+            }
+
+            // Bordeo siguiendo pared a la IZQUIERDA (ladoSeguimientoEscape == -1)
+            if (ladoSeguimientoEscape == -1) {
+                if (bCen || usCen < 18.0) {
+                    // Frente cerrado: doblar a la derecha para continuar el contorno del muro
+                    return new ComandoRobot(3.8, -1.6, EstadoRobot.ESCAPE);
+                }
+                if (distLadoIzq < 13.0) {
+                    // Demasiado cerca de la pared izquierda: separar el chasis suavemente
+                    return new ComandoRobot(4.2, 2.4, EstadoRobot.ESCAPE);
+                }
+                if (distLadoIzq > 38.0) {
+                    // Pared alejándose hacia la izquierda: cerrar curva para no perder el perímetro
+                    return new ComandoRobot(2.2, 4.2, EstadoRobot.ESCAPE);
+                }
+                // Rango óptimo (13.0 - 38.0 cm): navegar rápido siguiendo el contorno
+                return new ComandoRobot(3.6, 4.2, EstadoRobot.ESCAPE);
+            }
+
+            // Despeje amplio en todas direcciones: avanzar a velocidad máxima
+            return new ComandoRobot(4.4, 4.4, EstadoRobot.ESCAPE);
         }
 
         // ---------------------------------------------------------------------
