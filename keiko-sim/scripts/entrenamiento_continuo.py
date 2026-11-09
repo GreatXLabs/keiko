@@ -137,8 +137,8 @@ def main():
     parser = argparse.ArgumentParser(description="Iterador de Simulación con Supervisión Gráfica - Proyecto Orquitas")
     parser.add_argument("--bay", choices=["alternate", "standard", "circular", "random"], default="alternate",
                         help="Modo de selección de bahía (default: alternate)")
-    parser.add_argument("--mode", choices=["realtime", "run", "fast"], default="realtime",
-                        help="Velocidad de reproducción en Webots (default: realtime)")
+    parser.add_argument("--mode", choices=["fast", "realtime", "run"], default="fast",
+                        help="Velocidad de reproducción en Webots (default: fast)")
     parser.add_argument("--timeout", type=int, default=240,
                         help="Tiempo máximo simulado por intento en segundos (default: 240)")
     parser.add_argument("--pause", type=float, default=2.0,
@@ -257,7 +257,8 @@ def main():
             env["__NV_PRIME_RENDER_OFFLOAD"] = "1"
             env["__GLX_VENDOR_LIBRARY_NAME"] = "nvidia"
 
-        webots_mode_flag = f"--mode={args.mode}"
+        webots_mode = "fast" if args.mode in ("fast", "run") else "realtime"
+        webots_mode_flag = f"--mode={webots_mode}"
         webots_cmd = ["webots", webots_mode_flag, "--stdout", "--stderr", world_path]
 
         print(f"  🖥️  Abriendo Webots ({webots_mode_flag}) en pantalla [{env_display}]...")
