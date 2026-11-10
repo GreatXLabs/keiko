@@ -394,51 +394,65 @@ public class PlanificadorNavegacion {
                 double py = sensores.getPosY();
                 double th = sensores.getTheta();
 
-                // Si ya cruzó la salida (y > metaSalidaY), crucero a fondo en el espacio exterior
-                if (py > metaSalidaY) {
+                // Vector normal de salida desde el centro de la bahia (0.0, -0.60) hacia la meta de salida
+                double dirSalidaX = metaSalidaX - 0.0;
+                double dirSalidaY = metaSalidaY - (-0.60);
+                double distCentro = Math.hypot(dirSalidaX, dirSalidaY);
+                double normX = (distCentro > 1e-4) ? (dirSalidaX / distCentro) : 0.0;
+                double normY = (distCentro > 1e-4) ? (dirSalidaY / distCentro) : 1.0;
+                double thSalida = Math.atan2(normY, normX);
+
+                // Proyeccion a lo largo de la normal hacia el exterior (dist > 0 significa robot cruzó afuera)
+                double distHaciaAfuera = (px - metaSalidaX) * normX + (py - metaSalidaY) * normY;
+                // Desviación lateral respecto al eje central de la puerta
+                double errorLateral = (px - metaSalidaX) * (-normY) + (py - metaSalidaY) * normX;
+                double distBoca = Math.hypot(px - metaSalidaX, py - metaSalidaY);
+
+                // Si ya cruzó la salida hacia el exterior, crucero a fondo
+                if (distHaciaAfuera > 0.0) {
                     return new ComandoRobot(4.8, 4.8, EstadoRobot.ESCAPE);
                 }
 
                 double dl = Math.min(sensores.getUsLeft(), sensores.getLaserLeft());
                 double dr = Math.min(sensores.getUsRight(), sensores.getLaserRight());
 
-                double yUmbralCorredor = metaSalidaY - 0.32;
-                double yPuntoEntrada = metaSalidaY - 0.34;
-
-                // FASE 2: Pasillo final de salida (centrado en el corredor de la meta de salida)
-                // Hueco de 30 cm en [metaSalidaX - 0.15, metaSalidaX + 0.15]. El chasis de 15 cm cruza con 7.5 cm de luz.
-                boolean enCorredorCentral = (Math.abs(px - metaSalidaX) < 0.05 && py >= yUmbralCorredor);
+                // FASE 2: Pasillo final de salida (centrado y alineado con la puerta)
+                boolean enCorredorCentral = (Math.abs(errorLateral) < 0.06 && distBoca <= 0.35 && distHaciaAfuera <= 0.0);
                 if (enCorredorCentral) {
-                    double diffNorth = 1.5708 - th;
-                    while (diffNorth > Math.PI) diffNorth -= 2 * Math.PI;
-                    while (diffNorth < -Math.PI) diffNorth += 2 * Math.PI;
+                    double diffAngle = thSalida - th;
+                    while (diffAngle > Math.PI) diffAngle -= 2 * Math.PI;
+                    while (diffAngle < -Math.PI) diffAngle += 2 * Math.PI;
 
-                    // Si la orientación difiere de Norte, alinear en el lugar antes de cruzar
-                    if (Math.abs(diffNorth) > 0.25) {
-                        return (diffNorth > 0) ? new ComandoRobot(-2.4, 2.4, EstadoRobot.ESCAPE)
+                    // Si la orientación difiere de la normal de salida, alinear en el lugar antes de cruzar
+                    if (Math.abs(diffAngle) > 0.25) {
+                        return (diffAngle > 0) ? new ComandoRobot(-2.4, 2.4, EstadoRobot.ESCAPE)
                                                : new ComandoRobot(2.4, -2.4, EstadoRobot.ESCAPE);
                     }
 
-                    // Centrado lateral fino en x = metaSalidaX hacia el espacio exterior
-                    double steer = diffNorth * 1.5 + (px - metaSalidaX) * 3.5;
+                    // Centrado lateral fino en el umbral hacia el espacio exterior
+                    double steer = diffAngle * 1.5 + errorLateral * 3.5;
 
                     // Micro-asistencia ante proximidad a jambas
                     if (dr < 6.0 && dl < 6.0) {
                         steer = (dr < dl) ? 0.30 : -0.30;
                     } else if (dr < 6.0) {
-                        steer = 0.30;  // Separar de jamba derecha (girar izquierda)
+                        steer = 0.30;
                     } else if (dl < 6.0) {
-                        steer = -0.30; // Separar de jamba izquierda (girar derecha)
+                        steer = -0.30;
                     }
 
                     steer = Math.max(-0.45, Math.min(0.45, steer));
                     return new ComandoRobot(4.4 - steer, 4.4 + steer, EstadoRobot.ESCAPE);
                 }
 
-                // Si está en la zona alta (py >= yUmbralCorredor) pero fuera del corredor (|px - metaSalidaX| >= 0.05):
-                // Recentrarse hacia el punto de entrada (metaSalidaX, yPuntoEntrada)
-                if (py >= yUmbralCorredor) {
-                    double dx = metaSalidaX - px;
+                // Punto de entrada al corredor (32 cm adentro de la puerta sobre la normal interior)
+                double xPuntoEntrada = metaSalidaX - 0.32 * normX;
+                double yPuntoEntrada = metaSalidaY - 0.32 * normY;
+
+                // Si está en la zona cercana a la salida pero fuera del corredor (|errorLateral| >= 0.06):
+                // Recentrarse hacia el punto de entrada
+                if (distBoca < 0.34 && Math.abs(errorLateral) >= 0.06) {
+                    double dx = xPuntoEntrada - px;
                     double dy = yPuntoEntrada - py;
                     double targetAngle = Math.atan2(dy, dx);
                     double diff = targetAngle - th;
@@ -452,9 +466,10 @@ public class PlanificadorNavegacion {
                     return new ComandoRobot(3.2, 3.2, EstadoRobot.ESCAPE);
                 }
 
-                // FASE 1 (py < yUmbralCorredor): Navegación hacia el norte por los corredores libres de la bahía
-                double angleOffset = Math.max(-0.65, Math.min(0.65, (px - metaSalidaX) * 2.8));
-                double targetAngle = 1.5708 - angleOffset;
+                // FASE 1: Navegación general hacia el punto de entrada al corredor
+                double dx = xPuntoEntrada - px;
+                double dy = yPuntoEntrada - py;
+                double targetAngle = Math.atan2(dy, dx);
                 double diff = targetAngle - th;
                 while (diff > Math.PI) diff -= 2 * Math.PI;
                 while (diff < -Math.PI) diff += 2 * Math.PI;
@@ -1226,20 +1241,19 @@ public class PlanificadorNavegacion {
     // Comprueba si un punto (x, y) en coordenadas de la arena coincide con la pared perimetral
     private boolean esPuntoEnPared(double x, double y) {
         if (y <= -0.55) return true;
+        // Si el punto está en la boca de salida (hueco de 30 cm), no es pared
+        if (Math.hypot(x - metaSalidaX, y - metaSalidaY) < 0.18) return false;
         if (metaSalidaY >= 0.70) {
-            // Geometría Circular / Perturbada alta: salida norte en (metaSalidaX, metaSalidaY) con ancho 0.30 m
-            if (y >= (metaSalidaY - 0.15) && Math.abs(x - metaSalidaX) < 0.16) return false;
+            // Geometría Circular / Perturbada alta: radio R ~ 0.90
             double dx = x - 0.0;
             double dy = y - (-0.10);
             return (dx * dx + dy * dy) >= ((0.90 - 0.06) * (0.90 - 0.06));
         } else {
-            // Geometría Semielíptica Clásica: a = 1.20, b = 0.90, y_back = -0.60
-            if (y >= 0.32 && Math.abs(x - metaSalidaX) < 0.16) return false;
-            if (y >= 0.32 && Math.abs(x - metaSalidaX) > 0.15) return true;
+            // Geometría Semielíptica / Orgánica
             double yRel = y + 0.60;
-            if (yRel < 0.0 || yRel > 1.20) return true;
-            double arg = 1.0 - (yRel * yRel) / (1.20 * 1.20);
-            double xWall = 0.90 * Math.sqrt(Math.max(0.0, arg));
+            if (yRel < 0.0 || yRel > 1.35) return true;
+            double arg = 1.0 - (yRel * yRel) / (1.25 * 1.25);
+            double xWall = 0.95 * Math.sqrt(Math.max(0.0, arg));
             return Math.abs(x) >= (xWall - 0.06);
         }
     }
@@ -1406,8 +1420,8 @@ public class PlanificadorNavegacion {
         double rCenter = Math.hypot(px, py - (-0.10));
 
         // En ESCAPE, permitir paso libre por el embudo y pasillo de salida
-        double umbralSalidaY = esCircular ? 0.48 : 0.28;
-        if (estadoActual == EstadoRobot.ESCAPE && Math.abs(px - metaSalidaX) < 0.18 && py > umbralSalidaY) {
+        double distSalida = Math.hypot(px - metaSalidaX, py - metaSalidaY);
+        if (estadoActual == EstadoRobot.ESCAPE && distSalida < 0.40) {
             pasosEscudoPerimetral = 0;
             return null;
         }
@@ -1445,16 +1459,15 @@ public class PlanificadorNavegacion {
             }
         }
 
-        // En BUSQUEDA, impedir terminantemente filtrarse por la puerta norte:
-        double umbralBloqueoNorte = esCircular ? 0.68 : 0.28;
-        if (estadoActual != EstadoRobot.ESCAPE && Math.abs(px - metaSalidaX) < 0.16 && py > umbralBloqueoNorte) {
+        // En BUSQUEDA, impedir terminantemente filtrarse por la puerta antes de capturar las 3 canicas:
+        if (estadoActual != EstadoRobot.ESCAPE && distSalida < 0.28) {
             pasosEscudoPerimetral = 0;
-            if (Math.sin(th) > -0.30) {
-                return ((px - metaSalidaX) >= 0) ? new ComandoRobot(2.4, -2.4, estadoActual)
-                                                 : new ComandoRobot(-2.4, 2.4, estadoActual);
-            } else {
-                return new ComandoRobot(3.4, 3.4, estadoActual);
-            }
+            double angCentro = Math.atan2(-0.10 - py, 0.0 - px);
+            double diff = angCentro - th;
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+            return (diff > 0) ? new ComandoRobot(-2.4, 2.4, estadoActual)
+                              : new ComandoRobot(2.4, -2.4, estadoActual);
         }
 
         // Pared sur plana (y = -0.60 m): activa si py < -0.42 y apunta hacia el sur o paralelo

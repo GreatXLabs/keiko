@@ -149,6 +149,8 @@ def main():
                         help="Puerto TCP para keiko-server (default: 8888)")
     parser.add_argument("--capote", action="store_true",
                         help="Incluir carcasa exterior 'Capote' en el robot")
+    parser.add_argument("--obstacle-shape", choices=["alternate", "box", "cylinder"], default="alternate",
+                        help="Forma de obstáculos: alternate (cubos/cilindros iteración de por medio), box o cylinder")
     args = parser.parse_args()
 
     print("\n" + "=" * 80)
@@ -207,8 +209,10 @@ def main():
         print(f"  Fecha y hora: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'#'*80}")
 
-        # 2. Generar mundo aleatorio con obstáculos y canicas respetando distancias
-        world_path = build_random_world(variant=current_variant, include_capote=args.capote)
+        # 2. Generar mundo aleatorio con obstáculos (alternados) y canicas respetando distancias
+        obs_param = None if args.obstacle_shape == "alternate" else args.obstacle_shape
+        world_path = build_random_world(variant=current_variant, include_capote=args.capote,
+                                        iteration=iteration, obstacle_shape=obs_param)
 
         # 3. Limpiar estado previo
         cleanup_processes()

@@ -114,7 +114,7 @@ def generate_random_arena_params(variant="realistic", rng=None):
         R = round(rng.uniform(0.88, 0.95), 3)
         yc = round(rng.uniform(-0.12, -0.08), 3)
         y_back = round(rng.uniform(-0.64, -0.58), 3)
-        exit_x = round(rng.uniform(-0.18, 0.18), 3)
+        exit_x = round(rng.uniform(-0.45, 0.45), 3)
         return {
             "type": "circle",
             "R": R,
@@ -127,22 +127,23 @@ def generate_random_arena_params(variant="realistic", rng=None):
     elif variant == "standard":
         return dict(ARENA_PROFILES["standard"])
     else:
-        # Variante 'realistic' orgánica e irregular:
-        w_stl = round(rng.uniform(0.15, 0.95), 3)
-        b_left = round(rng.uniform(0.90, 1.05), 3)
-        b_right = round(rng.uniform(0.92, 1.10), 3)
-        a = round(rng.uniform(1.15, 1.45), 3)  # Profundidad elíptica pronunciada (NUNCA semicírculo)
-        y_back = round(rng.uniform(-0.68, -0.58), 3)
-        tilt_deg = round(rng.uniform(-2.5, 2.5), 2)
-        exit_x = round(rng.uniform(-0.20, 0.20), 3)
+        # Variante 'realistic' orgánica pero más suave (menos irregularidades y sin dientes agudos):
+        w_stl = round(rng.uniform(0.15, 0.80), 3)
+        b_left = round(rng.uniform(0.92, 1.05), 3)
+        b_right = round(rng.uniform(0.92, 1.05), 3)
+        a = round(rng.uniform(1.15, 1.38), 3)  # Profundidad elíptica natural
+        y_back = round(rng.uniform(-0.66, -0.58), 3)
+        tilt_deg = round(rng.uniform(-1.8, 1.8), 2)
+        # Salida en posiciones mucho más aleatorias del cartón (desde el flanco izquierdo al derecho):
+        exit_x = round(rng.uniform(-0.52, 0.52), 3)
         
-        # Generar entre 2 y 4 arrugas / deformaciones locales del cartón
+        # Deformaciones suaves del cartón (ondulaciones naturales en lugar de pliegues profundos):
         wrinkles = []
-        for _ in range(rng.randint(2, 4)):
+        for _ in range(rng.randint(1, 2)):
             wrinkles.append({
-                "th": round(rng.uniform(0.25, math.pi - 0.25), 3),
-                "amp": round(rng.uniform(-0.075, 0.075), 3),
-                "sig": round(rng.uniform(0.25, 0.50), 3),
+                "th": round(rng.uniform(0.30, math.pi - 0.30), 3),
+                "amp": round(rng.uniform(-0.025, 0.025), 3),
+                "sig": round(rng.uniform(0.35, 0.65), 3),
             })
             
         return {
@@ -156,7 +157,7 @@ def generate_random_arena_params(variant="realistic", rng=None):
             "exit_x": exit_x,
             "exit_width": 0.30,
             "wrinkles": wrinkles,
-            "jitter": round(rng.uniform(0.025, 0.045), 3),
+            "jitter": round(rng.uniform(0.008, 0.015), 3),
         }
 
 # Configuraciones de escenarios de evaluación (14 escenarios fijos + circular + aleatorio reglamentario)
@@ -373,15 +374,15 @@ MAP_CONFIGS = {
 }
 
 
-def generate_random_scenario_config(variant="realistic", seed=None):
+def generate_random_scenario_config(variant="realistic", seed=None, obstacle_shape=None, iteration=None):
     """
     Genera una configuración aleatoria 100% reglamentaria y libre de atascos:
     - Sometida a la geometría seleccionada: 'realistic' (imperfecciones de bahia-keiko.stl),
       'circular' (redonda con imperfecciones) o 'standard'.
-    - Variación aleatoria de la posición de la salida (exit_x desplazada del centro).
+    - Variación aleatoria amplia de la posición de la salida en el cartón (exit_x en rango [-0.52, +0.52] m).
     - Canicas lejos de muros (margen >= 18 cm), lejos de obstáculos (>= 0.25 m),
       lejos entre sí (>= 0.28 m) y lejos del spawn (>= 0.35 m).
-    - Exactamente 2 obstáculos de 6x6x6 cm dentro de la arena sin bloquear la salida ni el spawn.
+    - Obstáculos de 6x6 cm que alternan entre cubos y cilindros en cada iteración.
     """
     rng = random.Random(seed)
 
@@ -394,6 +395,7 @@ def generate_random_scenario_config(variant="realistic", seed=None):
 
     geom = get_arena_geometry(arena_params)
     exit_x, exit_y = geom["exit_pos"]
+    exit_normal = geom.get("exit_normal", (0.0, 1.0))
     bw = geom["back_wall"]
 
     # Extraer todos los segmentos de pared para comprobación euclidiana exacta
@@ -403,7 +405,7 @@ def generate_random_scenario_config(variant="realistic", seed=None):
     wall_segs.append((bw["x0"], bw["y0"], bw["x1"], bw["y1"]))
 
     y_min_bound = min(bw["y0"], bw["y1"]) + 0.10
-    y_max_bound = exit_y + 0.10
+    y_max_bound = max(max(s["y0"], s["y1"]) for s in geom["arc_segments"]) + 0.05
 
     def inside_safe(px, py, min_clr=0.18):
         d = min(dist_to_segment(px, py, x0, y0, x1, y1) for x0, y0, x1, y1 in wall_segs)
@@ -423,12 +425,22 @@ def generate_random_scenario_config(variant="realistic", seed=None):
         sy = round(y_back + 0.20, 2)
         syaw = 1.5708
 
+    # Selección de forma de obstáculos: alternar cilindro / cubo iteración de por medio
+    if obstacle_shape in ("cylinder", "cylindrical"):
+        is_cylinder = True
+    elif obstacle_shape in ("box", "cubo"):
+        is_cylinder = False
+    elif iteration is not None:
+        # Iteración de por medio: impares cajas, pares cilindros
+        is_cylinder = (iteration % 2 == 0)
+    else:
+        is_cylinder = (rng.random() < 0.5)
+
     # Rangos de muestreo
     box_x_range = (-0.50, 0.50)
     box_y_range = (-0.30, 0.35)
     marble_x_range = (-0.65, 0.65)
     marble_y_range = (-0.40, 0.45)
-    exit_corridor_min_y = exit_y - 0.25
 
     boxes = []
     colors = ["0.85 0.35 0.15", "0.25 0.45 0.80"]
@@ -438,18 +450,27 @@ def generate_random_scenario_config(variant="realistic", seed=None):
             by = round(rng.uniform(*box_y_range), 2)
             if not inside_safe(bx, by, min_clr=0.20):
                 continue
-            # Despejar pasillo directo a la salida desplazada (exit_x)
-            if abs(bx - exit_x) < 0.18 and by > exit_corridor_min_y:
+            # Despejar pasillo directo y embocadura a la salida (radio 32 cm de la puerta)
+            if math.hypot(bx - exit_x, by - exit_y) < 0.32:
                 continue
             if math.hypot(bx - sx, by - sy) < 0.35:
                 continue
             if any(math.hypot(bx - ox, by - oy) < 0.28 for _, _, ox, oy, *_ in boxes):
                 continue
             byaw = round(rng.uniform(-0.80, 0.80), 2)
+            if is_cylinder:
+                def_id = f"OBSTACLE_CYLINDER_{idx + 1}"
+                name = f"obstacle_cylinder_{idx + 1}"
+                shape_type = "cylinder"
+            else:
+                def_id = f"OBSTACLE_BOX_{idx + 1}"
+                name = f"obstacle_3d_{idx + 1}"
+                shape_type = "box"
+
             boxes.append((
-                f"OBSTACLE_BOX_{idx + 1}",
-                f"obstacle_3d_{idx + 1}",
-                bx, by, 0.03, 0.06, 0.06, 0.06, byaw, colors[idx]
+                def_id,
+                name,
+                bx, by, 0.03, 0.06, 0.06, 0.06, byaw, colors[idx], shape_type
             ))
             break
 
@@ -463,10 +484,10 @@ def generate_random_scenario_config(variant="realistic", seed=None):
             # Lejos de la posición de inicio del auto (mínimo 35 cm)
             if math.hypot(mx - sx, my - sy) < 0.35:
                 continue
-            # Lejos del pasillo de escape directo en la puerta desplazada
-            if abs(mx - exit_x) < 0.18 and my > exit_corridor_min_y:
+            # Lejos del pasillo de escape y embocadura a la puerta (mínimo 30 cm)
+            if math.hypot(mx - exit_x, my - exit_y) < 0.30:
                 continue
-            # Lejos de obstáculos (mínimo 25 cm al centro de la caja)
+            # Lejos de obstáculos (mínimo 25 cm al centro de la caja o cilindro)
             if any(math.hypot(mx - ox, my - oy) < 0.25 for _, _, ox, oy, *_ in boxes):
                 continue
             # Lejos entre sí (mínimo 28 cm)
@@ -482,6 +503,8 @@ def generate_random_scenario_config(variant="realistic", seed=None):
         "boxes": boxes,
         "spawn": (sx, sy, syaw),
         "exit_pos": (exit_x, exit_y),
+        "exit_normal": exit_normal,
+        "obstacle_shape": "cylinder" if is_cylinder else "box",
     }
 
 
@@ -554,6 +577,9 @@ def get_arena_geometry(variant="standard"):
         gap_l = left_pts[0]
         actual_gap = math.hypot(gap_r[0] - gap_l[0], gap_r[1] - gap_l[1])
         exit_pos = (0.5 * (gap_r[0] + gap_l[0]), 0.5 * (gap_r[1] + gap_l[1]))
+        vx, vy = gap_l[0] - gap_r[0], gap_l[1] - gap_r[1]
+        vn = math.hypot(vx, vy)
+        exit_normal = (vy / vn, -vx / vn) if vn > 1e-4 else (0.0, 1.0)
 
         tilt_rad = math.radians(tilt_deg)
         return {
@@ -562,6 +588,7 @@ def get_arena_geometry(variant="standard"):
             "a": R,
             "y_back": y_back,
             "exit_pos": exit_pos,
+            "exit_normal": exit_normal,
             "wall_thickness": wall_thickness,
             "wall_height": wall_height,
             "exit_width": exit_width,
@@ -733,6 +760,9 @@ def get_arena_geometry(variant="standard"):
     gap_l = left_pts[0]
     actual_gap = math.hypot(gap_r[0] - gap_l[0], gap_r[1] - gap_l[1])
     exit_pos = (0.5 * (gap_r[0] + gap_l[0]), 0.5 * (gap_r[1] + gap_l[1]))
+    vx, vy = gap_l[0] - gap_r[0], gap_l[1] - gap_r[1]
+    vn = math.hypot(vx, vy)
+    exit_normal = (vy / vn, -vx / vn) if vn > 1e-4 else (0.0, 1.0)
 
     return {
         "variant": var_name,
@@ -741,6 +771,7 @@ def get_arena_geometry(variant="standard"):
         "a": a,
         "y_back": y_back,
         "exit_pos": exit_pos,
+        "exit_normal": exit_normal,
         "wall_thickness": wall_thickness,
         "wall_height": wall_height,
         "exit_width": exit_width,
@@ -826,9 +857,12 @@ def render_arena_walls(map_name="standard", exit_wall="north", variant=None):
     }}""")
 
     ex, ey = geom["exit_pos"]
+    nx, ny = geom.get("exit_normal", (0.0, 1.0))
+    plat_x = ex + 0.35 * nx
+    plat_y = ey + 0.35 * ny
     nodes.append(f"""    # Marcador de Referencia de Salida (30 cm)
     DEF EXIT_PLATFORM Solid {{
-      translation {ex:.4f} {ey + 0.35:.4f} -0.10
+      translation {plat_x:.4f} {plat_y:.4f} -0.10
       name "exit_platform"
     }}""")
 
@@ -846,10 +880,39 @@ def render_map_elements(map_name="standard"):
     cfg = MAP_CONFIGS.get(map_name, MAP_CONFIGS["standard"])
     lines = []
 
-    # Renderizar exactamente 2 obstáculos 3D (6x6x6 cm)
+    # Renderizar exactamente 2 obstáculos 3D (cubos o cilindros de 6x6x6 cm)
     for ob in cfg.get("boxes", []):
-        def_id, name, x, y, z, sx, sy, sz, yaw, color = ob
-        lines.append(f"""# Obstaculo 3D ({sx*100:.0f}x{sy*100:.0f}x{sz*100:.0f} cm): {name}
+        def_id = ob[0]
+        name = ob[1]
+        x, y, z, sx, sy, sz, yaw, color = ob[2:10]
+        shape_type = ob[10] if len(ob) > 10 else ("cylinder" if "CYLINDER" in def_id.upper() else "box")
+        if shape_type == "cylinder":
+            radius = sx / 2.0
+            lines.append(f"""# Obstaculo 3D Cilindrico (diametro {sx*100:.0f}cm, alto {sz*100:.0f}cm): {name}
+DEF {def_id} Solid {{
+  translation {x} {y} {z}
+  rotation 0 0 1 {yaw}
+  children [
+    Shape {{
+      appearance PBRAppearance {{
+        baseColor {color}
+        roughness 0.6
+      }}
+      geometry Cylinder {{
+        height {sz}
+        radius {radius:.4f}
+      }}
+    }}
+  ]
+  name "{name}"
+  contactMaterial "wall"
+  boundingObject Cylinder {{
+    height {sz}
+    radius {radius:.4f}
+  }}
+}}""")
+        else:
+            lines.append(f"""# Obstaculo 3D ({sx*100:.0f}x{sy*100:.0f}x{sz*100:.0f} cm): {name}
 DEF {def_id} Solid {{
   translation {x} {y} {z}
   rotation 0 0 1 {yaw}
@@ -1545,10 +1608,10 @@ WORLDS = [
 ]
 
 
-def build_random_world(variant="realistic", include_capote=None, seed=None):
+def build_random_world(variant="realistic", include_capote=None, seed=None, iteration=None, obstacle_shape=None):
     worlds_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "worlds")
     os.makedirs(worlds_dir, exist_ok=True)
-    cfg = generate_random_scenario_config(variant=variant, seed=seed)
+    cfg = generate_random_scenario_config(variant=variant, seed=seed, iteration=iteration, obstacle_shape=obstacle_shape)
     MAP_CONFIGS["scen_random"] = cfg
     out_path = os.path.join(worlds_dir, "bahia_de_caza_scen_random.wbt")
     with open(out_path, "w", encoding="utf-8") as f:
@@ -1559,13 +1622,17 @@ def build_random_world(variant="realistic", include_capote=None, seed=None):
     tilt = ap.get("tilt_deg", 0.0)
     w_stl = ap.get("w_stl", 0.5)
     a_depth = ap.get("a", 1.25)
+    obs_shape = cfg.get("obstacle_shape", "box")
     print(f"🎲 Escenario aleatorio generado [{variant.upper()}]: {out_path}")
     print(f"   Morfología   : {w_stl*100:.0f}% STL Profesor / {(1.0-w_stl)*100:.0f}% Elipse Alargada (Profundidad a={a_depth:.2f}m)")
     print(f"   Salida Puerta: ({ex:+.2f}, {ey:+.2f}) m (desplazamiento X: {ex:+.2f} m)")
     print(f"   Inclinación  : {tilt:+.1f}° | Asimetría: b_L={ap.get('b_left', 0.90):.2f}m, b_R={ap.get('b_right', 0.90):.2f}m")
     print(f"   Spawn Robot  : ({sx:+.2f}, {sy:+.2f}) m, yaw={math.degrees(syaw):.1f}°")
-    for _, name, bx, by, *_ in cfg["boxes"]:
-        print(f"   Obstáculo 6cm: {name} en ({bx:+.2f}, {by:+.2f}) m")
+    print(f"   Obstáculos   : 2 unidades de 6x6 cm con forma [{obs_shape.upper()}]")
+    for ob in cfg["boxes"]:
+        name = ob[1]
+        bx, by = ob[2], ob[3]
+        print(f"   • {name} en ({bx:+.2f}, {by:+.2f}) m")
     for mname, mx, my in cfg["marbles"]:
         print(f"   Canica 16mm  : {mname} en ({mx:+.2f}, {my:+.2f}) m")
     return out_path

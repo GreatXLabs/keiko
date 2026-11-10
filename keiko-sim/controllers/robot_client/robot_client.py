@@ -63,22 +63,21 @@ def detect_exit(supervisor):
             pass
 
     if ex is not None and ey is not None:
-        if ey > 0.45:
-            wall = "north"
-            exit_pos = (float(ex), float(ey - 0.35))
-            return wall, exit_pos, math.pi / 2
-        elif ex > 0.45:
-            wall = "east"
-            exit_pos = (float(ex - 0.35), float(ey))
-            return wall, exit_pos, 0.0
-        elif ey < -0.45:
-            wall = "south"
-            exit_pos = (float(ex), float(ey + 0.35))
-            return wall, exit_pos, -math.pi / 2
+        # Recuperar vector normal y posición de la puerta (a 0.35 m hacia adentro desde la plataforma)
+        dx = ex - 0.0
+        dy = ey - (-0.60)
+        dist = math.hypot(dx, dy)
+        if dist > 1e-4:
+            nx = dx / dist
+            ny = dy / dist
         else:
-            wall = "west"
-            exit_pos = (float(ex + 0.35), float(ey))
-            return wall, exit_pos, math.pi
+            nx, ny = 0.0, 1.0
+        door_x = ex - 0.35 * nx
+        door_y = ey - 0.35 * ny
+        exit_pos = (float(door_x), float(door_y))
+        exit_yaw = math.atan2(ny, nx)
+        wall = "north" if (exit_yaw > 0.78 and exit_yaw < 2.35) else ("east" if abs(exit_yaw) <= 0.78 else ("south" if exit_yaw <= -0.78 and exit_yaw >= -2.35 else "west"))
+        return wall, exit_pos, exit_yaw
     else:
         wall = os.environ.get("EXIT_WALL", "").strip().lower()
         if wall not in EXIT_GEOM:
@@ -191,7 +190,7 @@ def main():
 
     obstacle_nodes = []
     for i in (1, 2):
-        node = robot.getFromDef(f"OBSTACLE_BOX_{i}")
+        node = robot.getFromDef(f"OBSTACLE_BOX_{i}") or robot.getFromDef(f"OBSTACLE_CYLINDER_{i}")
         if node:
             obstacle_nodes.append(node)
 
@@ -447,11 +446,9 @@ def main():
                 except Exception:
                     pass
 
-        if exit_wall in ("north", "south"):
-            in_doorway = abs(rx - exit_pos[0]) <= 0.25
-        else:
-            in_doorway = abs(ry - exit_pos[1]) <= 0.25
-        escape_crossed = in_doorway and (((rx - exit_pos[0]) * exit_dir[0] + (ry - exit_pos[1]) * exit_dir[1]) > 0.05)
+        dist_to_door = math.hypot(rx - exit_pos[0], ry - exit_pos[1])
+        in_doorway = dist_to_door <= 0.38
+        escape_crossed = in_doorway and (((rx - exit_pos[0]) * exit_dir[0] + (ry - exit_pos[1]) * exit_dir[1]) > 0.04)
         if (current_server_state in ("ESCAPE", "FINALIZACION")) and escape_crossed:
             set_drive_velocities(0.0, 0.0)
             log_msg("\n" + "=" * 78)
