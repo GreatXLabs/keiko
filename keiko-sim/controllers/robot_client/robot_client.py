@@ -25,6 +25,7 @@ from collision_audit import find_penalizable_contact, is_new_impact
 from sonar_visualizer import SonarVisualizer
 from ultrasonic_physics import UltrasonicPhysicsModel, SensorBorderFilter
 from laser_physics import LaserPhysicsModel
+from dataset_recorder import SimulationDatasetRecorder
 
 try:
     sys.stdout.reconfigure(line_buffering=True)
@@ -148,6 +149,8 @@ def main():
     us_physics = UltrasonicPhysicsModel(mode=physics_mode)
     laser_physics = LaserPhysicsModel(mode=physics_mode)
     border_filter = SensorBorderFilter(sensor_names=list(us_sensors.keys()))
+    record_ds_env = os.environ.get("ORQUITAS_RECORD_DATASET", "1").strip().lower()
+    dataset_recorder = SimulationDatasetRecorder(enabled=(record_ds_env not in ("0", "false", "no")))
 
     sonar_vis = SonarVisualizer(robot, display_name="sensor_hud", config_name="sim_3us_2laser")
     log_msg(f"[HARDWARE] Sensores activos: {len(us_sensors)} ultrasonidos, {len(laser_sensors)} láseres.")
@@ -377,6 +380,20 @@ def main():
         # Actualizar mapa de ocupación
         mapper.update(rx, ry, yaw, d_us_izq, d_us_der, d_us_cen, d_us_cen)
 
+        # Grabar muestras para Dataset V2 (Simulación Dinámica)
+        if dataset_recorder is not None:
+            dataset_recorder.record_step(
+                us_readings=filtered_us,
+                laser_left=d_laser_izq,
+                laser_right=d_laser_der,
+                servo_deg=current_servo_deg,
+                robot_pose=(rx, ry, yaw),
+                active_marbles=active_marbles_xy,
+                active_obstacles=active_obstacles_xy,
+                exit_pos=exit_pos,
+                exit_yaw=exit_yaw,
+            )
+
         # -----------------------------------------------------------------
         # 3. CAPTURA FÍSICA ESTRICTA POR HUECO DE 7.0 CM (|Y| <= 0.035 m)
         # -----------------------------------------------------------------
@@ -582,6 +599,15 @@ def main():
                 except Exception:
                     pass
         was_colliding = collision_now
+
+    if dataset_recorder is not None:
+        summary = dataset_recorder.get_session_summary()
+        log_msg("\n" + "-" * 70)
+        log_msg("  📦 [DATASET V2 - RESUMEN DE SESIÓN REGISTRADO]")
+        log_msg(f"  Ultrasonido (nuevas / total): {summary['session_us']} / {summary['total_us']}")
+        log_msg(f"  Canicas     (nuevas / total): {summary['session_marbles']} / {summary['total_marbles']}")
+        log_msg(f"  Guardado en: {summary['us_path']} y {summary['marbles_path']}")
+        log_msg("-" * 70)
 
     if sock:
         try: sock.close()

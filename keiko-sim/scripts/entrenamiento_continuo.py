@@ -259,6 +259,7 @@ def main():
         env["ORQUITAS_AUTO_QUIT"] = "1"
         env["ORQUITAS_SWEEP_MAX_DEG"] = "35.0"
         env["ORQUITAS_SWEEP_TICKS"] = "2"
+        env["ORQUITAS_RECORD_DATASET"] = "1"
 
         if use_gpu_prime:
             env["__NV_PRIME_RENDER_OFFLOAD"] = "1"
@@ -364,8 +365,16 @@ def main():
         print(f"     Escape    : {'✅ Exitoso por puerta norte' if escaped else '❌ No alcanzado'}")
         print(f"     Colisiones: {collisions} {'(Limpio)' if collisions == 0 else '(Penalizadas)'}")
         print(f"     Tiempo    : {final_sim_time:.1f} s")
+        # Estadísticas de Dataset V2 en vivo
+        ds_v2_dir = os.path.join(SIM_DIR, "data", "datasets", "v2_simulaciones")
+        us_v2_f = os.path.join(ds_v2_dir, "dataset_ultrasonico_v2.csv")
+        marbles_v2_f = os.path.join(ds_v2_dir, "dataset_canicas_v2.csv")
+        us_count = max(0, sum(1 for _ in open(us_v2_f, "r", encoding="utf-8")) - 1) if os.path.exists(us_v2_f) else 0
+        marbles_count = max(0, sum(1 for _ in open(marbles_v2_f, "r", encoding="utf-8")) - 1) if os.path.exists(marbles_v2_f) else 0
+
         print(f"  📈 ESTADÍSTICAS GLOBALES: {total_passed}/{iteration} éxitos ({100.0 * total_passed / iteration:.1f}%) | "
               f"Total canicas aseguradas: {total_captures_all}")
+        print(f"  📦 DATASET V2 ACUMULADO : US={us_count} muestras | Canicas={marbles_count} muestras (en data/datasets/v2_simulaciones/)")
         print("-" * 80)
 
         if RUNNING and args.pause > 0:
