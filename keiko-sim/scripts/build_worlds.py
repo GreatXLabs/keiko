@@ -85,6 +85,9 @@ STL_LEFT_PTS = [
     (-0.957, -0.751), # Q9: Esquina trasera izquierda a x = -0.96m
 ]
 
+# Curva perimetral completa continua de bahia-keiko.stl (SE a SW pasando por el ápice)
+STL_PERIMETER_PTS = list(STL_RIGHT_PTS) + [(-0.150, 0.865)] + list(STL_LEFT_PTS)
+
 
 def dist_to_segment(px, py, x0, y0, x1, y1):
     """Calcula la distancia euclidiana mínima exacta desde (px, py) al segmento (x0, y0)-(x1, y1)."""
@@ -589,6 +592,15 @@ def get_arena_geometry(variant="standard"):
     wrinkles = prof.get("wrinkles", [])
     jitter = prof.get("jitter", 0.03)
 
+    # Ancho reglamentario de la puerta (30 cm libres netos)
+    # Usamos half_gap = 0.155 m (31.0 cm de eje a eje de pared) para que con el grosor
+    # de 5 mm de cartón la luz libre interior sea exactamente >= 30.0 cm en cualquier ángulo.
+    exit_width = prof.get("exit_width", 0.30)
+    exit_x = prof.get("exit_x", 0.0)
+    half_gap = max(0.155, exit_width / 2.0)
+
+    rng_local = random.Random(int(abs(b_left * 1000 + b_right * 100 + a * 10)) % 100000)
+
     def apply_wrinkles(th):
         dr = 0.0
         for w in wrinkles:
@@ -596,78 +608,79 @@ def get_arena_geometry(variant="standard"):
             dr += amp_w * math.exp(-((th - th_w) ** 2) / (2.0 * sig_w ** 2))
         return dr
 
-    rng_local = random.Random(int(abs(b_left * 1000 + b_right * 100 + a * 10)) % 100000)
-    n_half_segments = 16
-
-    right_pts = []
-    for i in range(n_half_segments + 1):
-        t = i / float(n_half_segments)
-        theta = t * math.pi * 0.5
-
-        # Componente Elíptico Alargado
-        xe = b_right * math.cos(theta)
-        ye = y_back + a * math.sin(theta)
-
-        # Componente STL Reconstruido del Profesor
-        s_idx = t * (len(STL_RIGHT_PTS) - 1)
+    def get_stl_pt(u):
+        u = max(0.0, min(1.0, u))
+        s_idx = u * (len(STL_PERIMETER_PTS) - 1)
         i0 = int(s_idx)
-        i1 = min(i0 + 1, len(STL_RIGHT_PTS) - 1)
-        frac = s_idx - i0
-        xs = (1.0 - frac) * STL_RIGHT_PTS[i0][0] + frac * STL_RIGHT_PTS[i1][0]
-        ys = (1.0 - frac) * STL_RIGHT_PTS[i0][1] + frac * STL_RIGHT_PTS[i1][1]
+        i1 = min(i0 + 1, len(STL_PERIMETER_PTS) - 1)
+        f = s_idx - i0
+        x_raw = (1.0 - f) * STL_PERIMETER_PTS[i0][0] + f * STL_PERIMETER_PTS[i1][0]
+        y_raw = (1.0 - f) * STL_PERIMETER_PTS[i0][1] + f * STL_PERIMETER_PTS[i1][1]
+        scale_x = (b_right / 1.058) if x_raw >= 0 else (b_left / 0.958)
+        xs = x_raw * scale_x
+        ys = y_back + (y_raw - (-0.755)) * (a / 1.64)
+        return xs, ys
 
-        # Escalar coordenadas del STL a las dimensiones macro actuales
-        xs = xs * (b_right / 1.064)
-        ys = y_back + (ys - (-0.755)) * (a / 1.64)
+    def get_curve_pt(th):
+        u = th / math.pi
+        xs, ys = get_stl_pt(u)
+        if th <= math.pi * 0.5:
+            xe = b_right * math.cos(th)
+            ye = y_back + a * math.sin(th)
+        else:
+            xe = -b_left * math.sin(th - math.pi * 0.5)
+            ye = y_back + a * math.cos(th - math.pi * 0.5)
 
         x = (1.0 - w_stl) * xe + w_stl * xs
         y = (1.0 - w_stl) * ye + w_stl * ys
 
-        # Arrugas, deformaciones e imperfecciones del cartón
-        if 0 < i < n_half_segments:
-            dr = apply_wrinkles(theta) + rng_local.uniform(-jitter, jitter)
+        # Atenuación gaussiana estricta en el corredor de salida:
+        # En la boca de la puerta (|x - exit_x| < 0.22m) las arrugas y el jitter se anulan a 0.0
+        # para que los marcos de la puerta sean limpios, perpendiculares y con luz libre exacta >= 30 cm.
+        dist_to_door = abs(x - exit_x)
+        if dist_to_door < 0.22:
+            att = max(0.0, (dist_to_door - 0.08) / 0.14) ** 2
+        else:
+            att = 1.0
+
+        if att > 1e-4:
+            dr = (apply_wrinkles(th) + rng_local.uniform(-jitter, jitter)) * att
             ang = math.atan2(y - y_back, x)
             x += dr * math.cos(ang)
             y += dr * math.sin(ang)
 
-        right_pts.append([x, y])
+        return x, y
 
-    # El labio derecho de la salida se sitúa con precisión reglamentaria
-    right_pts[-1] = [exit_x + half_gap, y_apex]
+    def find_theta_for_x(target_x):
+        lo, hi = 0.0, math.pi
+        for _ in range(40):
+            mid = 0.5 * (lo + hi)
+            x, _ = get_curve_pt(mid)
+            if x > target_x:
+                lo = mid
+            else:
+                hi = mid
+        return 0.5 * (lo + hi)
+
+    th_door_r = find_theta_for_x(exit_x + half_gap)
+    th_door_l = find_theta_for_x(exit_x - half_gap)
+
+    n_half_segments = 16
+    right_pts = []
+    for i in range(n_half_segments + 1):
+        th = th_door_r * (i / float(n_half_segments))
+        x, y = get_curve_pt(th)
+        right_pts.append([x, y])
 
     left_pts = []
     for i in range(n_half_segments + 1):
-        t = i / float(n_half_segments)
-        theta = math.pi * 0.5 + t * math.pi * 0.5
-
-        # Componente Elíptico
-        xe = -b_left * math.sin(t * math.pi * 0.5)
-        ye = y_back + a * math.cos(t * math.pi * 0.5)
-
-        # Componente STL
-        s_idx = t * (len(STL_LEFT_PTS) - 1)
-        i0 = int(s_idx)
-        i1 = min(i0 + 1, len(STL_LEFT_PTS) - 1)
-        frac = s_idx - i0
-        xs = (1.0 - frac) * STL_LEFT_PTS[i0][0] + frac * STL_LEFT_PTS[i1][0]
-        ys = (1.0 - frac) * STL_LEFT_PTS[i0][1] + frac * STL_LEFT_PTS[i1][1]
-
-        xs = xs * (b_left / 0.96)
-        ys = y_back + (ys - (-0.755)) * (a / 1.64)
-
-        x = (1.0 - w_stl) * xe + w_stl * xs
-        y = (1.0 - w_stl) * ye + w_stl * ys
-
-        if 0 < i < n_half_segments:
-            dr = apply_wrinkles(theta) + rng_local.uniform(-jitter, jitter)
-            ang = math.atan2(y - y_back, x)
-            x += dr * math.cos(ang)
-            y += dr * math.sin(ang)
-
+        th = th_door_l + (math.pi - th_door_l) * (i / float(n_half_segments))
+        x, y = get_curve_pt(th)
         left_pts.append([x, y])
 
-    # El labio izquierdo de la salida se sitúa con precisión reglamentaria
-    left_pts[0] = [exit_x - half_gap, y_apex]
+    # Fijar con precisión absoluta los labios exteriores de la puerta
+    right_pts[-1][0] = exit_x + half_gap
+    left_pts[0][0] = exit_x - half_gap
 
     # Inclinación / desalineación de esquinas de la pared plana sur
     right_pts[0][1] += 0.5 * b_right * math.tan(tilt_rad)
