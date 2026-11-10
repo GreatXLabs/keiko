@@ -55,6 +55,37 @@ ARENA_PROFILES = {
 }
 
 
+# Vértices de referencia extraídos directamente de la reconstrucción 3D real bahia-keiko.stl
+# Flanco derecho (desde la esquina sur-este hasta el labio derecho de la salida)
+STL_RIGHT_PTS = [
+    ( 0.690, -0.755), # P0: Esquina trasera derecha (asimétrica a +69 cm)
+    ( 0.850, -0.580), # P1: Expansión inicial
+    ( 0.950, -0.414), # P2: Encardonado hacia afuera
+    ( 1.024, -0.227), # P3: Flanco derecho ancho
+    ( 1.058, -0.017), # P4: Punto de máxima holgura (+1.06 m)
+    ( 1.008,  0.168), # P5: Curva superior
+    ( 0.904,  0.360), # P6: Recorrido hacia puerta
+    ( 0.785,  0.558), # P7: Segmento frontal
+    ( 0.631,  0.716), # P8: Aproximación a umbral
+    ( 0.396,  0.820), # P9: Borde de la salida
+    ( 0.123,  0.886), # P10: Labio derecho de la puerta real
+]
+
+# Flanco izquierdo (desde el labio izquierdo de la salida hasta la esquina sur-oeste)
+STL_LEFT_PTS = [
+    (-0.436,  0.821), # Q0: Labio izquierdo de la puerta real
+    (-0.584,  0.725), # Q1: Borde de aproximación
+    (-0.758,  0.487), # Q2: Curva superior izquierda
+    (-0.812,  0.366), # Q3: Segmento de transición
+    (-0.870,  0.193), # Q4: Flanco superior
+    (-0.896,  0.056), # Q5: Comienzo de la pared recta
+    (-0.952, -0.255), # Q6: Tramo plano/recto típico del cartón tensionado
+    (-0.956, -0.358), # Q7: Pared vertical plana a x ≈ -0.96m
+    (-0.958, -0.488), # Q8: Pared vertical plana
+    (-0.957, -0.751), # Q9: Esquina trasera izquierda a x = -0.96m
+]
+
+
 def dist_to_segment(px, py, x0, y0, x1, y1):
     """Calcula la distancia euclidiana mínima exacta desde (px, py) al segmento (x0, y0)-(x1, y1)."""
     dx, dy = x1 - x0, y1 - y0
@@ -67,11 +98,12 @@ def dist_to_segment(px, py, x0, y0, x1, y1):
 
 def generate_random_arena_params(variant="realistic", rng=None):
     """
-    Genera parámetros de bahía aleatorios con imperfecciones humanas basadas en bahia-keiko.stl:
-    - Salida desplazada del centro (exit_x != 0.0, rango [-0.20, +0.20] m).
-    - Asimetría entre flanco izquierdo y derecho (b_left != b_right).
-    - Deformaciones armónicas del cartón corrugado (d_sin2, d_sin3, d_sin4).
-    - Desalineación e inclinación de la pared de fondo (tilt_deg != 0).
+    Genera parámetros de bahía aleatorios con imperfecciones humanas e irregularidades orgánicas:
+    - Morfología continua: desde elipse alargada (w_stl ~ 0.1) hasta la forma real del STL (w_stl ~ 0.95).
+    - Arrugas y quiebres físicos del cartón corrugado (dientes/abolladuras de hasta +/- 7 cm).
+    - Alargamiento real en profundidad (a = 1.15 a 1.45 m), evitando semicírculos matemáticos.
+    - Salida desplazada del centro (exit_x en rango [-0.20, +0.20] m).
+    - Asimetría entre flanco izquierdo y derecho e inclinación de pared de fondo.
     """
     if rng is None:
         rng = random.Random()
@@ -92,20 +124,36 @@ def generate_random_arena_params(variant="realistic", rng=None):
     elif variant == "standard":
         return dict(ARENA_PROFILES["standard"])
     else:
-        # Variante 'realistic' por defecto
+        # Variante 'realistic' orgánica e irregular:
+        w_stl = round(rng.uniform(0.15, 0.95), 3)
+        b_left = round(rng.uniform(0.90, 1.05), 3)
+        b_right = round(rng.uniform(0.92, 1.10), 3)
+        a = round(rng.uniform(1.15, 1.45), 3)  # Profundidad elíptica pronunciada (NUNCA semicírculo)
+        y_back = round(rng.uniform(-0.68, -0.58), 3)
+        tilt_deg = round(rng.uniform(-2.5, 2.5), 2)
+        exit_x = round(rng.uniform(-0.20, 0.20), 3)
+        
+        # Generar entre 2 y 4 arrugas / deformaciones locales del cartón
+        wrinkles = []
+        for _ in range(rng.randint(2, 4)):
+            wrinkles.append({
+                "th": round(rng.uniform(0.25, math.pi - 0.25), 3),
+                "amp": round(rng.uniform(-0.075, 0.075), 3),
+                "sig": round(rng.uniform(0.25, 0.50), 3),
+            })
+            
         return {
             "type": "realistic",
-            "b_left": round(rng.uniform(0.92, 1.02), 3),
-            "b_right": round(rng.uniform(0.96, 1.08), 3),
-            "a": round(rng.uniform(1.08, 1.22), 3),
-            "y_back": round(rng.uniform(-0.65, -0.58), 3),
-            "tilt_deg": round(rng.uniform(-2.5, 2.5), 2),
-            "d_sin2": round(rng.uniform(-0.045, 0.045), 3),
-            "d_sin3": round(rng.uniform(-0.035, 0.035), 3),
-            "d_sin4": round(rng.uniform(-0.020, 0.020), 3),
-            "d_asym": round(rng.uniform(-0.05, 0.05), 3),
-            "exit_x": round(rng.uniform(-0.20, 0.20), 3),
+            "w_stl": w_stl,
+            "b_left": b_left,
+            "b_right": b_right,
+            "a": a,
+            "y_back": y_back,
+            "tilt_deg": tilt_deg,
+            "exit_x": exit_x,
             "exit_width": 0.30,
+            "wrinkles": wrinkles,
+            "jitter": round(rng.uniform(0.025, 0.045), 3),
         }
 
 # Configuraciones de escenarios de evaluación (14 escenarios fijos + circular + aleatorio reglamentario)
@@ -475,32 +523,24 @@ def get_arena_geometry(variant="standard"):
         for i in range(n_half_segments):
             x0, y0 = right_pts[i]
             x1, y1 = right_pts[i + 1]
-            cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
-            length = math.hypot(x1 - x0, y1 - y0) + 0.002
-            yaw = math.atan2(y1 - y0, x1 - x0)
             segments.append({
                 "def": f"WALL_ARC_R{i+1:02d}",
                 "name": f"wall_arc_r{i+1:02d}",
-                "cx": cx,
-                "cy": cy,
-                "length": length,
-                "yaw": yaw,
+                "cx": 0.5 * (x0 + x1), "cy": 0.5 * (y0 + y1),
+                "length": math.hypot(x1 - x0, y1 - y0) + 0.002,
+                "yaw": math.atan2(y1 - y0, x1 - x0),
                 "x0": x0, "y0": y0, "x1": x1, "y1": y1,
             })
 
         for i in range(n_half_segments):
             x0, y0 = left_pts[i]
             x1, y1 = left_pts[i + 1]
-            cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
-            length = math.hypot(x1 - x0, y1 - y0) + 0.002
-            yaw = math.atan2(y1 - y0, x1 - x0)
             segments.append({
                 "def": f"WALL_ARC_L{i+1:02d}",
                 "name": f"wall_arc_l{i+1:02d}",
-                "cx": cx,
-                "cy": cy,
-                "length": length,
-                "yaw": yaw,
+                "cx": 0.5 * (x0 + x1), "cy": 0.5 * (y0 + y1),
+                "length": math.hypot(x1 - x0, y1 - y0) + 0.002,
+                "yaw": math.atan2(y1 - y0, x1 - x0),
                 "x0": x0, "y0": y0, "x1": x1, "y1": y1,
             })
 
@@ -537,94 +577,143 @@ def get_arena_geometry(variant="standard"):
             "arc_segments": segments,
         }
 
-    # Geometría Semielíptica o Realista Imperfecta (con reconstrucción bahia-keiko.stl)
-    b_left = prof.get("b_left", prof.get("b", 0.90))
-    b_right = prof.get("b_right", prof.get("b", 0.90))
-    a = prof.get("a", 1.20)
-    y_back = prof.get("y_back", -0.60)
-    d_sin2 = prof.get("d_sin2", 0.0)
-    d_sin3 = prof.get("d_sin3", 0.0)
-    d_sin4 = prof.get("d_sin4", 0.0)
-    d_asym = prof.get("d_asym", 0.0)
+    # Geometría Orgánica e Irregular (Interpolación Elipse <-> bahia-keiko.stl con arrugas de cartón)
+    w_stl = prof.get("w_stl", 0.50)
+    b_left = prof.get("b_left", prof.get("b", 0.96))
+    b_right = prof.get("b_right", prof.get("b", 1.06))
+    a = prof.get("a", 1.25)
+    y_back = prof.get("y_back", -0.62)
     tilt_deg = prof.get("tilt_deg", 0.0)
-
     tilt_rad = math.radians(tilt_deg)
-    y_back_R = y_back + 0.5 * (b_right + b_left) * math.tan(tilt_rad)
-    y_back_L = y_back - 0.5 * (b_right + b_left) * math.tan(tilt_rad)
+    y_apex = y_back + a
+    wrinkles = prof.get("wrinkles", [])
+    jitter = prof.get("jitter", 0.03)
 
-    def point_on_arc(theta):
-        t = 0.5 * (1.0 + math.cos(theta))
-        b = b_right * t + b_left * (1.0 - t)
-        envelope = math.sin(theta) * abs(math.cos(theta))
-        perturbation = (
-            d_sin2 * math.sin(2.0 * theta)
-            + d_sin3 * math.sin(3.0 * theta)
-            + d_sin4 * math.sin(4.0 * theta)
-            + d_asym * math.cos(theta)
-        )
-        r_mod = 1.0 + envelope * perturbation
-        x = b * math.cos(theta) * r_mod
-        y_base = y_back_R * t + y_back_L * (1.0 - t)
-        y = y_base + a * math.sin(theta) * r_mod
-        return (x, y)
+    def apply_wrinkles(th):
+        dr = 0.0
+        for w in wrinkles:
+            th_w, amp_w, sig_w = w["th"], w["amp"], w["sig"]
+            dr += amp_w * math.exp(-((th - th_w) ** 2) / (2.0 * sig_w ** 2))
+        return dr
 
-    def find_theta_for_x(target_x):
-        low, high = 0.10, math.pi - 0.10
-        for _ in range(35):
-            mid = 0.5 * (low + high)
-            x, _ = point_on_arc(mid)
-            if x > target_x:
-                low = mid
-            else:
-                high = mid
-        return 0.5 * (low + high)
-
-    th_r = find_theta_for_x(exit_x + half_gap)
-    th_l = find_theta_for_x(exit_x - half_gap)
-
+    rng_local = random.Random(int(abs(b_left * 1000 + b_right * 100 + a * 10)) % 100000)
     n_half_segments = 16
-    right_pts = [point_on_arc(0.0 + (th_r - 0.0) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
-    left_pts = [point_on_arc(th_l + (math.pi - th_l) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
+
+    right_pts = []
+    for i in range(n_half_segments + 1):
+        t = i / float(n_half_segments)
+        theta = t * math.pi * 0.5
+
+        # Componente Elíptico Alargado
+        xe = b_right * math.cos(theta)
+        ye = y_back + a * math.sin(theta)
+
+        # Componente STL Reconstruido del Profesor
+        s_idx = t * (len(STL_RIGHT_PTS) - 1)
+        i0 = int(s_idx)
+        i1 = min(i0 + 1, len(STL_RIGHT_PTS) - 1)
+        frac = s_idx - i0
+        xs = (1.0 - frac) * STL_RIGHT_PTS[i0][0] + frac * STL_RIGHT_PTS[i1][0]
+        ys = (1.0 - frac) * STL_RIGHT_PTS[i0][1] + frac * STL_RIGHT_PTS[i1][1]
+
+        # Escalar coordenadas del STL a las dimensiones macro actuales
+        xs = xs * (b_right / 1.064)
+        ys = y_back + (ys - (-0.755)) * (a / 1.64)
+
+        x = (1.0 - w_stl) * xe + w_stl * xs
+        y = (1.0 - w_stl) * ye + w_stl * ys
+
+        # Arrugas, deformaciones e imperfecciones del cartón
+        if 0 < i < n_half_segments:
+            dr = apply_wrinkles(theta) + rng_local.uniform(-jitter, jitter)
+            ang = math.atan2(y - y_back, x)
+            x += dr * math.cos(ang)
+            y += dr * math.sin(ang)
+
+        right_pts.append([x, y])
+
+    # El labio derecho de la salida se sitúa con precisión reglamentaria
+    right_pts[-1] = [exit_x + half_gap, y_apex]
+
+    left_pts = []
+    for i in range(n_half_segments + 1):
+        t = i / float(n_half_segments)
+        theta = math.pi * 0.5 + t * math.pi * 0.5
+
+        # Componente Elíptico
+        xe = -b_left * math.sin(t * math.pi * 0.5)
+        ye = y_back + a * math.cos(t * math.pi * 0.5)
+
+        # Componente STL
+        s_idx = t * (len(STL_LEFT_PTS) - 1)
+        i0 = int(s_idx)
+        i1 = min(i0 + 1, len(STL_LEFT_PTS) - 1)
+        frac = s_idx - i0
+        xs = (1.0 - frac) * STL_LEFT_PTS[i0][0] + frac * STL_LEFT_PTS[i1][0]
+        ys = (1.0 - frac) * STL_LEFT_PTS[i0][1] + frac * STL_LEFT_PTS[i1][1]
+
+        xs = xs * (b_left / 0.96)
+        ys = y_back + (ys - (-0.755)) * (a / 1.64)
+
+        x = (1.0 - w_stl) * xe + w_stl * xs
+        y = (1.0 - w_stl) * ye + w_stl * ys
+
+        if 0 < i < n_half_segments:
+            dr = apply_wrinkles(theta) + rng_local.uniform(-jitter, jitter)
+            ang = math.atan2(y - y_back, x)
+            x += dr * math.cos(ang)
+            y += dr * math.sin(ang)
+
+        left_pts.append([x, y])
+
+    # El labio izquierdo de la salida se sitúa con precisión reglamentaria
+    left_pts[0] = [exit_x - half_gap, y_apex]
+
+    # Inclinación / desalineación de esquinas de la pared plana sur
+    right_pts[0][1] += 0.5 * b_right * math.tan(tilt_rad)
+    left_pts[-1][1] -= 0.5 * b_left * math.tan(tilt_rad)
 
     segments = []
     for i in range(n_half_segments):
         x0, y0 = right_pts[i]
         x1, y1 = right_pts[i + 1]
-        cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
-        length = math.hypot(x1 - x0, y1 - y0) + 0.002
-        yaw = math.atan2(y1 - y0, x1 - x0)
         segments.append({
             "def": f"WALL_ARC_R{i+1:02d}",
             "name": f"wall_arc_r{i+1:02d}",
-            "cx": cx,
-            "cy": cy,
-            "length": length,
-            "yaw": yaw,
+            "cx": 0.5 * (x0 + x1),
+            "cy": 0.5 * (y0 + y1),
+            "length": math.hypot(x1 - x0, y1 - y0) + 0.002,
+            "yaw": math.atan2(y1 - y0, x1 - x0),
             "x0": x0, "y0": y0, "x1": x1, "y1": y1,
         })
 
     for i in range(n_half_segments):
         x0, y0 = left_pts[i]
         x1, y1 = left_pts[i + 1]
-        cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1)
-        length = math.hypot(x1 - x0, y1 - y0) + 0.002
-        yaw = math.atan2(y1 - y0, x1 - x0)
         segments.append({
             "def": f"WALL_ARC_L{i+1:02d}",
             "name": f"wall_arc_l{i+1:02d}",
-            "cx": cx,
-            "cy": cy,
-            "length": length,
-            "yaw": yaw,
+            "cx": 0.5 * (x0 + x1),
+            "cy": 0.5 * (y0 + y1),
+            "length": math.hypot(x1 - x0, y1 - y0) + 0.002,
+            "yaw": math.atan2(y1 - y0, x1 - x0),
             "x0": x0, "y0": y0, "x1": x1, "y1": y1,
         })
 
-    poly_pts = [point_on_arc(math.pi * (i / 64.0)) for i in range(65)]
+    bw_x0, bw_y0 = left_pts[-1]
+    bw_x1, bw_y1 = right_pts[0]
+    bw_len = math.hypot(bw_x1 - bw_x0, bw_y1 - bw_y0) + 0.01
+    bw_cx = 0.5 * (bw_x0 + bw_x1)
+    bw_cy = 0.5 * (bw_y0 + bw_y1)
+    bw_yaw = math.atan2(bw_y1 - bw_y0, bw_x1 - bw_x0)
+
+    # Cálculo exacto de área por fórmula Shoelace
+    poly_pts = right_pts + left_pts
     area = 0.0
     for i in range(len(poly_pts)):
-        x0, y0 = poly_pts[i]
-        x1, y1 = poly_pts[(i + 1) % len(poly_pts)]
-        area += (x0 * y1 - x1 * y0)
+        p0 = poly_pts[i]
+        p1 = poly_pts[(i + 1) % len(poly_pts)]
+        area += (p0[0] * p1[1] - p1[0] * p0[1])
     area = 0.5 * abs(area)
 
     gap_r = right_pts[-1]
@@ -632,13 +721,9 @@ def get_arena_geometry(variant="standard"):
     actual_gap = math.hypot(gap_r[0] - gap_l[0], gap_r[1] - gap_l[1])
     exit_pos = (0.5 * (gap_r[0] + gap_l[0]), 0.5 * (gap_r[1] + gap_l[1]))
 
-    bw_len = math.hypot(b_right + b_left, y_back_R - y_back_L) + 0.01
-    bw_cx = 0.5 * (b_right - b_left)
-    bw_cy = 0.5 * (y_back_R + y_back_L)
-    bw_yaw = math.atan2(y_back_R - y_back_L, b_right + b_left)
-
     return {
         "variant": var_name,
+        "w_stl": w_stl,
         "b": 0.5 * (b_left + b_right),
         "a": a,
         "y_back": y_back,
@@ -655,8 +740,8 @@ def get_arena_geometry(variant="standard"):
             "cy": bw_cy,
             "length": bw_len,
             "yaw": bw_yaw,
-            "x0": -b_left, "y0": y_back_L,
-            "x1": b_right, "y1": y_back_R,
+            "x0": bw_x0, "y0": bw_y0,
+            "x1": bw_x1, "y1": bw_y1,
         },
         "arc_segments": segments,
     }
@@ -1459,7 +1544,10 @@ def build_random_world(variant="realistic", include_capote=None, seed=None):
     ex, ey = cfg.get("exit_pos", (0.0, 0.60))
     ap = cfg.get("arena_params", {})
     tilt = ap.get("tilt_deg", 0.0)
+    w_stl = ap.get("w_stl", 0.5)
+    a_depth = ap.get("a", 1.25)
     print(f"🎲 Escenario aleatorio generado [{variant.upper()}]: {out_path}")
+    print(f"   Morfología   : {w_stl*100:.0f}% STL Profesor / {(1.0-w_stl)*100:.0f}% Elipse Alargada (Profundidad a={a_depth:.2f}m)")
     print(f"   Salida Puerta: ({ex:+.2f}, {ey:+.2f}) m (desplazamiento X: {ex:+.2f} m)")
     print(f"   Inclinación  : {tilt:+.1f}° | Asimetría: b_L={ap.get('b_left', 0.90):.2f}m, b_R={ap.get('b_right', 0.90):.2f}m")
     print(f"   Spawn Robot  : ({sx:+.2f}, {sy:+.2f}) m, yaw={math.degrees(syaw):.1f}°")
