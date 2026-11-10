@@ -769,7 +769,7 @@ Transform {
 
     # Marcador de Referencia de Salida (30 cm)
     DEF EXIT_PLATFORM Solid {
-      translation 0 1.1500 -0.10
+      translation 0.0000 1.1374 -0.10
       name "exit_platform"
     }
   ]

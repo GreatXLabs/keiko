@@ -34,7 +34,7 @@ LOGS_DIR = os.path.join(SIM_DIR, "logs")
 SERVER_JAR = os.path.join(ROOT_DIR, "keiko-server", "target", "keiko-server.jar")
 MODEL_FILE = os.path.join(SIM_DIR, "data", "models", "modelo_ultrasonico.nnet")
 ESTOMAGO_FILE = os.path.join(ROOT_DIR, "estomago.txt")
-LOG_CLIENT = os.path.join(LOGS_DIR, "robot_client.log")
+LOG_CLIENT = os.path.join(LOGS_DIR, "simulation_client.log")
 CSV_LOG = os.path.join(LOGS_DIR, "entrenamiento_continuo.csv")
 
 sys.path.insert(0, SCRIPT_DIR)
@@ -135,8 +135,8 @@ def append_csv_result(intento, variante, caps, crc, esc, col, sim_time, score, v
 def main():
     global RUNNING, CURRENT_PROCS
     parser = argparse.ArgumentParser(description="Iterador de Simulación con Supervisión Gráfica - Proyecto Orquitas")
-    parser.add_argument("--bay", choices=["alternate", "standard", "circular", "random"], default="alternate",
-                        help="Modo de selección de bahía (default: alternate)")
+    parser.add_argument("--bay", choices=["realistic", "alternate", "standard", "circular", "random"], default="realistic",
+                        help="Modo de selección de bahía (default: realistic)")
     parser.add_argument("--mode", choices=["fast", "realtime", "run"], default="fast",
                         help="Velocidad de reproducción en Webots (default: fast)")
     parser.add_argument("--timeout", type=int, default=240,
@@ -183,15 +183,22 @@ def main():
             break
 
         # 1. Determinar variante de bahía para esta iteración
-        if args.bay == "alternate":
-            current_variant = "standard" if (iteration % 2 != 0) else "circular"
+        if args.bay == "realistic":
+            current_variant = "realistic"
+        elif args.bay == "alternate":
+            current_variant = "realistic" if (iteration % 2 != 0) else "circular"
         elif args.bay == "random":
             import random
-            current_variant = random.choice(["standard", "circular"])
+            current_variant = random.choice(["realistic", "circular", "standard"])
         else:
             current_variant = args.bay
 
-        variant_title = "CIRCULAR (Bahía Redonda R=0.90m)" if current_variant == "circular" else "STANDARD (Bahía Semielíptica 1.80x1.20m)"
+        if current_variant == "realistic":
+            variant_title = "REALISTA (Bahía Imperfecta de bahia-keiko.stl con Salida Desplazada)"
+        elif current_variant == "circular":
+            variant_title = "CIRCULAR (Bahía Redonda con Imperfecciones y Salida Desplazada)"
+        else:
+            variant_title = "STANDARD (Bahía Semielíptica Clásica 1.80x1.20m)"
 
         print(f"\n{'#'*80}")
         print(f"  🚀 [INTENTO #{iteration:03d}] BAHÍA: {variant_title}")

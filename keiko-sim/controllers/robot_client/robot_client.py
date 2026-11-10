@@ -196,7 +196,7 @@ def main():
     exit_dir = (math.cos(exit_yaw), math.sin(exit_yaw))
     log_msg(f"[HARDWARE] Salida detectada: {exit_wall.upper()} @ ({exit_pos[0]:.2f}, {exit_pos[1]:.2f}) | yaw={exit_yaw:.2f}")
 
-    mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=max(0.65, exit_pos[1] + 0.15), res=0.10, exit_pos=exit_pos)
+    mapper = ArenaMapper(x_min=-1.15, x_max=1.15, y_min=-0.80, y_max=max(0.70, exit_pos[1] + 0.20), res=0.10, exit_pos=exit_pos)
 
     # 6. Máquina de Barrido de Radar por Tics en Espejo
     # Barrido fino tic a tic (5.0° por unidad) desde -20° (boca central despejada) hasta +35° (flancos laterales)
@@ -430,10 +430,11 @@ def main():
                 except Exception:
                     pass
 
-        # -----------------------------------------------------------------
-        # 4. CONDICIÓN DE FINALIZACIÓN Y SALIDA
-        # -----------------------------------------------------------------
-        escape_crossed = ((rx - exit_pos[0]) * exit_dir[0] + (ry - exit_pos[1]) * exit_dir[1]) > 0.05
+        if exit_wall in ("north", "south"):
+            in_doorway = abs(rx - exit_pos[0]) <= 0.25
+        else:
+            in_doorway = abs(ry - exit_pos[1]) <= 0.25
+        escape_crossed = in_doorway and (((rx - exit_pos[0]) * exit_dir[0] + (ry - exit_pos[1]) * exit_dir[1]) > 0.05)
         if (current_server_state in ("ESCAPE", "FINALIZACION")) and escape_crossed:
             set_drive_velocities(0.0, 0.0)
             log_msg("\n" + "=" * 78)

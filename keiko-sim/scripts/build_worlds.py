@@ -26,6 +26,8 @@ ARENA_PROFILES = {
         "d_sin2": 0.00,
         "d_sin3": 0.00,
         "d_asym": 0.00,
+        "exit_x": 0.00,
+        "y_back": -0.60,
     },
     "circular": {
         "type": "circle",
@@ -33,8 +35,78 @@ ARENA_PROFILES = {
         "yc": -0.10,        # Centro del círculo en Y (-0.10 m)
         "y_back": -0.60,    # Pared plana sur (cuerda que corta el círculo a y = -0.60 m)
         "exit_width": 0.30, # Hueco de salida norte de 30 cm en y = +0.80 m
+        "exit_x": 0.00,
+    },
+    "realistic": {
+        "type": "realistic",
+        # Basado en la reconstrucción 3D física de la bahía de pruebas del profesor (bahia-keiko.stl)
+        "b_left": 0.964,
+        "b_right": 1.064,
+        "a": 1.15,
+        "y_back": -0.62,
+        "tilt_deg": 1.2,
+        "d_sin2": -0.035,
+        "d_sin3": 0.025,
+        "d_sin4": -0.015,
+        "d_asym": 0.04,
+        "exit_x": -0.156,
+        "exit_width": 0.30,
     },
 }
+
+
+def dist_to_segment(px, py, x0, y0, x1, y1):
+    """Calcula la distancia euclidiana mínima exacta desde (px, py) al segmento (x0, y0)-(x1, y1)."""
+    dx, dy = x1 - x0, y1 - y0
+    l2 = dx * dx + dy * dy
+    if l2 == 0:
+        return math.hypot(px - x0, py - y0)
+    t = max(0.0, min(1.0, ((px - x0) * dx + (py - y0) * dy) / l2))
+    return math.hypot(px - (x0 + t * dx), py - (y0 + t * dy))
+
+
+def generate_random_arena_params(variant="realistic", rng=None):
+    """
+    Genera parámetros de bahía aleatorios con imperfecciones humanas basadas en bahia-keiko.stl:
+    - Salida desplazada del centro (exit_x != 0.0, rango [-0.20, +0.20] m).
+    - Asimetría entre flanco izquierdo y derecho (b_left != b_right).
+    - Deformaciones armónicas del cartón corrugado (d_sin2, d_sin3, d_sin4).
+    - Desalineación e inclinación de la pared de fondo (tilt_deg != 0).
+    """
+    if rng is None:
+        rng = random.Random()
+    if variant == "circular":
+        R = round(rng.uniform(0.88, 0.95), 3)
+        yc = round(rng.uniform(-0.12, -0.08), 3)
+        y_back = round(rng.uniform(-0.64, -0.58), 3)
+        exit_x = round(rng.uniform(-0.18, 0.18), 3)
+        return {
+            "type": "circle",
+            "R": R,
+            "yc": yc,
+            "y_back": y_back,
+            "exit_width": 0.30,
+            "exit_x": exit_x,
+            "tilt_deg": round(rng.uniform(-1.5, 1.5), 2),
+        }
+    elif variant == "standard":
+        return dict(ARENA_PROFILES["standard"])
+    else:
+        # Variante 'realistic' por defecto
+        return {
+            "type": "realistic",
+            "b_left": round(rng.uniform(0.92, 1.02), 3),
+            "b_right": round(rng.uniform(0.96, 1.08), 3),
+            "a": round(rng.uniform(1.08, 1.22), 3),
+            "y_back": round(rng.uniform(-0.65, -0.58), 3),
+            "tilt_deg": round(rng.uniform(-2.5, 2.5), 2),
+            "d_sin2": round(rng.uniform(-0.045, 0.045), 3),
+            "d_sin3": round(rng.uniform(-0.035, 0.035), 3),
+            "d_sin4": round(rng.uniform(-0.020, 0.020), 3),
+            "d_asym": round(rng.uniform(-0.05, 0.05), 3),
+            "exit_x": round(rng.uniform(-0.20, 0.20), 3),
+            "exit_width": 0.30,
+        }
 
 # Configuraciones de escenarios de evaluación (14 escenarios fijos + circular + aleatorio reglamentario)
 # La pared plana del fondo está en Y = -0.60 m y el vértice de salida en (0.0, +0.60 m) o (0.0, +0.80 m).
@@ -250,51 +322,73 @@ MAP_CONFIGS = {
 }
 
 
-def generate_random_scenario_config(variant="standard", seed=None):
+def generate_random_scenario_config(variant="realistic", seed=None):
     """
     Genera una configuración aleatoria 100% reglamentaria y libre de atascos:
-    - Sometida a la geometría seleccionada: 'standard' (semielíptica) o 'circular' (redonda).
-    - Spawn del robot:
-        - standard: (-0.74, -0.42, 90°)
-        - circular: (-0.62, -0.44, 90°)
+    - Sometida a la geometría seleccionada: 'realistic' (imperfecciones de bahia-keiko.stl),
+      'circular' (redonda con imperfecciones) o 'standard'.
+    - Variación aleatoria de la posición de la salida (exit_x desplazada del centro).
     - Canicas lejos de muros (margen >= 18 cm), lejos de obstáculos (>= 0.25 m),
       lejos entre sí (>= 0.28 m) y lejos del spawn (>= 0.35 m).
     - Exactamente 2 obstáculos de 6x6x6 cm dentro de la arena sin bloquear la salida ni el spawn.
     """
     rng = random.Random(seed)
-    is_circular = (variant == "circular")
 
-    if is_circular:
-        sx, sy, syaw = -0.62, -0.44, 1.5708
-        yc = -0.10
-        def inside_safe(x, y, max_dist=0.68):
-            r = math.hypot(x, y - yc)
-            return r <= max_dist and y >= -0.42 and y <= 0.50
-        box_x_range = (-0.38, 0.38)
-        box_y_range = (-0.25, 0.35)
-        marble_x_range = (-0.60, 0.60)
-        marble_y_range = (-0.42, 0.45)
-        exit_corridor_y = 0.45
+    if variant in ("standard", "circular") and seed is not None:
+        arena_params = generate_random_arena_params(variant=variant, rng=rng)
+    elif variant in ("realistic", "profesor") or variant not in ARENA_PROFILES:
+        arena_params = generate_random_arena_params(variant="realistic", rng=rng)
     else:
-        sx, sy, syaw = -0.74, -0.42, 1.5708
-        def inside_safe(x, y, max_dist=0.66):
-            rho = math.hypot(x / 0.90, (y + 0.60) / 1.20)
-            return rho <= max_dist and -0.38 <= y <= 0.30
-        box_x_range = (-0.35, 0.35)
-        box_y_range = (-0.16, 0.20)
-        marble_x_range = (-0.55, 0.55)
-        marble_y_range = (-0.38, 0.30)
-        exit_corridor_y = 0.14
+        arena_params = generate_random_arena_params(variant=variant, rng=rng)
+
+    geom = get_arena_geometry(arena_params)
+    exit_x, exit_y = geom["exit_pos"]
+    bw = geom["back_wall"]
+
+    # Extraer todos los segmentos de pared para comprobación euclidiana exacta
+    wall_segs = []
+    for s in geom["arc_segments"]:
+        wall_segs.append((s["x0"], s["y0"], s["x1"], s["y1"]))
+    wall_segs.append((bw["x0"], bw["y0"], bw["x1"], bw["y1"]))
+
+    y_min_bound = min(bw["y0"], bw["y1"]) + 0.10
+    y_max_bound = exit_y + 0.10
+
+    def inside_safe(px, py, min_clr=0.18):
+        d = min(dist_to_segment(px, py, x0, y0, x1, y1) for x0, y0, x1, y1 in wall_segs)
+        if d < min_clr:
+            return False
+        if py < y_min_bound or py > y_max_bound:
+            return False
+        return True
+
+    # Spawn seguro en el cuadrante suroeste (South-West)
+    if arena_params.get("type") == "circle":
+        sx, sy, syaw = -0.62, -0.44, 1.5708
+    else:
+        b_left = arena_params.get("b_left", arena_params.get("b", 0.96))
+        y_back = arena_params.get("y_back", -0.62)
+        sx = round(-b_left + 0.24, 2)
+        sy = round(y_back + 0.20, 2)
+        syaw = 1.5708
+
+    # Rangos de muestreo
+    box_x_range = (-0.50, 0.50)
+    box_y_range = (-0.30, 0.35)
+    marble_x_range = (-0.65, 0.65)
+    marble_y_range = (-0.40, 0.45)
+    exit_corridor_min_y = exit_y - 0.25
 
     boxes = []
     colors = ["0.85 0.35 0.15", "0.25 0.45 0.80"]
     for idx in range(2):
-        for _ in range(1000):
+        for _ in range(1500):
             bx = round(rng.uniform(*box_x_range), 2)
             by = round(rng.uniform(*box_y_range), 2)
-            if not inside_safe(bx, by, max_dist=0.62 if is_circular else 0.64):
+            if not inside_safe(bx, by, min_clr=0.20):
                 continue
-            if abs(bx) < 0.16 and by > exit_corridor_y:
+            # Despejar pasillo directo a la salida desplazada (exit_x)
+            if abs(bx - exit_x) < 0.18 and by > exit_corridor_min_y:
                 continue
             if math.hypot(bx - sx, by - sy) < 0.35:
                 continue
@@ -310,16 +404,16 @@ def generate_random_scenario_config(variant="standard", seed=None):
 
     marbles = []
     for idx in range(3):
-        for _ in range(2000):
+        for _ in range(2500):
             mx = round(rng.uniform(*marble_x_range), 2)
             my = round(rng.uniform(*marble_y_range), 2)
-            if not inside_safe(mx, my, max_dist=0.68 if is_circular else 0.66):
+            if not inside_safe(mx, my, min_clr=0.18):
                 continue
             # Lejos de la posición de inicio del auto (mínimo 35 cm)
             if math.hypot(mx - sx, my - sy) < 0.35:
                 continue
-            # Lejos del pasillo de escape directo en la puerta
-            if abs(mx) < 0.16 and my > exit_corridor_y:
+            # Lejos del pasillo de escape directo en la puerta desplazada
+            if abs(mx - exit_x) < 0.18 and my > exit_corridor_min_y:
                 continue
             # Lejos de obstáculos (mínimo 25 cm al centro de la caja)
             if any(math.hypot(mx - ox, my - oy) < 0.25 for _, _, ox, oy, *_ in boxes):
@@ -332,31 +426,43 @@ def generate_random_scenario_config(variant="standard", seed=None):
 
     return {
         "variant": variant,
+        "arena_params": arena_params,
         "marbles": marbles,
         "boxes": boxes,
         "spawn": (sx, sy, syaw),
+        "exit_pos": (exit_x, exit_y),
     }
 
 
 def get_arena_geometry(variant="standard"):
-    prof = ARENA_PROFILES.get(variant, ARENA_PROFILES["standard"])
-    if prof.get("type") == "circle" or variant == "circular":
+    if isinstance(variant, dict):
+        prof = variant
+        var_name = prof.get("variant", prof.get("type", "realistic"))
+    else:
+        prof = ARENA_PROFILES.get(variant, ARENA_PROFILES["standard"])
+        var_name = variant
+
+    wall_thickness = 0.005  # 5 mm
+    wall_height = 0.18      # 18 cm
+    exit_width = prof.get("exit_width", 0.30)
+    exit_x = prof.get("exit_x", 0.0)
+    half_gap = exit_width / 2.0
+
+    if prof.get("type") == "circle" or var_name == "circular":
         R = prof.get("R", 0.90)
         yc = prof.get("yc", -0.10)
         y_back = prof.get("y_back", -0.60)
-        wall_thickness = 0.005  # 5 mm
-        wall_height = 0.18      # 18 cm
-        exit_width = prof.get("exit_width", 0.30)
-        half_gap = exit_width / 2.0
+        tilt_deg = prof.get("tilt_deg", 0.0)
 
         sin_cut = (y_back - yc) / R
         alpha = math.asin(max(-0.999, min(0.999, sin_cut)))
         theta_SE = alpha
         theta_SW = math.pi - alpha
 
-        cos_gap = half_gap / R
-        theta_exit_right = math.acos(min(0.999, max(-0.999, cos_gap)))
-        theta_exit_left = math.pi - theta_exit_right
+        cos_gap_r = (exit_x + half_gap) / R
+        cos_gap_l = (exit_x - half_gap) / R
+        theta_exit_right = math.acos(min(0.999, max(-0.999, cos_gap_r)))
+        theta_exit_left = math.acos(min(0.999, max(-0.999, cos_gap_l)))
 
         def point_on_circle(theta):
             return (R * math.cos(theta), yc + R * math.sin(theta))
@@ -379,6 +485,7 @@ def get_arena_geometry(variant="standard"):
                 "cy": cy,
                 "length": length,
                 "yaw": yaw,
+                "x0": x0, "y0": y0, "x1": x1, "y1": y1,
             })
 
         for i in range(n_half_segments):
@@ -394,6 +501,7 @@ def get_arena_geometry(variant="standard"):
                 "cy": cy,
                 "length": length,
                 "yaw": yaw,
+                "x0": x0, "y0": y0, "x1": x1, "y1": y1,
             })
 
         chord_half_width = R * math.cos(alpha)
@@ -402,13 +510,15 @@ def get_arena_geometry(variant="standard"):
         gap_r = right_pts[-1]
         gap_l = left_pts[0]
         actual_gap = math.hypot(gap_r[0] - gap_l[0], gap_r[1] - gap_l[1])
+        exit_pos = (0.5 * (gap_r[0] + gap_l[0]), 0.5 * (gap_r[1] + gap_l[1]))
 
+        tilt_rad = math.radians(tilt_deg)
         return {
-            "variant": variant,
+            "variant": var_name,
             "b": R,
             "a": R,
             "y_back": y_back,
-            "exit_pos": (0.0, yc + R),
+            "exit_pos": exit_pos,
             "wall_thickness": wall_thickness,
             "wall_height": wall_height,
             "exit_width": exit_width,
@@ -420,41 +530,61 @@ def get_arena_geometry(variant="standard"):
                 "cx": 0.0,
                 "cy": y_back,
                 "length": back_wall_length,
-                "yaw": 0.0,
+                "yaw": tilt_rad,
+                "x0": -chord_half_width, "y0": y_back,
+                "x1": chord_half_width, "y1": y_back,
             },
             "arc_segments": segments,
         }
 
-    b = prof["b"]
-    a = prof["a"]
-    d_sin2 = prof["d_sin2"]
-    d_sin3 = prof["d_sin3"]
-    d_asym = prof["d_asym"]
+    # Geometría Semielíptica o Realista Imperfecta (con reconstrucción bahia-keiko.stl)
+    b_left = prof.get("b_left", prof.get("b", 0.90))
+    b_right = prof.get("b_right", prof.get("b", 0.90))
+    a = prof.get("a", 1.20)
+    y_back = prof.get("y_back", -0.60)
+    d_sin2 = prof.get("d_sin2", 0.0)
+    d_sin3 = prof.get("d_sin3", 0.0)
+    d_sin4 = prof.get("d_sin4", 0.0)
+    d_asym = prof.get("d_asym", 0.0)
+    tilt_deg = prof.get("tilt_deg", 0.0)
 
-    y_back = -0.60
-    wall_thickness = 0.005  # 5 mm
-    wall_height = 0.18      # 18 cm
-    exit_width = 0.30       # 30 cm
-    half_gap = exit_width / 2.0
+    tilt_rad = math.radians(tilt_deg)
+    y_back_R = y_back + 0.5 * (b_right + b_left) * math.tan(tilt_rad)
+    y_back_L = y_back - 0.5 * (b_right + b_left) * math.tan(tilt_rad)
 
     def point_on_arc(theta):
+        t = 0.5 * (1.0 + math.cos(theta))
+        b = b_right * t + b_left * (1.0 - t)
         envelope = math.sin(theta) * abs(math.cos(theta))
         perturbation = (
             d_sin2 * math.sin(2.0 * theta)
             + d_sin3 * math.sin(3.0 * theta)
+            + d_sin4 * math.sin(4.0 * theta)
             + d_asym * math.cos(theta)
         )
         r_mod = 1.0 + envelope * perturbation
         x = b * math.cos(theta) * r_mod
-        y = y_back + a * math.sin(theta) * r_mod
+        y_base = y_back_R * t + y_back_L * (1.0 - t)
+        y = y_base + a * math.sin(theta) * r_mod
         return (x, y)
 
-    theta_exit_right = math.acos(min(0.999, half_gap / b))
-    theta_exit_left = math.pi - theta_exit_right
+    def find_theta_for_x(target_x):
+        low, high = 0.10, math.pi - 0.10
+        for _ in range(35):
+            mid = 0.5 * (low + high)
+            x, _ = point_on_arc(mid)
+            if x > target_x:
+                low = mid
+            else:
+                high = mid
+        return 0.5 * (low + high)
+
+    th_r = find_theta_for_x(exit_x + half_gap)
+    th_l = find_theta_for_x(exit_x - half_gap)
 
     n_half_segments = 16
-    right_pts = [point_on_arc(0.0 + (theta_exit_right - 0.0) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
-    left_pts = [point_on_arc(theta_exit_left + (math.pi - theta_exit_left) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
+    right_pts = [point_on_arc(0.0 + (th_r - 0.0) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
+    left_pts = [point_on_arc(th_l + (math.pi - th_l) * (i / n_half_segments)) for i in range(n_half_segments + 1)]
 
     segments = []
     for i in range(n_half_segments):
@@ -470,6 +600,7 @@ def get_arena_geometry(variant="standard"):
             "cy": cy,
             "length": length,
             "yaw": yaw,
+            "x0": x0, "y0": y0, "x1": x1, "y1": y1,
         })
 
     for i in range(n_half_segments):
@@ -485,6 +616,7 @@ def get_arena_geometry(variant="standard"):
             "cy": cy,
             "length": length,
             "yaw": yaw,
+            "x0": x0, "y0": y0, "x1": x1, "y1": y1,
         })
 
     poly_pts = [point_on_arc(math.pi * (i / 64.0)) for i in range(65)]
@@ -498,13 +630,19 @@ def get_arena_geometry(variant="standard"):
     gap_r = right_pts[-1]
     gap_l = left_pts[0]
     actual_gap = math.hypot(gap_r[0] - gap_l[0], gap_r[1] - gap_l[1])
+    exit_pos = (0.5 * (gap_r[0] + gap_l[0]), 0.5 * (gap_r[1] + gap_l[1]))
+
+    bw_len = math.hypot(b_right + b_left, y_back_R - y_back_L) + 0.01
+    bw_cx = 0.5 * (b_right - b_left)
+    bw_cy = 0.5 * (y_back_R + y_back_L)
+    bw_yaw = math.atan2(y_back_R - y_back_L, b_right + b_left)
 
     return {
-        "variant": variant,
-        "b": b,
+        "variant": var_name,
+        "b": 0.5 * (b_left + b_right),
         "a": a,
         "y_back": y_back,
-        "exit_pos": (0.0, y_back + a),
+        "exit_pos": exit_pos,
         "wall_thickness": wall_thickness,
         "wall_height": wall_height,
         "exit_width": exit_width,
@@ -513,10 +651,12 @@ def get_arena_geometry(variant="standard"):
         "back_wall": {
             "def": "WALL_SOUTH",
             "name": "wall_back",
-            "cx": 0.0,
-            "cy": y_back,
-            "length": 2.0 * b + 0.01,
-            "yaw": 0.0,
+            "cx": bw_cx,
+            "cy": bw_cy,
+            "length": bw_len,
+            "yaw": bw_yaw,
+            "x0": -b_left, "y0": y_back_L,
+            "x1": b_right, "y1": y_back_R,
         },
         "arc_segments": segments,
     }
@@ -525,19 +665,21 @@ def get_arena_geometry(variant="standard"):
 def render_arena_walls(map_name="standard", exit_wall="north", variant=None):
     if variant is None:
         cfg = MAP_CONFIGS.get(map_name, {})
-        variant = cfg.get("variant", "circular" if "circular" in map_name else "standard")
+        variant = cfg.get("arena_params", cfg.get("variant", "circular" if "circular" in map_name else "standard"))
     geom = get_arena_geometry(variant)
     exit_rotation = "0 0 1 0" if exit_wall == "north" else ("0 0 1 -1.5708" if exit_wall == "east" else "0 0 1 3.1416")
     t = geom["wall_thickness"]
     h = geom["wall_height"]
     z_center = h / 2.0
     bw = geom["back_wall"]
+    bw_yaw = bw.get("yaw", 0.0)
+    bw_rot_str = f"rotation 0 0 1 {bw_yaw:.5f}\n      " if abs(bw_yaw) > 1e-4 else ""
 
     nodes = []
     nodes.append(f"""    # Pared Plana de Base (~1.80m sobre la pared del laboratorio)
     DEF {bw['def']} Solid {{
       translation {bw['cx']:.4f} {bw['cy']:.4f} {z_center:.4f}
-      children [
+      {bw_rot_str}children [
         Shape {{
           appearance DEF BACK_WALL_APP PBRAppearance {{
             baseColor 0.82 0.85 0.88
@@ -585,10 +727,10 @@ def render_arena_walls(map_name="standard", exit_wall="north", variant=None):
       }}
     }}""")
 
-    ey = geom["exit_pos"][1]
+    ex, ey = geom["exit_pos"]
     nodes.append(f"""    # Marcador de Referencia de Salida (30 cm)
     DEF EXIT_PLATFORM Solid {{
-      translation 0 {ey + 0.35:.4f} -0.10
+      translation {ex:.4f} {ey + 0.35:.4f} -0.10
       name "exit_platform"
     }}""")
 
@@ -1305,7 +1447,7 @@ WORLDS = [
 ]
 
 
-def build_random_world(variant="standard", include_capote=None, seed=None):
+def build_random_world(variant="realistic", include_capote=None, seed=None):
     worlds_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "worlds")
     os.makedirs(worlds_dir, exist_ok=True)
     cfg = generate_random_scenario_config(variant=variant, seed=seed)
@@ -1314,8 +1456,13 @@ def build_random_world(variant="standard", include_capote=None, seed=None):
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(generate_world("robot_client", "scen_random", "north", include_capote=include_capote))
     sx, sy, syaw = cfg["spawn"]
+    ex, ey = cfg.get("exit_pos", (0.0, 0.60))
+    ap = cfg.get("arena_params", {})
+    tilt = ap.get("tilt_deg", 0.0)
     print(f"🎲 Escenario aleatorio generado [{variant.upper()}]: {out_path}")
-    print(f"   Spawn Robot : ({sx:+.2f}, {sy:+.2f}) m, yaw={math.degrees(syaw):.1f}°")
+    print(f"   Salida Puerta: ({ex:+.2f}, {ey:+.2f}) m (desplazamiento X: {ex:+.2f} m)")
+    print(f"   Inclinación  : {tilt:+.1f}° | Asimetría: b_L={ap.get('b_left', 0.90):.2f}m, b_R={ap.get('b_right', 0.90):.2f}m")
+    print(f"   Spawn Robot  : ({sx:+.2f}, {sy:+.2f}) m, yaw={math.degrees(syaw):.1f}°")
     for _, name, bx, by, *_ in cfg["boxes"]:
         print(f"   Obstáculo 6cm: {name} en ({bx:+.2f}, {by:+.2f}) m")
     for mname, mx, my in cfg["marbles"]:
@@ -1335,7 +1482,7 @@ def build_all_worlds(include_capote=None):
 
 if __name__ == "__main__":
     use_capote = ("--capote" in sys.argv) or (os.environ.get("ORQUITAS_CAPOTE", "0") in ("1", "true", "TRUE"))
-    target_variant = "circular" if ("--circular" in sys.argv or "--variant=circular" in sys.argv) else "standard"
+    target_variant = "circular" if ("--circular" in sys.argv or "--variant=circular" in sys.argv) else ("standard" if ("--standard" in sys.argv or "--variant=standard" in sys.argv) else "realistic")
     if "--random" in sys.argv:
         build_random_world(variant=target_variant, include_capote=use_capote)
     else:
