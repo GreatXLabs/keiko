@@ -122,14 +122,14 @@ def ensure_csv_header():
     os.makedirs(LOGS_DIR, exist_ok=True)
     if not os.path.exists(CSV_LOG) or os.path.getsize(CSV_LOG) == 0:
         with open(CSV_LOG, "w", encoding="utf-8") as f:
-            f.write("timestamp,intento,variante,capturas,crc32_ok,escape,colisiones,tiempo_seg,puntaje,veredicto\n")
+            f.write("timestamp,intento,variante,capturas,crc32_ok,escape,colisiones,tiempo_seg,puntaje,competencia_ok,sub_180s,veredicto\n")
 
 
-def append_csv_result(intento, variante, caps, crc, esc, col, sim_time, score, verd):
+def append_csv_result(intento, variante, caps, crc, esc, col, sim_time, score, comp_ok, sub180, verd):
     ensure_csv_header()
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(CSV_LOG, "a", encoding="utf-8") as f:
-        f.write(f"{ts},{intento},{variante},{caps},{crc},{esc},{col},{sim_time:.2f},{score},{verd}\n")
+        f.write(f"{ts},{intento},{variante},{caps},{crc},{esc},{col},{sim_time:.2f},{score},{comp_ok},{sub180},{verd}\n")
 
 
 def main():
@@ -139,10 +139,10 @@ def main():
                         help="Modo de selección de bahía (default: realistic)")
     parser.add_argument("--mode", choices=["fast", "realtime", "run"], default="fast",
                         help="Velocidad de reproducción en Webots (default: fast)")
-    parser.add_argument("--timeout", type=int, default=240,
-                        help="Tiempo máximo simulado por intento en segundos (default: 240)")
-    parser.add_argument("--pause", type=float, default=2.0,
-                        help="Pausa entre intentos en segundos (default: 2.0)")
+    parser.add_argument("--timeout", type=int, default=420,
+                        help="Tiempo máximo simulado por intento en segundos (default: 420 [7 min])")
+    parser.add_argument("--pause", type=float, default=2.5,
+                        help="Pausa entre intentos en segundos (default: 2.5)")
     parser.add_argument("--max-iterations", type=int, default=0,
                         help="Cantidad de intentos a ejecutar (0 = infinito, default: 0)")
     parser.add_argument("--port", type=int, default=8888,
@@ -162,6 +162,8 @@ def main():
 
     iteration = 0
     total_passed = 0
+    total_competencias_exitosas = 0
+    total_competencias_sub180 = 0
     total_captures_all = 0
     history = []
 
@@ -339,6 +341,13 @@ def main():
             "PARCIAL" if (caps > 0 or escaped) else "FALLO"
         )
 
+        es_competencia_exitosa = (caps == 3 and crc_ok and escaped)
+        es_sub180 = es_competencia_exitosa and (final_sim_time <= 180.0)
+
+        if es_competencia_exitosa:
+            total_competencias_exitosas += 1
+            if es_sub180:
+                total_competencias_sub180 += 1
         if verdict == "ÉXITO (PASSED)":
             total_passed += 1
         total_captures_all += caps
@@ -352,19 +361,31 @@ def main():
             "colisiones": collisions,
             "tiempo": final_sim_time,
             "puntaje": score,
+            "competencia_exitosa": es_competencia_exitosa,
+            "sub_180s": es_sub180,
             "veredicto": verdict
         })
 
-        append_csv_result(iteration, current_variant, caps, crc_ok, escaped, collisions, final_sim_time, score, verdict)
+        append_csv_result(iteration, current_variant, caps, crc_ok, escaped, collisions, final_sim_time, score,
+                          "SI" if es_competencia_exitosa else "NO",
+                          "SI" if es_sub180 else "NO", verdict)
 
         # 8. Banner de resultados del intento
         print("\n" + "-" * 80)
         print(f"  🏁 RESULTADO INTENTO #{iteration:03d} - BAHÍA: {current_variant.upper()}")
-        print(f"     Veredicto : {verdict} (Puntaje: {score:+d} pts)")
+        print(f"     Puntaje   : {score:+d} pts | Veredicto: {verdict}")
         print(f"     Capturas  : {caps}/3 {'★'*caps}{'☆'*(3-caps)} | CRC32 Hardware: {'✅ OK' if crc_ok else '❌ Error'}")
         print(f"     Escape    : {'✅ Exitoso por puerta norte' if escaped else '❌ No alcanzado'}")
         print(f"     Colisiones: {collisions} {'(Limpio)' if collisions == 0 else '(Penalizadas)'}")
         print(f"     Tiempo    : {final_sim_time:.1f} s")
+        if es_competencia_exitosa:
+            if es_sub180:
+                print(f"     ⚡ COMPETENCIA : 🏆 ¡ÉXITO SUB-180s! (Tiempo veloz: {final_sim_time:.1f}s <= 180.0s)")
+            else:
+                print(f"     🏅 COMPETENCIA : ✅ EXITOSA REGLAMENTARIA (Tiempo: {final_sim_time:.1f}s <= {args.timeout:.1f}s [7 min])")
+        else:
+            print(f"     ⚠️  COMPETENCIA : ❌ NO COMPLETADA ({caps}/3 canicas, Escape: {'Sí' if escaped else 'No'})")
+
         # Estadísticas de Dataset V2 en vivo
         ds_v2_dir = os.path.join(SIM_DIR, "data", "datasets", "v2_simulaciones")
         us_v2_f = os.path.join(ds_v2_dir, "dataset_ultrasonico_v2.csv")
@@ -372,9 +393,13 @@ def main():
         us_count = max(0, sum(1 for _ in open(us_v2_f, "r", encoding="utf-8")) - 1) if os.path.exists(us_v2_f) else 0
         marbles_count = max(0, sum(1 for _ in open(marbles_v2_f, "r", encoding="utf-8")) - 1) if os.path.exists(marbles_v2_f) else 0
 
-        print(f"  📈 ESTADÍSTICAS GLOBALES: {total_passed}/{iteration} éxitos ({100.0 * total_passed / iteration:.1f}%) | "
-              f"Total canicas aseguradas: {total_captures_all}")
-        print(f"  📦 DATASET V2 ACUMULADO : US={us_count} muestras | Canicas={marbles_count} muestras (en data/datasets/v2_simulaciones/)")
+        print(f"  📈 ESTADÍSTICAS GLOBALES:")
+        print(f"     • Intentos ejecutados          : {iteration}")
+        print(f"     • Competencias exitosas (<= 7m): {total_competencias_exitosas}/{iteration} ({100.0 * total_competencias_exitosas / iteration:.1f}%)")
+        print(f"     • Competencias veloces (<=180s): {total_competencias_sub180}/{iteration} ({100.0 * total_competencias_sub180 / iteration:.1f}%)")
+        print(f"     • Corridas limpias (0 colision): {total_passed}/{iteration} ({100.0 * total_passed / iteration:.1f}%)")
+        print(f"     • Canicas aseguradas totales   : {total_captures_all}")
+        print(f"  📦 DATASET V2 ACUMULADO           : US={us_count} muestras | Canicas={marbles_count} muestras")
         print("-" * 80)
 
         if RUNNING and args.pause > 0:
@@ -385,10 +410,12 @@ def main():
     total_executed = len(history)
     print("\n" + "=" * 80)
     print("  📊 RESUMEN CONSOLIDADO DE LA SESIÓN DE ENTRENAMIENTO")
-    print(f"  Intentos ejecutados : {total_executed}")
-    print(f"  Intentos con éxito  : {total_passed} ({100.0 * total_passed / max(1, total_executed):.1f}%)")
-    print(f"  Canicas aseguradas  : {total_captures_all} / {max(1, total_executed * 3)}")
-    print(f"  Registro guardado en: {CSV_LOG}")
+    print(f"  Intentos ejecutados            : {total_executed}")
+    print(f"  Competencias exitosas (<= 7 min): {total_competencias_exitosas} ({100.0 * total_competencias_exitosas / max(1, total_executed):.1f}%)")
+    print(f"  Competencias veloces (<= 180s) : {total_competencias_sub180} ({100.0 * total_competencias_sub180 / max(1, total_executed):.1f}%)")
+    print(f"  Corridas limpias (0 colisiones): {total_passed} ({100.0 * total_passed / max(1, total_executed):.1f}%)")
+    print(f"  Canicas aseguradas totales     : {total_captures_all} / {max(1, total_executed * 3)}")
+    print(f"  Registro guardado en           : {CSV_LOG}")
     print("=" * 80 + "\n")
 
 
