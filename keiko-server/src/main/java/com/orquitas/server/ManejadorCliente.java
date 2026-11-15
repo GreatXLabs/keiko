@@ -80,7 +80,7 @@ public class ManejadorCliente implements Runnable {
         try {
             VectorSensores sensores = MensajeProtocolo.parsearTelemetria(linea);
             if (!sensores.isValido()) {
-                LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico.");
+                LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico: " + linea.trim());
                 return;
             }
             String[] pares = clasificador.clasificarPares(sensores);

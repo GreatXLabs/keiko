@@ -47,7 +47,9 @@ public class MensajeProtocolo {
             // Desambiguacion de 10 campos: 6 sensores + ts + 3 pose vs 10 sensores sin ts.
             if (total == 10) {
                 double t6 = Double.parseDouble(tokens[6].trim());
-                if (t6 > 500.0) {
+                double t7 = Double.parseDouble(tokens[7].trim());
+                double t8 = Double.parseDouble(tokens[8].trim());
+                if (t6 > 500.0 || (Math.abs(t7) < 15.0 && Math.abs(t8) < 15.0)) {
                     numSensores = 6;
                     hasTimestamp = true;
                     hasPose = true;

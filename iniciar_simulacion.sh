@@ -53,12 +53,14 @@ if ! command -v webots &> /dev/null; then
     fi
 fi
 
-# 2. Compilar cambios recientes del Servidor Central si javac esta disponible
-if command -v javac &> /dev/null && command -v jar &> /dev/null; then
-    echo ">> Compilando cambios recientes de keiko-server..."
-    javac --release 21 -cp "${SERVER_JAR}" -d "${SCRIPT_DIR}/keiko-server/target/classes" \
-        "${SCRIPT_DIR}/keiko-server/src/main/java/com/orquitas/server/"*.java
-    jar uf "${SERVER_JAR}" -C "${SCRIPT_DIR}/keiko-server/target/classes" .
+# 2. Compilar cambios recientes del Servidor Central
+MVN_BIN="mvn"
+if ! command -v mvn &>/dev/null && [ -x "/usr/lib/netbeans/java/maven/bin/mvn" ]; then
+    MVN_BIN="/usr/lib/netbeans/java/maven/bin/mvn"
+fi
+if command -v "${MVN_BIN}" &>/dev/null; then
+    echo ">> Compilando cambios recientes de keiko-server con Maven..."
+    "${MVN_BIN}" -f "${SCRIPT_DIR}/keiko-server/pom.xml" package -DskipTests=true
 fi
 
 # 3. Matar instancias previas del servidor, simulador y controlador, y limpiar estado previo

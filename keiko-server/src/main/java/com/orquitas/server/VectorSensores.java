@@ -143,7 +143,7 @@ public class VectorSensores {
     public double getTheta() { return theta; }
     public long getTimestamp() { return timestamp; }
 
-    // Valida que los canales de distancia estén en [0, 400] y el ángulo en [-180, 180] sin NaN ni Infinitos
+    // Valida distancias en [0, 1000] cm (incluye 999.0 cm de timeout VL53L0X) y angulo en [-180, 180] sin NaN ni Infinitos
     public boolean isValido() {
         for (int i = 0; i < canales.length; i++) {
             double c = canales[i];
@@ -155,7 +155,7 @@ public class VectorSensores {
                 if (c < -180.0 || c > 180.0) return false;
             } else {
                 // distancia (cm)
-                if (c < 0.0 || c > 400.0) return false;
+                if (c < 0.0 || c > 1000.0) return false;
             }
         }
         return true;
