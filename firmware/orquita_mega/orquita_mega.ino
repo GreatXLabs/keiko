@@ -34,6 +34,7 @@
 #include <VL53L0X.h>
 
 #define PERMITIR_MANUAL 1
+#define DEPURAR_ESTOMAGO 0      // manda DBG:estomago=... por el enlace (el servidor lo ignora)
 #define ESPEJAR_USB 0           // copia la telemetría al USB (115200) para depurar
 #define ENLACE Serial1          // HC-05
 const unsigned long BAUD_ENLACE = 9600;
@@ -66,6 +67,7 @@ const uint16_t PICKER_VEL_US[2] = {360, 300};            // validado: capturó c
 const uint8_t PICKER_PASOS_ARRANQUE = 10;
 const unsigned long PICKER_MS_POR_PASO = 50;
 const unsigned long PICKER_EXTRA_MS = 4000;              // sigue girando tras APROXIMACION para tragar
+const unsigned long PICKER_MAX_MS = 10000;               // tope duro de giro continuo (regla del usuario)
 
 // ---------------- Láseres VL53L0X ----------------
 const uint8_t XSHUT[3] = {A8, A9, A10};                  // izq, der, estómago
@@ -114,7 +116,8 @@ bool pcaOk = false;
 
 uint8_t pickerEscala = 0;       // 0 = frenado, 1..PASOS = arrancando/girando
 bool pickerQuiere = false;
-unsigned long pickerApagarMs = 0, pickerUltimoPaso = 0;
+unsigned long pickerApagarMs = 0, pickerUltimoPaso = 0, pickerInicioMs = 0;
+bool pickerBloqueado = false;   // cortado por captura o por tope: no rearranca hasta salir de APROXIMACION/CAPTURA
 
 enum Detector : uint8_t { DESARMADO, CALIBRANDO, ARMADO };
 Detector detector = DESARMADO;
@@ -183,13 +186,20 @@ void vigilarPca() {
   ENLACE.println(F("ERROR:PCA_REINICIADO"));
 }
 void pickerQuerer(bool si, unsigned long extraMs = 0) {
+  if (si && pickerBloqueado) return;
   pickerQuiere = si;
   if (si) pickerApagarMs = millis() + extraMs;   // al soltarlo sigue girando hasta este plazo
 }
 void detenerPicker() { pickerQuiere = false; pickerApagarMs = 0; }
+void cortarPicker() { detenerPicker(); pickerBloqueado = true; }   // por captura o por tope de tiempo
 // Arranque suave y apagado sin bloquear
 void atenderPicker(unsigned long ahora) {
   bool debeGirar = pickerQuiere || (pickerApagarMs && (long)(ahora - pickerApagarMs) < 0);
+  if (debeGirar && pickerEscala == 0) pickerInicioMs = ahora;                 // empieza un giro
+  if (debeGirar && pickerEscala > 0 && ahora - pickerInicioMs >= PICKER_MAX_MS) {
+    cortarPicker(); debeGirar = false;                                         // tope de 10 s
+    ENLACE.println(F("ERROR:PICKER_TOPE_10S"));
+  }
   if (debeGirar && pickerEscala < PICKER_PASOS_ARRANQUE && ahora - pickerUltimoPaso >= PICKER_MS_POR_PASO) {
     pickerEscala++; pickerUltimoPaso = ahora; if (pcaOk) aplicarPicker();
   } else if (!debeGirar && pickerEscala > 0) {
@@ -254,13 +264,14 @@ void atenderEstomago() {
   if (cambiosSeguidos >= LECTURAS_CONFIRMAR) {
     capturas++;
     ENLACE.print(F("EVENT:CAPTURA_LOBITO_")); ENLACE.println(capturas);
+    cortarPicker();         // la canica ya está adentro: el picker deja de girar
     detector = DESARMADO;   // el servidor decide si hay que volver a armar
   }
 }
 
 // ============================================================ protocolo
 void empezarCorrida() {
-  corrida = true; failSafe = false; capturas = 0;
+  corrida = true; failSafe = false; capturas = 0; pickerBloqueado = false;
   strcpy(estado, "BUSQUEDA");
   ultimoServidor = millis();
   sentidoBarrido = 1; posicionarLaseres(BARRIDO_MIN);
@@ -281,7 +292,7 @@ void nuevoEstado(const char *e) {
   }
   if (detector == DESARMADO) armarEstomago();
   if (!strcmp(estado, "APROXIMACION") || !strcmp(estado, "CAPTURA")) pickerQuerer(true, PICKER_EXTRA_MS);
-  else pickerQuerer(false);
+  else { pickerBloqueado = false; pickerQuerer(false); }   // salió del estado: se puede volver a usar
 }
 
 void procesarLinea(char *l) {
@@ -353,6 +364,17 @@ void imprimirTelemetria(Print &p, unsigned long ahora) {
 }
 
 void enviarTelemetria(unsigned long ahora) {
+#if DEPURAR_ESTOMAGO
+  static unsigned long ultimoDbg = 0;
+  if (corrida && ahora - ultimoDbg >= 100 && ENLACE.availableForWrite() >= 50) {
+    ultimoDbg = ahora;
+    ENLACE.print(F("DBG:estomago=")); ENLACE.print(estomagoMm);
+    ENLACE.print(F(" base=")); ENLACE.print(baseMm);
+    ENLACE.print(F(" det=")); ENLACE.print((int)detector);
+    ENLACE.print(F(" cambios=")); ENLACE.println(cambiosSeguidos);
+    return;
+  }
+#endif
   if (ahora - ultimaTelemetria < TELEMETRIA_MS) return;
   if (!corrida) {
     if (ahora - ultimoHeartbeat >= HEARTBEAT_REPOSO_MS) { ultimoHeartbeat = ahora; ENLACE.println(F("HEARTBEAT")); }
