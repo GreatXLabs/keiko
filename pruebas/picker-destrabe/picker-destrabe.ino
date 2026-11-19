@@ -35,7 +35,7 @@
 
 const uint8_t NUM_SERVOS = 2;
 const uint8_t CANAL[NUM_SERVOS] = {2, 3};
-const uint16_t NEUTRO[NUM_SERVOS] = {1475, 1500};
+const uint16_t NEUTRO[NUM_SERVOS] = {1485, 1500};
 // 1 = recolecta con pulsos bajos, -1 = con pulsos altos
 const int8_t SENTIDO[NUM_SERVOS] = {1, -1};
 // Distancia al neutro (igual que picker-girando)

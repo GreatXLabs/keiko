@@ -16,7 +16,7 @@
 
 const uint8_t NUM_SERVOS = 2;
 const uint8_t CANAL[NUM_SERVOS] = {2, 3};
-const uint16_t NEUTRO[NUM_SERVOS] = {1475, 1500};
+const uint16_t NEUTRO[NUM_SERVOS] = {1485, 1500};
 // 1 = recolecta con pulsos bajos (debajo del neutro), -1 = con pulsos altos.
 // Verificado el 2026-11-02 con los servos montados: el izquierdo recolecta
 // con pulsos bajos y el derecho con pulsos altos.

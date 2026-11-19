@@ -32,7 +32,7 @@ const uint8_t CANAL[NUM_SERVOS] = {2, 3};
 // Canal 2 calibrado el 2026-11-01: quieto entre ~1465 y ~1485 µs.
 // Canal 3 calibrado el 2026-11-02 girando el potenciómetro con 1500 µs
 // aplicados hasta que el motor frenó.
-const uint16_t NEUTRO_CALIBRADO[NUM_SERVOS] = {1475, 1500};
+const uint16_t NEUTRO_CALIBRADO[NUM_SERVOS] = {1485, 1500};
 // 1 o -1: para que con 'a' los dos empujen la canica hacia el mismo lado
 // (si están montados enfrentados, uno tiene que girar al revés del otro)
 // Verificado el 2026-11-02 con los servos montados: con 'a' los dos
