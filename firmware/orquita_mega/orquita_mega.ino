@@ -320,7 +320,7 @@ void manual(char c) {
 #endif
 }
 
-void atenderEnlace(unsigned long ahora) {
+void atenderEnlace() {
   while (ENLACE.available()) {
     char c = ENLACE.read();
     if (c == '\n' || c == '\r') {
@@ -333,6 +333,8 @@ void atenderEnlace(unsigned long ahora) {
       rxLen = 0;                                // ruido: descarte defensivo
     }
   }
+  // millis() fresco: procesarLinea() puede haber guardado una marca más nueva que la del inicio del loop
+  unsigned long ahora = millis();
   if (manualMoviendo && ahora - manualUltima > MANUAL_HOLD_MS) frenarMotores();
   if (corrida && !failSafe && ahora - ultimoServidor > FAILSAFE_MS) {
     failSafe = true;
@@ -396,13 +398,15 @@ void setup() {
 }
 
 void loop() {
-  unsigned long ahora = millis();
-  atenderEnlace(ahora);
-  atenderSensores(ahora);
+  // Cada etapa lee millis() de nuevo: si no, una marca guardada dentro de una etapa
+  // queda "en el futuro" para las siguientes y la resta sin signo da un valor enorme.
+  atenderEnlace();
+  atenderSensores(millis());
   atenderEstomago();
-  atenderBarrido(ahora);
-  atenderPicker(ahora);
+  atenderBarrido(millis());
+  atenderPicker(millis());
   static unsigned long vigilaPca = 0;
+  unsigned long ahora = millis();
   if (pcaOk && ahora - vigilaPca >= 500) { vigilaPca = ahora; vigilarPca(); }
-  enviarTelemetria(ahora);
+  enviarTelemetria(millis());
 }
