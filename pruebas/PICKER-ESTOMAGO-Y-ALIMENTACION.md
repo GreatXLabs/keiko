@@ -165,7 +165,7 @@ polaridad invertida de la placa (o la soldadura de la bornera) está cortando.
 
 | Canal | Lado | Neutro | Recolecta con |
 | --- | --- | --- | --- |
-| 2 | Izquierdo | 1475 µs (quieto entre ~1465 y 1485) | pulsos bajos (`SENTIDO = 1`) |
+| 2 | Izquierdo | 1485 µs (medido el 2026-11-19: quieto; antes 1475, zona ~1465-1485) | pulsos bajos (`SENTIDO = 1`) |
 | 3 | Derecho | 1500 µs (pote ajustado con 1500 aplicado) | pulsos altos (`SENTIDO = -1`) |
 
 - Velocidad de trabajo: `VEL_US = {240, 200}` (distancia al neutro; distinta

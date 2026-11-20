@@ -769,7 +769,7 @@ Transform {
 
     # Marcador de Referencia de Salida (30 cm)
     DEF EXIT_PLATFORM Solid {
-      translation 0 0.9500 -0.10
+      translation 0.0000 0.9332 -0.10
       name "exit_platform"
     }
   ]
@@ -845,7 +845,7 @@ DEF LOBITO_1 Solid {
 
 # Canica 2 (Lobito): 16mm diametro (vidrio blanco opaco)
 DEF LOBITO_2 Solid {
-  translation 0.25 0.22 0.008
+  translation 0.17 0.15 0.008
   children [
     Shape {
       appearance PBRAppearance {
@@ -893,7 +893,7 @@ DEF LOBITO_3 Solid {
 
 # Robot Autonomo: La Orquita 4WD (Modelo 3D Real: 257mm x 150mm x 76.1mm)
 DEF ORQUITA Robot {
-  translation 0.0000 -0.3200 0.001
+  translation -0.7400 -0.4200 0.001
   rotation 0 0 1 1.5708
   children [
     # Malla CAD del Chasis 4WD

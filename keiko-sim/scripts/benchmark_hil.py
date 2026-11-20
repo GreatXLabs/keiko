@@ -28,57 +28,106 @@ SCENARIOS = [
         "id": "SCEN-1",
         "name": "Escenario 1 (Spawn Centro Norte)",
         "world": "bahia_de_caza_scen_1.wbt",
-        "desc": "Spawn (0, -0.32, 90°), 2 obstáculos 3D a los lados, 3 canicas",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), 2 obstáculos 3D a los lados, 3 canicas",
         "timeout": 180
     },
     {
         "id": "SCEN-2",
         "name": "Escenario 2 (Spawn Oeste 80°)",
         "world": "bahia_de_caza_scen_2.wbt",
-        "desc": "Spawn (-0.15, -0.35, 80°), canicas en flancos y centro sur",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), canicas en flancos y centro sur",
         "timeout": 240
     },
     {
         "id": "SCEN-3",
         "name": "Escenario 3 (Spawn Este 97°)",
         "world": "bahia_de_caza_scen_3.wbt",
-        "desc": "Spawn (0.15, -0.35, 97°), obstáculo central frontal (0, 0.12)",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), obstáculo central frontal (0, 0.12)",
         "timeout": 180
     },
     {
         "id": "SCEN-4",
         "name": "Escenario 4 (Spawn Centro 90°)",
         "world": "bahia_de_caza_scen_4.wbt",
-        "desc": "Spawn (0.00, -0.30, 90°), canicas en flancos este y oeste",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), canicas en flancos este y oeste",
         "timeout": 180
     },
     {
         "id": "SCEN-5",
         "name": "Escenario 5 (Spawn Simétrico 74°)",
         "world": "bahia_de_caza_scen_5.wbt",
-        "desc": "Spawn (-0.10, -0.35, 74°), 2 obstáculos simétricos a ±26cm",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), 2 obstáculos simétricos a ±26cm",
         "timeout": 180
     },
     {
         "id": "SCEN-6",
         "name": "Escenario 6 (Spawn Inclinado 103°)",
         "world": "bahia_de_caza_scen_6.wbt",
-        "desc": "Spawn (0.10, -0.35, 103°), obstáculo derecho y sur",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), obstáculo derecho y sur",
         "timeout": 180
     },
     {
         "id": "SCEN-7",
         "name": "Escenario 7 (Spawn Asimétrico 90°)",
         "world": "bahia_de_caza_scen_7.wbt",
-        "desc": "Spawn (0.00, -0.32, 90°), obstáculo norte (0, 0.18) y este",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), obstáculo norte (0, 0.18) y este",
         "timeout": 180
     },
     {
         "id": "SCEN-8",
         "name": "Escenario 8 (Spawn Desplazado Oeste 90°)",
         "world": "bahia_de_caza_scen_8.wbt",
-        "desc": "Spawn (-0.20, -0.32, 90°), canicas en extremos laterales",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), canicas en extremos laterales",
         "timeout": 180
+    },
+    {
+        "id": "SCEN-9",
+        "name": "Escenario 9 (Escolta de Obstáculos)",
+        "world": "bahia_de_caza_scen_9.wbt",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), canicas a ~15cm de los cubos 6x6x6cm",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-10",
+        "name": "Escenario 10 (Corredor Diagonal Slalom)",
+        "world": "bahia_de_caza_scen_10.wbt",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), obstáculos en chicana diagonal central",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-11",
+        "name": "Escenario 11 (Perímetro Curvo)",
+        "world": "bahia_de_caza_scen_11.wbt",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), canicas próximas al arco elíptico exterior",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-12",
+        "name": "Escenario 12 (Racimo Cercano / Cluster)",
+        "world": "bahia_de_caza_scen_12.wbt",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), 2 canicas cercanas en noroeste + 1 en sureste",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-13",
+        "name": "Escenario 13 (Guardia de Salida)",
+        "world": "bahia_de_caza_scen_13.wbt",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), obstáculos flanqueando aproximación al hueco norte",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-14",
+        "name": "Escenario 14 (Triángulo Profundo Este)",
+        "world": "bahia_de_caza_scen_14.wbt",
+        "desc": "Spawn Esquina SO (-0.74, -0.42, 90°), obstáculo en diagonal inicial y canicas dispersas",
+        "timeout": 180
+    },
+    {
+        "id": "SCEN-CIRCULAR",
+        "name": "Escenario Circular (Bahía Redonda)",
+        "world": "bahia_de_caza_circular_client.wbt",
+        "desc": "Bahía circular R=0.90m, base cortada a Y=-0.60m, salida norte Y=+0.80m",
+        "timeout": 240
     },
 ]
 
@@ -137,6 +186,8 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
     # Limpiar procesos previos y archivos
     subprocess.run(["pkill", "-9", "-f", "[j]ava.*keiko-server"], stderr=subprocess.DEVNULL)
     subprocess.run(["pkill", "-9", "webots-bin"], stderr=subprocess.DEVNULL)
+    subprocess.run(["pkill", "-9", "-f", "robot_client.py"], stderr=subprocess.DEVNULL)
+    subprocess.run(["bash", "-c", "rm -rf /tmp/webots/$(whoami)/* 2>/dev/null || true"])
     time.sleep(1.0)
 
     if os.path.exists(ESTOMAGO_FILE):
@@ -234,6 +285,8 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
                 pass
 
         if passed or webots_proc.poll() is not None:
+            if webots_proc.poll() is not None:
+                print(f"  [DEBUG] webots_proc finished with returncode: {webots_proc.poll()} after {time.time() - start_time:.1f}s")
             break
 
     # Detener procesos limpiamente
@@ -291,7 +344,11 @@ def main():
         indices = set()
         for part in args.scenarios.split(","):
             part = part.strip().upper()
-            if part.startswith("SCEN-"):
+            if part in ("CIRCULAR", "ROUND", "CIRCULO", "SCEN-CIRCULAR"):
+                for s in SCENARIOS:
+                    if s["id"] == "SCEN-CIRCULAR" and s not in active_scenarios:
+                        active_scenarios.append(s)
+            elif part.startswith("SCEN-"):
                 num = part.replace("SCEN-", "")
                 if num.isdigit():
                     indices.add(int(num))
@@ -301,7 +358,9 @@ def main():
                     indices.add(i)
             elif part.isdigit():
                 indices.add(int(part))
-        active_scenarios = [s for idx, s in enumerate(SCENARIOS, 1) if idx in indices]
+        for idx, s in enumerate(SCENARIOS, 1):
+            if idx in indices and s not in active_scenarios:
+                active_scenarios.append(s)
 
     if not active_scenarios:
         active_scenarios = SCENARIOS

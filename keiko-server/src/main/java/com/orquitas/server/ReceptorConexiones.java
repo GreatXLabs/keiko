@@ -89,7 +89,7 @@ public class ReceptorConexiones implements Runnable {
         } catch (IOException ignored) {}
 
         synchronized (clientesConectados) {
-            for (ManejadorCliente c : clientesConectados) {
+            for (ManejadorCliente c : new ArrayList<>(clientesConectados)) {
                 c.cerrar();
             }
             clientesConectados.clear();

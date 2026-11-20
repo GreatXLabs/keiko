@@ -25,6 +25,7 @@ from collision_audit import find_penalizable_contact, is_new_impact
 from sonar_visualizer import SonarVisualizer
 from ultrasonic_physics import UltrasonicPhysicsModel, SensorBorderFilter
 from laser_physics import LaserPhysicsModel
+from dataset_recorder import SimulationDatasetRecorder
 
 try:
     sys.stdout.reconfigure(line_buffering=True)
@@ -62,14 +63,21 @@ def detect_exit(supervisor):
             pass
 
     if ex is not None and ey is not None:
-        if ey > 0.45:
-            wall = "north"
-        elif ex > 0.45:
-            wall = "east"
-        elif ey < -0.45:
-            wall = "south"
+        # Recuperar vector normal y posición de la puerta (a 0.35 m hacia adentro desde la plataforma)
+        dx = ex - 0.0
+        dy = ey - (-0.60)
+        dist = math.hypot(dx, dy)
+        if dist > 1e-4:
+            nx = dx / dist
+            ny = dy / dist
         else:
-            wall = "west"
+            nx, ny = 0.0, 1.0
+        door_x = ex - 0.35 * nx
+        door_y = ey - 0.35 * ny
+        exit_pos = (float(door_x), float(door_y))
+        exit_yaw = math.atan2(ny, nx)
+        wall = "north" if (exit_yaw > 0.78 and exit_yaw < 2.35) else ("east" if abs(exit_yaw) <= 0.78 else ("south" if exit_yaw <= -0.78 and exit_yaw >= -2.35 else "west"))
+        return wall, exit_pos, exit_yaw
     else:
         wall = os.environ.get("EXIT_WALL", "").strip().lower()
         if wall not in EXIT_GEOM:
@@ -79,8 +87,8 @@ def detect_exit(supervisor):
                 world_name = ""
             wall = next((w for w in ("east", "south", "west", "north") if w in world_name), "north")
 
-    exit_pos, exit_yaw = EXIT_GEOM[wall]
-    return wall, exit_pos, exit_yaw
+        exit_pos, exit_yaw = EXIT_GEOM[wall]
+        return wall, exit_pos, exit_yaw
 
 
 def main():
@@ -128,7 +136,7 @@ def main():
     for name in ["servo_left", "servo_right"]:
         m = robot.getDevice(name)
         if m is not None:
-            m.setVelocity(10.0)
+            m.setVelocity(18.0)
             servo_motors[name] = m
         s = robot.getDevice(f"{name}_sensor")
         if s is not None:
@@ -140,6 +148,8 @@ def main():
     us_physics = UltrasonicPhysicsModel(mode=physics_mode)
     laser_physics = LaserPhysicsModel(mode=physics_mode)
     border_filter = SensorBorderFilter(sensor_names=list(us_sensors.keys()))
+    record_ds_env = os.environ.get("ORQUITAS_RECORD_DATASET", "1").strip().lower()
+    dataset_recorder = SimulationDatasetRecorder(enabled=(record_ds_env not in ("0", "false", "no")))
 
     sonar_vis = SonarVisualizer(robot, display_name="sensor_hud", config_name="sim_3us_2laser")
     log_msg(f"[HARDWARE] Sensores activos: {len(us_sensors)} ultrasonidos, {len(laser_sensors)} láseres.")
@@ -180,7 +190,7 @@ def main():
 
     obstacle_nodes = []
     for i in (1, 2):
-        node = robot.getFromDef(f"OBSTACLE_BOX_{i}")
+        node = robot.getFromDef(f"OBSTACLE_BOX_{i}") or robot.getFromDef(f"OBSTACLE_CYLINDER_{i}")
         if node:
             obstacle_nodes.append(node)
 
@@ -188,24 +198,27 @@ def main():
     exit_dir = (math.cos(exit_yaw), math.sin(exit_yaw))
     log_msg(f"[HARDWARE] Salida detectada: {exit_wall.upper()} @ ({exit_pos[0]:.2f}, {exit_pos[1]:.2f}) | yaw={exit_yaw:.2f}")
 
-    mapper = ArenaMapper(x_min=-0.95, x_max=0.95, y_min=-0.65, y_max=0.65, res=0.10, exit_pos=exit_pos)
+    mapper = ArenaMapper(x_min=-1.15, x_max=1.15, y_min=-0.80, y_max=max(0.70, exit_pos[1] + 0.20), res=0.10, exit_pos=exit_pos)
 
-    # 6. Máquina de Barrido de Servos en Espejo
-    # Paso a paso realista (~96-128 ms por paso = 3-4 ticks de 32 ms)
-    sweep_step_ticks = int(os.environ.get("ORQUITAS_SWEEP_TICKS", "2"))
-    sweep_deg_step = float(os.environ.get("ORQUITAS_SWEEP_STEP_DEG", "14.0"))
-    sweep_min_deg = float(os.environ.get("ORQUITAS_SWEEP_MIN_DEG", "-35.0"))
-    sweep_max_deg = float(os.environ.get("ORQUITAS_SWEEP_MAX_DEG", "14.0"))
+    # 6. Máquina de Barrido de Radar por Tics en Espejo
+    # Barrido fino tic a tic (5.0° por unidad) desde -20° (boca central despejada) hasta +35° (flancos laterales)
+    sweep_step_ticks = int(os.environ.get("ORQUITAS_RADAR_TICKS", os.environ.get("ORQUITAS_SWEEP_TICKS", "1")))
+    sweep_deg_step = float(os.environ.get("ORQUITAS_RADAR_STEP_DEG", os.environ.get("ORQUITAS_SWEEP_STEP_DEG", "5.0")))
+    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", os.environ.get("ORQUITAS_SWEEP_MIN_DEG", "-15.0")))
+    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", os.environ.get("ORQUITAS_SWEEP_MAX_DEG", "35.0")))
 
-    # Generar tabla de ángulos de ida y vuelta (ping-pong)
-    sweep_angles = []
+    radar_full_angles = []
     a = sweep_min_deg
     while a <= sweep_max_deg + 1e-5:
-        sweep_angles.append(round(a, 1))
+        radar_full_angles.append(round(a, 1))
         a += sweep_deg_step
-    if sweep_angles[-1] < sweep_max_deg - 1e-5:
-        sweep_angles.append(round(sweep_max_deg, 1))
+    if radar_full_angles[-1] < sweep_max_deg - 1e-5:
+        radar_full_angles.append(round(sweep_max_deg, 1))
 
+    approach_binocular_angles = [-12.0, -6.0, 0.0, 6.0, 12.0]
+    escape_guard_angles = [-10.0, 0.0, 10.0, 20.0]
+
+    sweep_angles = list(radar_full_angles)
     sweep_idx = 0
     sweep_dir = 1  # +1 aumentando, -1 disminuyendo
     current_servo_deg = sweep_angles[0]
@@ -240,6 +253,11 @@ def main():
             last_command_wall_time = time.monotonic()
             in_failsafe = False
             log_msg(f"[CONEXIÓN] Enlace establecido con Servidor Central en {server_host}:{server_port}")
+            try:
+                init_event = f"EVENT:SALIDA_META:{exit_pos[0]:.2f},{exit_pos[1]:.2f}\n"
+                s.sendall(init_event.encode("utf-8"))
+            except Exception:
+                pass
             return True
         except Exception:
             set_drive_velocities(0.0, 0.0)
@@ -262,23 +280,25 @@ def main():
             continue
 
         # -----------------------------------------------------------------
-        # 1. CONTROL DE BARRIDO DE SERVOS PASO A PASO (LATENCIA REALISTA)
+        # 1. CONTROL DE BARRIDO DE SERVOS POR TICS (RADAR + BINOCULAR + LATERAL)
         # -----------------------------------------------------------------
         ticks_in_current_step += 1
         if ticks_in_current_step >= sweep_step_ticks:
             ticks_in_current_step = 0
-            max_idx = len(sweep_angles) - 1
             if current_server_state == "APROXIMACION":
-                for i, ang in enumerate(sweep_angles):
-                    if ang <= -7.0:
-                        max_idx = i
+                target_table = approach_binocular_angles
             elif current_server_state == "ESCAPE":
-                escape_angles = [0.0, 7.0, 14.0]
-                if sweep_angles != escape_angles:
-                    sweep_angles = escape_angles
-                    sweep_idx = 0
-                    sweep_dir = 1
-                max_idx = len(sweep_angles) - 1
+                target_table = escape_guard_angles
+            else:
+                target_table = radar_full_angles
+
+            if sweep_angles != target_table:
+                # Reenganchar en el tic más cercano al ángulo actual para no saltar brusco
+                closest_i = min(range(len(target_table)), key=lambda i: abs(target_table[i] - current_servo_deg))
+                sweep_angles = list(target_table)
+                sweep_idx = closest_i
+
+            max_idx = len(sweep_angles) - 1
             sweep_idx += sweep_dir
             if sweep_idx >= max_idx:
                 sweep_idx = max_idx
@@ -304,6 +324,8 @@ def main():
         rot = self_node.getOrientation()
         fwd_x = rot[0]
         fwd_y = rot[3]
+        if math.isnan(rx) or math.isnan(ry) or math.isnan(fwd_x) or math.isnan(fwd_y):
+            continue
         yaw = math.atan2(fwd_y, fwd_x)
 
         active_marbles_xy = []
@@ -356,6 +378,20 @@ def main():
 
         # Actualizar mapa de ocupación
         mapper.update(rx, ry, yaw, d_us_izq, d_us_der, d_us_cen, d_us_cen)
+
+        # Grabar muestras para Dataset V2 (Simulación Dinámica)
+        if dataset_recorder is not None:
+            dataset_recorder.record_step(
+                us_readings=filtered_us,
+                laser_left=d_laser_izq,
+                laser_right=d_laser_der,
+                servo_deg=current_servo_deg,
+                robot_pose=(rx, ry, yaw),
+                active_marbles=active_marbles_xy,
+                active_obstacles=active_obstacles_xy,
+                exit_pos=exit_pos,
+                exit_yaw=exit_yaw,
+            )
 
         # -----------------------------------------------------------------
         # 3. CAPTURA FÍSICA ESTRICTA POR HUECO DE 7.0 CM (|Y| <= 0.035 m)
@@ -410,10 +446,9 @@ def main():
                 except Exception:
                     pass
 
-        # -----------------------------------------------------------------
-        # 4. CONDICIÓN DE FINALIZACIÓN Y SALIDA
-        # -----------------------------------------------------------------
-        escape_crossed = ((rx - exit_pos[0]) * exit_dir[0] + (ry - exit_pos[1]) * exit_dir[1]) > 0.05
+        dist_to_door = math.hypot(rx - exit_pos[0], ry - exit_pos[1])
+        in_doorway = dist_to_door <= 0.38
+        escape_crossed = in_doorway and (((rx - exit_pos[0]) * exit_dir[0] + (ry - exit_pos[1]) * exit_dir[1]) > 0.04)
         if (current_server_state in ("ESCAPE", "FINALIZACION")) and escape_crossed:
             set_drive_velocities(0.0, 0.0)
             log_msg("\n" + "=" * 78)
@@ -448,12 +483,16 @@ def main():
                 break
 
         # -----------------------------------------------------------------
-        # 5. TRANSMISIÓN DE TELEMETRÍA (7 CAMPOS CRUDOS)
+        # 5. TRANSMISIÓN DE TELEMETRÍA (6 SENSORES + TS + 3 POSE = 10 CAMPOS)
         # -----------------------------------------------------------------
+        if sim_time < 0.15:
+            robot.step(time_step)
+            continue
+
         telemetry_msg = (
             f"TELEMETRY:{d_us_izq:.2f},{d_us_cen:.2f},{d_us_der:.2f},"
             f"{d_laser_izq:.2f},{d_laser_der:.2f},{current_servo_deg:.1f},"
-            f"{int(sim_time*1000)}\n"
+            f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n"
         )
         try:
             sock.sendall(telemetry_msg.encode("utf-8"))
@@ -557,6 +596,15 @@ def main():
                 except Exception:
                     pass
         was_colliding = collision_now
+
+    if dataset_recorder is not None:
+        summary = dataset_recorder.get_session_summary()
+        log_msg("\n" + "-" * 70)
+        log_msg("  📦 [DATASET V2 - RESUMEN DE SESIÓN REGISTRADO]")
+        log_msg(f"  Ultrasonido (nuevas / total): {summary['session_us']} / {summary['total_us']}")
+        log_msg(f"  Canicas     (nuevas / total): {summary['session_marbles']} / {summary['total_marbles']}")
+        log_msg(f"  Guardado en: {summary['us_path']} y {summary['marbles_path']}")
+        log_msg("-" * 70)
 
     if sock:
         try: sock.close()

@@ -80,7 +80,7 @@ public class ManejadorCliente implements Runnable {
         try {
             VectorSensores sensores = MensajeProtocolo.parsearTelemetria(linea);
             if (!sensores.isValido()) {
-                LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico.");
+                LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico: " + linea.trim());
                 return;
             }
             String[] pares = clasificador.clasificarPares(sensores);
@@ -117,6 +117,17 @@ public class ManejadorCliente implements Runnable {
                         } catch (Exception ignored) {}
                     }
                     planificador.notificarColision(lado);
+                }
+            } else if (evento.startsWith("SALIDA_META:")) {
+                if (planificador != null) {
+                    try {
+                        String data = evento.substring("SALIDA_META:".length()).trim();
+                        String[] parts = data.split(",");
+                        double ex = Double.parseDouble(parts[0].trim());
+                        double ey = Double.parseDouble(parts[1].trim());
+                        planificador.establecerSalidaMeta(ex, ey);
+                        LOGGER.info(String.format("[META SALIDA] Registrada meta de escape en (%.2f, %.2f)", ex, ey));
+                    } catch (Exception ignored) {}
                 }
             }
         } catch (Exception e) {
