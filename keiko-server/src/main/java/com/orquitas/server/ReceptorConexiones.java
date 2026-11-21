@@ -77,10 +77,12 @@ public class ReceptorConexiones implements Runnable {
     }
 
     public void transmitirATodos(String mensaje) {
+        List<ManejadorCliente> copiaClientes;
         synchronized (clientesConectados) {
-            for (ManejadorCliente client : clientesConectados) {
-                client.enviarMensaje(mensaje);
-            }
+            copiaClientes = new ArrayList<>(clientesConectados);
+        }
+        for (ManejadorCliente client : copiaClientes) {
+            client.enviarMensaje(mensaje);
         }
     }
 
