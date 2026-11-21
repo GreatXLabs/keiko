@@ -1,142 +1,125 @@
-# Keiko-Sim: Entorno de Simulación Robótica 3D 🐋⚡
+# Keiko-Sim: Entorno de Simulación Robótica 3D
 
-Módulo de simulación 3D de alta fidelidad basado en **Webots (Cyberbotics)** para el ecosistema robótico autónomo **Proyecto Orquitas (Keiko)**.
+Módulo de simulación 3D en **Webots (R2025a)** para el ecosistema **Proyecto Orquitas (Keiko)** (`2.0.0-audit.1` | `mega-3us-2laser`).
 
-Diseñado para resolver el desafío de entrenar y validar redes neuronales artificiales en **Neuroph 2.98**, ensayar ubicaciones y geometrías de sensores físicos, y simular el ciclo biológico completo de la Orquita en la **Bahía de Caza** sin desgaste de hardware ni baterías.
-
----
-
-## 🌟 Características Principales
-
-1. **Física Tridimensional Real (Open Dynamics Engine)**:
-   - Modela la pista reglamentaria de \(2.4\text{ m} \times 2.4\text{ m}\) con muros perimetrales de \(15\text{ cm}\) y el **Estrecho de Salida** de \(30\text{ cm}\).
-   - Simula presas biológicas ("Lobitos") como canicas físicas rodantes de \(16\text{ mm}\) con masa, fricción y restitución dinámica.
-   - Cavidad bucal del robot con sensor de contacto para registrar capturas físicas (`EVENT: CAPTURA`).
-
-2. **Banco de 4 Sensores Ultrasónicos en Doble Plano Vertical**:
-   - **Plano Inferior (Z = 1 cm, \(\pm 5^\circ\) de convergencia frontal)**: Detecta canicas pequeñas en el suelo y obstáculos a nivel de piso.
-   - **Plano Superior (Z = 8 cm, \(\pm 20^\circ\) de divergencia lateral)**: Detecta muros perimetrales y obstáculos altos, disparando por encima de las canicas para diferenciar presas de paredes.
-   - **Apertura Acústica Conforme a Catálogo**: Modela conos de dispersión de \(26^\circ\) y reflectividad acústica sobre esferas vs. planos continuos.
-
-3. **Generación Acelerada de Datasets Sintéticos (Modo Headless)**:
-   - Controlador Supervisor que recorre la bahía y genera miles de muestras balanceadas en segundos (`webots --mode=fast --no-rendering`).
-   - Etiquetado de Ground Truth en las 5 clases oficiales: `LOBITO`, `MURO`, `OBSTACULO`, `SALIDA`, `ESPACIO_LIBRE`.
-
-4. **Entrenamiento y Validación en Neuroph 2.98**:
-   - Integración nativa con `neuroph-train`.
-   - Rendimiento demostrado en pruebas de generalización: **95.07% de Accuracy** y **0.9517 de F1-Score**.
+Permite validar la arquitectura distribuida Hardware-in-the-Loop (`keiko-server` en Java 21 + `robot_client.py` en Webots), generar datasets V2 de entrenamiento para **Neuroph 2.98** y ejecutar baterías multi-escenario en la **Bahía de Caza**.
 
 ---
 
-## 📁 Estructura del Subproyecto
+## 1. Escenarios y Física Modelada
+
+- **Geometría Oficial (Bahía de Caza):**
+  - **Perfil `standard` (semielíptico):** base apoyada contra pared plana de **~1.80 m** ($b = 0.90\text{ m}$), profundidad máxima de **~1.20 m** ($a = 1.20\text{ m}$), área interior de **~1.70 m²**, muros de cartón de **5 mm** de espesor y **18 cm** de altura, y **Estrecho de Salida** de **30 cm** sin chaflanes ni túneles.
+  - **Perfil `circular`:** pista circular de radio $R = 0.90\text{ m}$ (diámetro **1.80 m**) cortada por pared trasera en $y = -0.60\text{ m}$.
+  - **Escenarios generados por [`scripts/build_worlds.py`](scripts/build_worlds.py):** `bahia_de_caza_scen_1.wbt` .. `bahia_de_caza_scen_14.wbt`, `bahia_de_caza_circular.wbt`, `bahia_de_caza_circular_client.wbt`, `bahia_de_caza_client.wbt`, `bahia_de_caza.wbt` y `bahia_de_caza_dataset.wbt`.
+- **Elementos de Pista:** 2 obstáculos 3D (`6 cm × 6 cm × 6 cm` mínimo) y 3 Lobitos (canicas físicas de **16 mm** de diámetro, masa `5.5 g`).
+- **Modelo del Robot (`mega-3us-2laser`) en [`controllers/robot_client/robot_client.py`](controllers/robot_client/robot_client.py):**
+  - Chasis 4WD Skid-Steer (`257 × 150 × 76.1 mm`, ruedas de `67.2 mm`).
+  - **Fila superior:** 3× sensores ultrasónicos HC-SR04 fijos (`us_left`, `us_center`, `us_right`) a `5.5 cm` de altura con modelado físico ([`ultrasonic_physics.py`](controllers/common/ultrasonic_physics.py)) y filtro de frontera `SensorBorderFilter` (mediana de 3 + EMA $\alpha = 0.65$).
+  - **Fila inferior:** 2× sensores láser ToF VL53L0X (`laser_left`, `laser_right`) montados sobre servos SG90 (`servo_left`, `servo_right`) en barrido espejo ([`laser_physics.py`](controllers/common/laser_physics.py)).
+  - **Hueco bucal del picker:** abertura frontal libre de **7.0 cm** (`|Y| <= 0.035 m`) a ras de suelo con registro automático en [`DatasetRecorder`](controllers/common/dataset_recorder.py).
+  - **Fail-Safe:** detiene los 4 motores si pasan **> 500 ms** sin recibir `COMMAND` ni `HEARTBEAT` del servidor.
+
+---
+
+## 2. Estructura del Subproyecto
 
 ```text
 keiko-sim/
 ├── config/
-│   └── simulation_params.json         <- Dimensiones, ángulos, aperturas y configuración
+│   └── simulation_params.json        <- Geometría, física, versión (2.0.0-audit.1) y rig (mega-3us-2laser)
 ├── worlds/
-│   ├── bahia_de_caza.wbt              <- Escena 3D interactiva para visualización en tiempo real
-│   └── bahia_de_caza_dataset.wbt      <- Escena configurada para generación masiva acelerada
+│   ├── bahia_de_caza_scen_1..14.wbt  <- Escenarios reglamentarios de prueba
+│   ├── bahia_de_caza_circular*.wbt   <- Variante circular (standalone y cliente)
+│   ├── bahia_de_caza_client.wbt      <- Escena cliente base
+│   ├── bahia_de_caza.wbt             <- Escena interactiva base
+│   └── bahia_de_caza_dataset.wbt     <- Escena para recolección de datasets
 ├── controllers/
-│   ├── live_visualizer/
-│   │   └── live_visualizer.py         <- Controlador en vivo: ciclo biológico de 3 fases y telemetría
-│   └── dataset_collector/
-│       └── dataset_collector.py       <- Supervisor: muestreo de poses y exportación a CSV
+│   ├── robot_client/robot_client.py  <- Cliente distribuido TCP + handshake HELLO (rig 3US+2Laser)
+│   ├── common/                       <- arena_mapper, collision_audit, ultrasonic_physics, laser_physics, dataset_recorder, sonar_visualizer
+│   ├── live_visualizer/              <- Visualizador local legacy
+│   └── dataset_collector/            <- Colector de datasets por poses
 ├── data/
-│   ├── datasets/                    <- Datasets sintéticos balanceados (4/6/8/10 sensores)
-│   ├── models/                     <- Redes neuronales .nnet (producción y por experimento)
-│   └── README.md                   <- Índice de datasets y modelos
+│   ├── datasets/                     <- dataset_ultrasonico.csv, dataset_canicas.csv, v2_simulaciones/, backup_v1_pre_simulaciones/
+│   └── models/                       <- modelo_ultrasonico.nnet, modelo_canicas.nnet y modelos históricos
 ├── scripts/
-│   ├── run_gui.sh                     <- Lanza la simulación interactiva 3D con interfaz
-│   ├── generate_dataset.sh            <- Genera el dataset CSV en modo acelerado
-│   └── train_neuroph.sh               <- Entrena el modelo en Neuroph y valida métricas
-└── README.md                          <- Esta documentación
+│   ├── iniciar_simulacion.sh         <- Lanza keiko-server (--port 8888 --reset) + Webots [1..14|random|circular]
+│   ├── iterar_simulacion.sh          <- Orquestador visual continuo (llama a entrenamiento_continuo.py)
+│   ├── build_worlds.py               <- Generador paramétrico de mundos .wbt
+│   ├── benchmark_hil.py              <- Benchmark multi-escenario Hardware-in-the-Loop
+│   ├── consolidar_dataset_v2.py      <- Auditoría, balanceo y promoción de datasets V2
+│   └── run_distributed.sh            <- Lanzador alternativo sobre bahia_de_caza_client.wbt
+└── tests/                            <- Suite unittest (test_coaxial_neural_planner, test_collision_audit, test_meshes_and_arena, test_ultrasonic_physics)
 ```
 
 ---
 
-## 🚀 Guía Rápida de Uso
+## 3. Guía Rápida de Uso
 
-### 1. Ver la Simulación en Tiempo Real (Modo Standalone)
-Abre la Bahía de Caza en Webots y observa a la Orquita navegar, esquivar muros, detectar canicas y ejecutar las 3 fases del ciclo biológico con el controlador local:
+### 1. Lanzar Simulación Distribuida (Servidor Central + Webots 3D)
+Desde la raíz del repositorio:
 ```bash
-./scripts/run_gui.sh
+# Escenario fijo del 1 al 14
+./keiko-sim/scripts/iniciar_simulacion.sh 1
+
+# Escenario aleatorio reglamentario generado al vuelo
+./keiko-sim/scripts/iniciar_simulacion.sh random
+
+# Pista circular
+./keiko-sim/scripts/iniciar_simulacion.sh circular
+```
+*(Internamente compila `keiko-server`, inicia `keiko-server.jar` en `--port 8888 --reset` cargando `keiko-sim/data/models/modelo_ultrasonico.nnet` y abre Webots en tiempo real.)*
+
+### 2. Iteración Continua con Supervisión Visual
+```bash
+./keiko-sim/scripts/iterar_simulacion.sh
+```
+Alterna proceduralmente entre pistas semielíptica (`standard`) y circular, registra puntajes y métricas en `keiko-sim/logs/entrenamiento_continuo.csv` y verifica capturas en `estomago.txt`.
+
+### 3. Regenerar Mundos y Ejecutar Benchmark HIL
+```bash
+# Regenerar todos los escenarios .wbt
+python3 keiko-sim/scripts/build_worlds.py
+
+# Ejecutar benchmark multi-escenario contra keiko-server
+python3 keiko-sim/scripts/benchmark_hil.py
 ```
 
-### 2. Ejecutar la Arquitectura Distribuida Completa (Hardware-in-the-Loop)
-Arranca el Servidor Central Cerebro en Java 21 (con Neuroph 2.98, concurrencia, `estomago.txt` y Auditor) en simultáneo con el cliente en Webots 3D comunicándose por socket:
+### 4. Consolidar Datasets V2 de Simulación
 ```bash
-./scripts/run_distributed.sh
+python3 keiko-sim/scripts/consolidar_dataset_v2.py --status
+python3 keiko-sim/scripts/consolidar_dataset_v2.py --merge --target-per-class=1500
+python3 keiko-sim/scripts/consolidar_dataset_v2.py --deploy
 ```
 
-### 3. Generar un Nuevo Dataset Sintético
-Ejecuta la simulación en modo acelerado sin ventana gráfica para generar miles de filas CSV:
+### 5. Ejecutar Pruebas Unitarias de `keiko-sim`
 ```bash
-./scripts/generate_dataset.sh
+python3 -m unittest discover -s keiko-sim/tests -v
 ```
-El archivo resultante se guardará en `data/datasets/orquitas_dataset_4_sensores.csv`.
-
-### 4. Entrenar la Red Neuronal con Neuroph 2.98
-Ejecuta el pipeline de entrenamiento en Java 21 sobre el dataset generado:
-```bash
-./scripts/train_neuroph.sh
-```
-El modelo compilado `.nnet` se guardará automáticamente en `data/models/orquitas_4sensores_neuroph.nnet`.
+> **Estado conocido en `2.0.0-audit.1`:** `23/30 OK`, `3 FAIL`, `4 ERROR` (los suites `test_coaxial_neural_planner.py` 15/15 y `test_collision_audit.py` 5/5 pasan completos; las fallas restantes se deben a pruebas coaxiales legacy desactualizadas, `actual_exit_gap_m = 0.3100 m` en `build_worlds.py` y un `TypeError` en `live_visualizer.py:231`, documentados en [`docs/AUDITORIA_CONSOLIDACION.md`](../docs/AUDITORIA_CONSOLIDACION.md)).
 
 ---
 
-## 📊 Resultados de Entrenamiento en Neuroph
+## 4. Redes Neuronales Activas (Neuroph 2.98)
 
-Entrenamiento de MultiLayerPerceptron (Topología \(4 \to 24 \to 5\)) evaluado sobre el 30% de datos de prueba no vistos:
+El controlador `robot_client.py` transmite telemetría al servidor central, que clasifica mediante dos redes especializadas ubicadas en `data/models/` (sincronizadas con `keiko-server/models/`):
 
-| Métrica | Valor Obtenido |
-| :--- | :---: |
-| **Accuracy (Precisión Global)** | **95.07%** |
-| **F1-Score Promedio** | **0.9517** |
-| **RMSE (Error Cuadrático)** | **0.1434** |
-| **Tiempo de Entrenamiento** | **2.14 segundos** (756 épocas) |
+- **`modelo_ultrasonico.nnet` (Red 1):** 1 entrada normalizada → 3 salidas (`BLOQUEO`, `ESPACIO_LIBRE`, `SALIDA`), aplicada por sector `[IZQ, CEN, DER]`.
+- **`modelo_canicas.nnet` (Red 2):** 6 entradas `[us_izq, us_cen, us_der, laser_izq, laser_der, angulo_servo]` → 4 salidas (`LOBITO_CENTRO`, `LOBITO_DER`, `LOBITO_IZQ`, `NINGUNA`).
 
-### Matriz de Confusión:
-```text
-                  ESPACIO  LOBITO    MURO  OBSTACULO  SALIDA
-ESPACIO_LIBRE [    120,       0,      0,        0,      0 ]  (100.0%)
-LOBITO        [      0,      67,      0,        1,      0 ]  ( 98.5%)
-MURO          [      0,       0,    120,        0,      0 ]  (100.0%)
-OBSTACULO     [      3,       2,      0,      114,      1 ]  ( 95.0%)
-SALIDA        [      8,       1,      2,        9,    100 ]  ( 83.3%)
-```
+El historial completo de experimentos y métricas previas se encuentra en [`docs/EXPERIMENTS.md`](../docs/EXPERIMENTS.md) y [`docs/ITERACION_SIMULACION_3US_2LASER.md`](../docs/ITERACION_SIMULACION_3US_2LASER.md).
 
 ---
 
-## 💻 Instalación de Webots para el Equipo
+## 5. Instalación de Webots
 
-Webots es un software libre y de código abierto (licencia Apache 2.0). Cada integrante del equipo puede instalarlo según su sistema operativo:
+Webots (Apache 2.0) debe estar disponible en `PATH` o en `~/.local/bin/webots`:
 
-### En Linux (Ubuntu / Debian):
-Instalación sin permisos de root (versión portable oficial):
-```bash
-mkdir -p ~/.local/opt && cd ~/.local/opt
-curl -L -o webots.tar.bz2 https://github.com/cyberbotics/webots/releases/download/R2025a/webots-R2025a-x86-64.tar.bz2
-tar -xjf webots.tar.bz2 && rm webots.tar.bz2
-ln -sf ~/.local/opt/webots/webots ~/.local/bin/webots
-```
-
-### En Windows:
-1. Descarga el instalador oficial desde [Cyberbotics Webots Releases](https://github.com/cyberbotics/webots/releases/download/R2025a/webots-R2025a_setup.exe).
-2. Ejecuta el instalador `.exe` y sigue el asistente.
-3. Abre el archivo `keiko-sim/worlds/bahia_de_caza.wbt` directamente desde Webots.
-
-### En macOS:
-1. Descarga el archivo `.dmg` desde [Webots Releases](https://github.com/cyberbotics/webots/releases/download/R2025a/webots-R2025a.dmg).
-2. Arrastra Webots a tu carpeta de Aplicaciones.
-
----
-
-## ⚙️ Calibración de Sensores: Caso de Estudio (Blind Spot)
-
-Durante las pruebas físicas iniciales en simulación se identificó que, con los sensores frontales abiertos a \(\pm 15^\circ\), existía un **punto ciego frontal de \(10^\circ\)** en el que las canicas de 16 mm no eran detectadas a distancias intermedias.
-
-Gracias a la simulación paramétrica, la geometría se optimizó a:
-- Orientación convergente de \(\pm 5^\circ\) en el plano bajo.
-- Apertura cónica ajustada a \(0.45\text{ rad}\) (\(\sim 26^\circ\)).
-- Detección de canicas frontal y lateral continua con 100% de cobertura.
+- **Linux (portable oficial):**
+  ```bash
+  mkdir -p ~/.local/opt && cd ~/.local/opt
+  curl -L -o webots.tar.bz2 https://github.com/cyberbotics/webots/releases/download/R2025a/webots-R2025a-x86-64.tar.bz2
+  tar -xjf webots.tar.bz2 && rm webots.tar.bz2
+  ln -sf ~/.local/opt/webots/webots ~/.local/bin/webots
+  ```
+- **Windows / macOS:** descargar `webots-R2025a_setup.exe` o `webots-R2025a.dmg` desde [Cyberbotics Webots Releases](https://github.com/cyberbotics/webots/releases/tag/R2025a).

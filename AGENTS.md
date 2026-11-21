@@ -1,221 +1,113 @@
 # Contexto Técnico del Proyecto: Orquitas (Keiko)
 
-Especificación técnica de ingeniería, enrutador de documentación y reglas operativas para el ecosistema robótico autónomo distribuido "Proyecto Orquitas" (Programación Sobre Redes y Desarrollo de Sistemas, Ciclo 2026).
+Especificación técnica de ingeniería, enrutador de documentación y reglas operativas para el ecosistema robótico autónomo distribuido **"Proyecto Orquitas"** (Programación Sobre Redes y Desarrollo de Sistemas, Ciclo 2026).
 
 ---
 
 ## 0. Flujo de Trabajo en Git (Obligatorio)
 
-- **Prohibido pushear directamente a `main`** — aplica a todos los integrantes, incluidos los dueños del repositorio.
+- **Prohibido pushear directamente a `main`** — aplica a todos los integrantes y agentes.
 - Todo cambio nace en una **rama propia**: `feat/<tema>`, `fix/<tema>`, `docs/<tema>`, `chore/<tema>`.
 - Los commits son **atómicos** y siguen **Conventional Commits** (descripciones en inglés).
-- La integración a `main` es **exclusivamente vía Pull Request** (merge squash), idealmente con al menos una revisión de otro integrante.
+- La integración a `main` es **exclusivamente vía Pull Request** (merge squash), idealmente con revisión de otro integrante.
 - Prohibido `git push --force` sobre `main` o ramas compartidas.
+- **Privacidad y Cero PII:** prohibido incluir nombres personales, correos, direcciones IP privadas o rutas locales absolutas del sistema de archivos en código, documentación o mensajes de commit.
 
 ---
 
-## 1. Enrutador de Documentación para Agentes de IA
+## 1. Regla Obligatoria de Versionado y Changelog
 
-Este documento (`AGENTS.md`) define las reglas de arquitectura y restricciones globales que rigen a los agentes que interactúan con el repositorio. Para inspeccionar o modificar información detallada, los agentes **deben dirigirse a los archivos markdown específicos** listados en esta matriz de enrutamiento:
+- **Fuente única de verdad:** el archivo raíz [`VERSION`](VERSION) define la versión activa del ecosistema (actualmente `2.0.0-audit.1`, rig `mega-3us-2laser`).
+- **Sincronización obligatoria entre módulos:** cualquier cambio en código, modelos `.nnet`, protocolo serie/TCP o parámetros de simulación debe mantener sincronizados `VERSION`, `keiko-server/pom.xml`, `ConfiguracionServidor.java`, `orquita_firmware.ino`, `keiko-sim/config/simulation_params.json` y `robot_client.py`.
+- **Validación automática:** antes de finalizar cambios o abrir PR, ejecutar:
+  ```bash
+  ./scripts/check_versions.sh
+  ```
+  Debe finalizar con `exit 0` (**9/9 `[OK]`**).
+- **Preservación de Handshake:** tanto el firmware físico como el cliente de simulación deben emitir `HELLO:<version>,<rig>` al conectar, y `keiko-server` debe validar compatibilidad `major.minor` y `rig`.
+- **Actualización de [`CHANGELOG.md`](CHANGELOG.md):** todo cambio funcional en código, modelos `.nnet` o simulación debe agregar o actualizar su entrada correspondiente en `CHANGELOG.md` indicando **qué cambió**, **por qué** y **evidencia exacta de pruebas ejecutadas**.
+
+---
+
+## 2. Enrutador de Documentación y Mapa del Repositorio
+
+Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los materiales legacy de `1.x`, Hito 2/3 y experimentos descartados viven aislados en [`archive/`](archive/README.md)):
 
 | Información Buscada | Archivo / Directorio de Referencia | Contenido Principal |
 | :--- | :--- | :--- |
-| **Reglamento, Pista y Puntuación** | [`docs/consignas/La Competencia.md`](docs/consignas/La%20Competencia.md) | Geometría y dimensiones de la Bahía (~1.80 m base, ~1.20 m profundidad, ~1.70 m² de área), salida de 30 cm, 2 obstáculos 3D (6x6 cm, alt. mín. 6 cm), 3 canicas (1.6 cm), etapas, sistema de puntos/penalizaciones y estrategia docente. |
-| **Consigna General e Hitos** | [`docs/consignas/Consigna y Alcances.md`](docs/consignas/Consigna%20y%20Alcances.md) | Alcance integral del proyecto (PSR + DS), metodología SCRUM, definición formal de Hitos 1, 2 y 3, entregables requeridos y criterios globales de evaluación. |
-| **Redes, Protocolo y Persistencia** | [`docs/consignas/Reglas Técnicas de Programación Sobre Redes.md`](docs/consignas/Reglas%20Técnicas%20de%20Programación%20Sobre%20Redes.md) | Especificación de PSR: responsabilidades Cliente vs. Servidor, diseño de tramas Bluetooth RFCOMM/SPP, condición de carrera en `estomago.txt` ("La Linareada"), concurrencia, sincronización, hilo auditor y Fail-Safe. |
-| **Manual Conceptual del Sistema** | [`docs/EXPLICACION_SISTEMA_HUMANO.md`](docs/EXPLICACION_SISTEMA_HUMANO.md) | Guía explicativa integral para humanos: arquitectura robótica 4WD, banco sensorial HC-SR04, odometría, cartografía 2D e inferencia con Neuroph 2.98. |
-| **Ingeniería Sensorial e Inferencia** | [`docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md`](docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md) | Fundamento físico-acústico de ultrasonido, propagación, modelado de incertidumbre y justificación analítica de la clasificación con Neuroph 2.98. |
-| **Datos de Campo y Calibración IA** | [`docs/INFORME_NEUROPH_LECTURAS_CAMPO.md`](docs/INFORME_NEUROPH_LECTURAS_CAMPO.md) | Registro experimental de mediciones reales en pista, calibración de sensores y tasas de acierto del modelo de red neuronal. |
-| **Bitácora de Experimentos y Ranking** | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Historial de pruebas en cluster distribuido y simulador 3D (Webots), matrices de confusión y métricas de odometría. |
-| **Guía de Documentación Hito 2** | [`docs/GUIA_MODIFICACION_DOCUMENTACION_HITO2.md`](docs/GUIA_MODIFICACION_DOCUMENTACION_HITO2.md) | Detalle formal de adecuaciones y texto de Casos de Uso para entregas académicas de la segunda etapa. |
-| **Modelado UML Formal** | `docs/uml/` | Diagramas de Casos de Uso, Clases, Secuencia, Despliegue y Estados de la solución. |
-| **Firmware del Robot (Cliente)** | `firmware/` | Código para el microcontrolador y sensores a bordo del robot físico. |
-| **Servidor Central (PC Externa)** | `keiko-server/` | Proyecto Java 21 / NetBeans del Servidor Central (cerebro, concurrencia, persistencia `estomago.txt`, Neuroph, Bluetooth). |
-| **Simulador de Navegación** | `keiko-sim/` | Entorno de simulación para pruebas dinámicas de navegación y sensores. |
-| **Entrenamiento de Red Neuronal** | `neuroph-train/` | Scripts y utilitarios para entrenar, validar y exportar la red neuronal `.nnet`. |
-| **Suite de Pruebas Físicas** | `pruebas/` | Scripts de verificación en campo: lidar, visión artificial, pruebas de odometría y bitácora de hardware. |
+| **Versión y Compatibilidad** | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), [`scripts/check_versions.sh`](scripts/check_versions.sh) | Versión activa (`2.0.0-audit.1`), matriz de compatibilidad y verificador cruzado de 9 puntos. |
+| **Auditoría Fase A y Backlog Fase B** | [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md) | Auditoría de unificación, hashes `.nnet`, inventario `SIM-01..13`, `HRD-01..14`, `COMP-01..05` y estado real de pruebas. |
+| **Reglamento, Pista y Puntuación** | [`docs/consignas/La Competencia.md`](docs/consignas/La%20Competencia.md) | Geometría de la Bahía (~1.80 m base, ~1.20 m profundidad, ~1.70 m²), salida de 30 cm, 2 obstáculos 3D (6×6 cm, alt. mín. 6 cm), 3 canicas (1.6 cm), etapas y puntuación. |
+| **Consigna General e Hitos** | [`docs/consignas/Consigna y Alcances.md`](docs/consignas/Consigna%20y%20Alcances.md) | Alcance integral del proyecto (PSR + DS), metodología SCRUM y criterios globales de evaluación. |
+| **Redes, Protocolo y Persistencia** | [`docs/consignas/Reglas Técnicas de Programación Sobre Redes.md`](docs/consignas/Reglas%20Técnicas%20de%20Programación%20Sobre%20Redes.md) | Especificación PSR: Cliente vs. Servidor, tramas Bluetooth RFCOMM/SPP, condición de carrera en `estomago.txt`, hilo auditor y Fail-Safe. |
+| **Informes Técnicos e IA** | [`docs/EXPLICACION_SISTEMA_HUMANO.md`](docs/EXPLICACION_SISTEMA_HUMANO.md), [`docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md`](docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md), [`docs/INFORME_NEUROPH_LECTURAS_CAMPO.md`](docs/INFORME_NEUROPH_LECTURAS_CAMPO.md), [`docs/INFORME_EJECUTIVO_LECTURAS_CAMPO_NEUROPH.md`](docs/INFORME_EJECUTIVO_LECTURAS_CAMPO_NEUROPH.md), [`docs/ITERACION_SIMULACION_3US_2LASER.md`](docs/ITERACION_SIMULACION_3US_2LASER.md), [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Fundamento físico-acústico, lecturas de campo, iteración `3US + 2Laser` y bitácora de experimentos. |
+| **Firmware del Robot (Cliente)** | [`firmware/orquita_firmware/orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino) | Sketch oficial para Arduino Mega 2560 (`mega-3us-2laser`). |
+| **Servidor Central (Cerebro)** | [`keiko-server/`](keiko-server/README.md) | Proyecto Java 21 / Maven / NetBeans (`ServidorCentral`, Neuroph 2.98 dual, `ReceptorSerie`, `GestorEstomago`, `AuditorEstomago`, `bt_rfcomm_bridge.py`). |
+| **Simulador 3D (Webots)** | [`keiko-sim/`](keiko-sim/README.md) | Escenas `scen_1..14` y `circular`, `build_worlds.py`, `robot_client.py`, datasets/modelos y scripts `iniciar_simulacion.sh` / `iterar_simulacion.sh`. |
+| **Entrenamiento Distribuido** | [`neuroph-train/`](neuroph-train/README.md) | Cliente/Servidor Swing para entrenamiento y validación de redes `.nnet` en Neuroph 2.98 (`neuroph.aguilucho.ar:443`). |
+| **Modelos CAD 3D** | `modelos-3d/` | Ensamblajes FreeCAD (`.FCStd`), STL exportados (Git LFS) y planos técnicos. |
+| **Pruebas Físicas y Pinout Mega** | [`pruebas/README.md`](pruebas/README.md), [`pruebas/PICKER-ESTOMAGO-Y-ALIMENTACION.md`](pruebas/PICKER-ESTOMAGO-Y-ALIMENTACION.md), [`pruebas/SIMULACION-UNITY.md`](pruebas/SIMULACION-UNITY.md) | Bitácoras de banco, pinout verificado del Mega, calibración de sensores y simulaciones físicas en Python. |
+| **Archivo Histórico** | [`archive/README.md`](archive/README.md) | Firmware UNO legacy, sensores coaxiales previos, entregas Hito 2/3 y experimentos descartados. |
 
 ---
 
-## 2. Alcance y Restricciones Tecnológicas del Proyecto
+## 3. Arquitectura Física Oficial del Hardware (`mega-3us-2laser`)
 
-- **Estructura del Repositorio:** El directorio raíz `keiko/` aloja subproyectos independientes (ej. `neuroph-train/`, firmware cliente, servidor cerebro). Cada subproyecto gestiona su propio ciclo de vida y empaquetado.
-- **Lenguaje y Entorno:** Java puro (Java 21 LTS), con estructura de proyecto compatible y ejecutable en NetBeans.
-- **Motor de Inteligencia Artificial:** Exclusivamente **Neuroph 2.98**.
-- **Infraestructura de Red:**
-  - Comunicación Robot-Servidor: Bluetooth RFCOMM / SPP (Serial Port Profile).
-  - Cluster de entrenamiento distribuido: `neuroph.aguilucho.ar:443`.
-
----
-
-## 3. Modelo de Dominio y Escenario ("La Bahía de Caza")
-
-### 3.1 Elementos del Escenario
-- **Geometría de la Bahía:** Superficie aproximada de **semielipse** (o semicírculo irregular) montada contra una pared plana:
-  - Base apoyada en la pared: **~1.80 m** (semieje menor $b = 0.90\text{ m}$).
-  - Profundidad perpendicular máxima: **~1.20 m** hacia la salida (semieje mayor $a = 1.20\text{ m}$, aprox. 3 baldosas).
-  - Área interior calculada: **~1.70 m²** ($A = \frac{1}{2} \pi \cdot a \cdot b$).
-- **Muros Perimetrales:** Cartón de 5 mm de espesor y altura uniforme de 15 a 20 cm.
-- **Estrecho de Salida:** Abertura perimetral única de **30 cm de luz libre**, ubicada en el centro del arco exterior. No posee marcos, sensores ni postes en "T" (corte plano de 5 mm).
-- **Obstáculos:** Exactamente **2 obstáculos** fabricados mediante **impresión 3D**, con base de **6 cm × 6 cm** y una **altura mínima de 6 cm** (la altura final no fue fijada con exactitud, pero nunca será menor a 6 cm).
-- **Lobitos (Presas Biológicas):** Exactamente **3 canicas físicas de 1.6 cm de diámetro**, distribuidas con margen de separación suficiente respecto a muros y obstáculos.
-
-### 3.2 Ciclo Biológico de Tres Fases
-1. **Fase 1: Búsqueda y Captura ("Panza Llena"):** Localizar y capturar exactamente **3 Lobitos**.
-2. **Fase 2: Mutación Conductual:** Al verificar la tercera captura en almacenamiento persistente, cesar inmediatamente la búsqueda de presas y transicionar al modo escape.
-3. **Fase 3: Escape:** Localizar el Estrecho de Salida y abandonar la Bahía de Caza de manera 100% autónoma.
+- **Microcontrolador:** Arduino Mega 2560.
+- **Tracción 4WD Skid-Steer:** Shield **L293D** (`AFMotor`, bornes `M1..M4`, inversión de sentido configurada en firmware para los 4 motores).
+- **Driver PWM / Servos:** **PCA9685** en dirección I2C `0x40` (bus I2C del Mega: `D20 = SDA`, `D21 = SCL`).
+- **Fila Sensorial Superior (Obstáculos y Salida):** **3× HC-SR04** fijos (Izquierda, Centro, Derecha): `TRIG {24, 27, 29}`, `ECHO {25, 26, 28}`.
+- **Fila Sensorial Inferior (Detección de Canicas):** **2× VL53L0X** frontales (`0x30` con `XSHUT = A8`, `0x31` con `XSHUT = A9`) montados sobre **2× servos SG90** en canales `0` y `1` del PCA9685 realizando barrido en espejo.
+- **Picker y Sensor de Estómago:** **2× servos SG90 modificados a 360°** en canales `2` y `3` del PCA9685 (+ motor DC auxiliar en L298N `ENA = D45`, `IN1 = D22`, `IN2 = D23`) y **1× VL53L0X** interno de estómago (`0x32` con `XSHUT = A10`) para confirmación física de captura.
+- **Enlace de Comunicación:** módulo Bluetooth **HC-05** en `Serial1` (`D18`/`D19` a `9600` bps) o enlace USB de banco en `Serial` (`115200` bps).
+- **Restricción del Cliente:** el microcontrolador solo muestrea, aplica filtrado de frontera (mediana + EMA), actúa sobre motores/servos/picker y ejecuta el Fail-Safe; no contiene lógica de navegación ni clasificación.
 
 ---
 
-## 4. Arquitectura Distribuida y Pipeline de Datos
+## 4. Pipeline Dual de IA (Neuroph 2.98) y Regla Anti-Hardcoding
 
-```text
-[Sensores Fisicos] 
-       |
-       v (Muestreo + Validacion de frontera)
-[Cliente: La Orquita]
-       |
-       v (Bluetooth RFCOMM/SPP - Mensajes delimitados)
-[Servidor Central: Cerebro PC]
-       |
-       +--> [Modulo Persistencia] <---> [estomago.txt] (Seccion Critica)
-       |                                      ^
-       |                                      | (Sondeo periodico)
-       |                                [Hilo Auditor]
-       +--> [Neuroph 2.98: Clasificador Red Neuronal]
-       |
-       v (Evaluacion de FSM y Toma de Decisiones)
-[Comando de Navegacion]
-       |
-       v (Bluetooth RFCOMM/SPP)
-[Cliente: Motores / Actuacion]
-```
+- **Motor de IA:** exclusivamente **Neuroph 2.98** (`Java 21 LTS`, compatible con Maven y Apache NetBeans).
+- **Arquitectura de Dos Redes Neuronales:**
+  1. **Red 1 — [`modelo_ultrasonico.nnet`](keiko-server/models/modelo_ultrasonico.nnet):** recibe 1 lectura ultrasónica normalizada y clasifica cada sector `[IZQ, CEN, DER]` en `{BLOQUEO, ESPACIO_LIBRE, SALIDA}`.
+  2. **Red 2 — [`modelo_canicas.nnet`](keiko-server/models/modelo_canicas.nnet):** recibe 6 entradas `[us_izq, us_cen, us_der, laser_izq, laser_der, angulo_servo]` y clasifica en `{LOBITO_CENTRO, LOBITO_DER, LOBITO_IZQ, NINGUNA}`.
 
-### 4.1 Responsabilidades del Cliente (Hardware Robot)
-- **Muestreo y Validación en Frontera:** Muestreo periódico de sensores (ultrasonido, infrarrojo, captura óptica/mecánica). Filtrar ruido espurio antes de transmitir.
-- **Empaquetado y Transmisión:** Enviar telemetría al Servidor mediante el protocolo serie acordado.
-- **Actuación Motriz:** Recibir y ejecutar órdenes de velocidad y giro.
-- **Fail-Safe Obligatorio:** Si la conexión Bluetooth se interrumpe o transcurren **> 500 ms** sin recepción de comando o heartbeat, el robot **debe detener inmediatamente los motores**. Queda prohibida la navegación ciega sin enlace activo.
-- **Sin Lógica Estratégica:** El cliente no clasifica datos ni decide trayectorias complejas.
-
-### 4.2 Responsabilidades del Servidor Central (Cerebro en PC)
-- **Procesamiento Multihilo Concurrente:** Coordinar hilos de comunicación serie, inferencia neuronal, persistencia de datos y auditoría de estado.
-- **Inferencia Neuronal (Neuroph 2.98):**
-  - Clasificar vectores de entrada en: `LOBITO`, `MURO`, `OBSTACULO`, `SALIDA`, `ESPACIO_LIBRE`.
-  - Prohibido el uso de umbrales fijos o comparaciones simples de distancia; la clasificación debe resolver la incertidumbre de datos físicos ruidosos mediante la red neuronal.
-- **Toma de Decisiones:** Generar comandos de navegación en función de la clasificación y el estado del sistema.
+### Regla Estricta Anti-Hardcoding y Anti-Atajos de Simulación
+- **Prohibido hardcodear decisiones de navegación con umbrales crudos:** queda terminantemente prohibido reemplazar, corregir o anular la inferencia de Neuroph 2.98 mediante condicionales sobre distancias crudas en cm o ángulos de servo (`if (us < X)`, filtros de sombra, inyección directa de `"LOBITO"` o `"SALIDA"` por distancia). Toda clasificación perceptual debe emanar de las redes neuronales `.nnet`.
+- **Prohibido usar pose de simulación en navegación o inferencia:** queda terminantemente prohibido leer o transmitir `hasPose()`, `posX`, `posY`, `theta` o `EVENT:SALIDA_META` para tomar decisiones en `keiko-server`. El nodo `Supervisor` de Webots puede usar la pose únicamente para auditoría local del juez de simulación (colisiones, egreso y visualización/logging).
+- **Estado actual de deuda técnica:** las violaciones detectadas durante la consolidación de Fase A (`SIM-01..13` y `HRD-01..14`) están inventariadas en [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md) para su eliminación completa en Fase B (`2.0.0`).
 
 ---
 
-## 5. Persistencia y Concurrencia Crítica ("El Estómago" y "La Linareada")
+## 5. Escenario, Protocolo y Persistencia Crítica
 
-### 5.1 Invariantes de Persistencia
-- **Archivo Físico Único:** `estomago.txt`.
-- **Prohibición de Estado Volátil:** Está terminantemente prohibido utilizar variables en memoria (contadores primitivos, variables estáticas, atributos) para determinar si la Orquita alcanzó "Panza Llena".
-- **Fuente de Verdad Persistente:** El número de registros válidos en `estomago.txt` es la única evidencia aceptada. Ante un reinicio forzado del servidor, el estado debe reconstruirse leyendo este archivo físico.
+### 5.1 Escenario ("La Bahía de Caza")
+- **Geometría:** semielipse contra pared plana (~1.80 m de base, ~1.20 m de profundidad, ~1.70 m² de área), muros de cartón de 5 mm y 15–20 cm de altura, abertura única de salida de **30 cm** sin marcos ni túneles.
+- **Elementos:** **2 obstáculos** 3D (base 6×6 cm, altura ≥ 6 cm) y **3 Lobitos** (canicas físicas de 1.6 cm de diámetro).
+- **Ciclo biológico:** `BUSQUEDA` → `APROXIMACION` → `CAPTURA` (hasta 3) → `ESCAPE` (al verificar 3 registros en disco) → `FINALIZACION` (o `ERROR_SEGURO` ante timeout).
 
-### 5.2 Control de Concurrencia y Sincronización
-- **Recurso Compartido Disputado:** Dos hilos acceden concurrentemente a `estomago.txt`:
-  1. **Hilo Escritor (Persistencia):** Escribe un nuevo registro tras la captura de un Lobito.
-  2. **Hilo Lector (Auditor):** Sondea periódicamente el archivo para inspeccionar capturas acumuladas.
-- **Mecanismo de Bloqueo Requerido:** Todas las operaciones de I/O sobre `estomago.txt` deben residir dentro de una sección crítica protegida con `ReentrantReadWriteLock` o monitores `synchronized(lock)`.
-- **Vaciado Obligatorio de Buffer:** Todo registro escrito debe ejecutar inmediatamente `flush()` / `FileDescriptor.sync()` para asegurar el volcado físico a disco sin retención en buffers volátiles del SO.
+### 5.2 Protocolo (Bluetooth RFCOMM/SPP o TCP, tramas ASCII terminadas en `\n`)
 
-### 5.3 Contrato del Hilo Auditor
-- Se ejecuta como un hilo independiente en segundo plano.
-- Al contabilizar exactamente **3 registros de captura válidos** en `estomago.txt`, emite la transición formal al **Modo Escape**.
-
----
-
-## 6. Protocolo de Comunicación Bluetooth (RFCOMM / SPP)
-
-- **Capa de Transporte:** Bluetooth Serie RFCOMM (SPP).
-- **Delimitación de Mensajes:** Framing explícito (ej. salto de línea `\n` o longitud prefijada) para resolver la fragmentación del buffer serie.
-- **Tratamiento Defensivo:** Descartar tramas parciales o corruptas sin generar excepciones no controladas.
-
-### Tipos de Mensajes Requeridos
-| Tipo | Origen | Propósito |
-| :--- | :--- | :--- |
-| `TELEMETRY` | Cliente -> Servidor | Vector numérico normalizado de distancias y estados de sensores |
-| `COMMAND` | Servidor -> Cliente | Órdenes motrices directas (dirección, velocidad, parada) |
-| `EVENT` | Cliente -> Servidor | Notificación de captura física o contacto detectado |
-| `STATE_CHANGE` | Servidor -> Cliente / Auditor | Transición de estado (`SEARCH`, `ESCAPE`, `EXITED`, `FAILSAFE`) |
-| `HEARTBEAT` | Bidireccional | Verificación de enlace y cálculo de liveness / timeout (< 500 ms) |
-
----
-
-## 7. Máquina de Estados Finita (FSM)
-
-| Estado | Condición de Entrada | Objetivo Operativo | Transición Siguiente |
-| :--- | :--- | :--- | :--- |
-| `BÚSQUEDA` | Inicio o captura < 3 | Explorar y rastrear vectores asociados a presas | A `APROXIMACIÓN` al detectar presas |
-| `APROXIMACIÓN` | Detección clasificada de Lobito | Reducir distancia evitando colisiones con entorno | A `CAPTURA` al alcanzar rango físico |
-| `CAPTURA` | Contacto / sensor de retención | Asegurar Lobito, escribir captura en `estomago.txt` | A `BÚSQUEDA` (si registros < 3) o a `ESCAPE` (auditadas 3) |
-| `ESCAPE` | Notificación del Hilo Auditor (3 capturas) | Localizar el Estrecho de Salida, ignorar presas | A `FINALIZACIÓN` al cruzar salida |
-| `FINALIZACIÓN` | Abandono verificado de la bahía | Detener motores, misión completada | Estado terminal |
-| `ERROR_SEGURO` | Timeout enlace (> 500 ms) o error crítico | Detención motriz inmediata (fail-safe) | Retorno a estado previo si reconecta |
-
----
-
-## 8. Reglamento de Competencia y Matriz de Puntuación
-
-### 8.1 Etapas de la Competencia
-1. **Clasificación:** Pasada individual contra reloj. Tiempo límite: **7 minutos**. Los 4 mejores puntajes avanzan.
-2. **Semifinales:** Llaves directas (1.° vs 4.° y 2.° vs 3.°). Dos robots en simultáneo en la bahía. Tiempo límite: **10 minutos**.
-3. **Final:** Enfrentamiento directo entre ganadores de semifinales. Tiempo límite: **10 minutos**.
-4. **La Recontrafinalísima:** Duelo único entre Campeón Turno Tarde y Campeón Turno Noche. Tiempo límite: **10 minutos**.
-
-### 8.2 Matriz de Puntuación Oficial
-| Concepto | Puntos | Condición |
+| Mensaje | Dirección | Formato / Propósito |
 | :--- | :---: | :--- |
-| Captura del 1.er Lobito | **+5** | Captura exitosa verificada |
-| Captura del 2.º Lobito | **+10** | Requiere retener el 1.º |
-| Captura del 3.er Lobito | **+15** | Requiere retener el 1.º y el 2.º |
-| Activación verificada del Modo Escape | **+15** | Auditada mediante `estomago.txt` |
-| Abandono completo de la Bahía | **+30** | Salida total a través del Estrecho |
-| Bonificación por Tiempo: Minuto 0:00 - 1:00 | **+15** | Misión completada dentro del 1.er minuto |
-| Bonificación por Tiempo: Minuto 1:01 - 4:00 | **+10** | Misión completada entre 2.º y 4.º minuto |
-| Bonificación por Tiempo: Minuto 4:01 - 10:00 | **+5** | Misión completada entre 4.º y 10.º minuto |
-| Colisión contra muros perimetrales | **-5** | Penalización por impacto |
-| Colisión contra obstáculos | **-5** | Penalización por impacto |
-| Pérdida / escape de un Lobito | **-5** | Penalización por pérdida de presa retenida |
+| `HELLO` | Cliente → Servidor | `HELLO:<version>,<rig>\n` — verificación de versión `major.minor` y rig (`mega-3us-2laser`). |
+| `TELEMETRY` | Cliente → Servidor | `TELEMETRY:<us_izq>,<us_cen>,<us_der>,<laser_izq>,<laser_der>,<ang_servo>,<ts_ms>\n` (7 campos en hardware real; la extensión heredada de pose en sim está deprecada para Fase B). |
+| `COMMAND` | Servidor → Cliente | `COMMAND:<v_left>,<v_right>,<estado>\n` — velocidades diferenciales y estado FSM activo. |
+| `EVENT` | Cliente → Servidor | `EVENT:CAPTURA` / `EVENT:CAPTURA_LOBITO_<n>` — notificación física de captura en estómago. |
+| `STATE_CHANGE` | Servidor → Cliente | `STATE_CHANGE:<estado>\n` — conmutación formal de estado (ej. `ESCAPE`). |
+| `HEARTBEAT` | Bidireccional | `HEARTBEAT\n` — liveness de enlace (`INTERVALO_HEARTBEAT_MS = 200 ms`). |
 
-### 8.3 Restricciones Operativas en Pista
-- **Autonomía Absoluta:** Prohibido tocar o asistir físicamente al robot una vez iniciada la prueba. Cualquier contacto manual acarrea descalificación inmediata de la pasada.
-- **Prohibición de Entrada Manual:** Prohibido inyectar órdenes motrices por consola o alterar `estomago.txt` externamente.
-- **Límite de Inactividad (10 Segundos):** Si el robot permanece inactivo o detenido por **más de 10 segundos continuos**, la prueba finaliza automáticamente, computando los puntos acumulados hasta ese instante.
-- **Criterios de Desempate Jerárquicos:**
-  1. Mayor cantidad de Lobitos capturados.
-  2. Alcance verificado del Modo Escape.
-  3. Mayor proximidad avanzada hacia el Estrecho de Salida.
-  4. Prueba de desempate en pista.
+- **Fail-Safe Obligatorio (`< 500 ms`):** si transcurren más de **500 ms** sin recibir `COMMAND` ni `HEARTBEAT`, el cliente (Mega y Webots) debe detener de inmediato tracción y picker.
+
+### 5.3 Persistencia y Concurrencia ("El Estómago" / "La Linareada")
+- **Archivo físico único:** `estomago.txt`.
+- **Prohibición de estado volátil:** prohibido usar variables o contadores en memoria para decidir "Panza Llena"; tras un reinicio del servidor, el estado se reconstruye leyendo `estomago.txt`.
+- **Sección crítica y volcado físico:** `GestorEstomago` sincroniza toda lectura/escritura sobre `estomago.txt` (`synchronized(bloqueoArchivo)`) y ejecuta `flush()` + `FileDescriptor.sync()` tras cada registro.
+- **Hilo Auditor (`AuditorEstomago`):** sondea `estomago.txt` en segundo plano (`<= 25 ms`) y emite la transición formal a `ESCAPE` únicamente cuando existen **3 capturas físicas válidas** en disco.
 
 ---
 
-## 9. Hitos del Proyecto y Requisitos de Entrega (PSR / DS)
+## 6. Reglamento Operativo y Puntuación
 
-- **Gestión:** Metodología SCRUM con dailies documentados en minutas de reunión al inicio de cada clase.
-
-### Hito 1: Planeamiento y Modelado Formal
-- Diagramas UML obligatorios:
-  - Casos de Uso (Cliente, Servidor, Auditor).
-  - Clases (arquitectura estática, persistencia, sincronización, Neuroph).
-  - Secuencia (flujos normales y alternativos de telemetría, captura y escape).
-  - Despliegue (nodos físicos, interfaces de comunicación serie/Bluetooth).
-  - Estados (FSM completa con eventos disparadores).
-- Plano técnico de circuito y diseño exterior aprobado.
-- Documento preliminar de arquitectura Cliente-Servidor y estrategia de red neuronal.
-
-### Hito 2: Integración Técnica
-- Enlace Bluetooth SPP operativo entre Cliente y Servidor con protocolo custom.
-- Persistencia en `estomago.txt` bajo sección crítica sincronizada.
-- Hilo Auditor funcional activando la conmutación de estado.
-- Mecanismo Fail-Safe activo ante pérdida de enlace.
-- Clasificador Neuroph 2.98 funcional con lecturas reales de sensores.
-
-### Hito 3: Entrega Final y Defensa Técnica
-- Código fuente Java completo y estructurado como proyecto NetBeans.
-- Modelo neuronal `.nnet` calibrado y entrenado.
-- Repositorio con historial atómico de desarrollo.
-- Carpeta técnica integral con minutas, evidencias de pruebas e informe de incidencias corregidas.
-- **Defensa Oral:** Evaluación individual y colectiva sobre arquitectura, sincronización concurrente, persistencia, protocolo de red e inferencia IA ante el tribunal docente.
+- **Etapas:** Clasificación (7 min), Semifinales, Final y La Recontrafinalísima (10 min).
+- **Puntajes:** 1.er Lobito (`+5`), 2.º Lobito (`+10`), 3.er Lobito (`+15`), activación verificada de Modo Escape (`+15`), abandono completo de la Bahía (`+30`), bonificación por tiempo (`+15` en 0:00–1:00, `+10` en 1:01–4:00, `+5` en 4:01–10:00). Penalizaciones: colisión con muro u obstáculo (`-5`), pérdida de Lobito (`-5`).
+- **Restricciones en pista:** autonomía absoluta (sin asistencia física ni inyección manual por consola o edición de `estomago.txt`). Inactividad continua **> 10 segundos** finaliza automáticamente la pasada.
