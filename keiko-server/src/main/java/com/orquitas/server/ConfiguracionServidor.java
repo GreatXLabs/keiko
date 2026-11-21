@@ -15,6 +15,9 @@ import java.util.logging.Logger;
 public final class ConfiguracionServidor {
     private static final Logger LOGGER = Logger.getLogger(ConfiguracionServidor.class.getName());
 
+    public static final String VERSION_SISTEMA = "2.0.0-audit.1";
+    public static final String RIG_HARDWARE = "mega-3us-2laser";
+
     public static final int PUERTO_PREDETERMINADO = 5000;
     public static final int BAUDIOS_SERIE_PREDETERMINADOS = 9600;
     public static final String NOMBRE_ARCHIVO_ESTOMAGO = "estomago.txt";

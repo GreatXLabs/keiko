@@ -12,6 +12,38 @@ public class MensajeProtocolo {
     public static final String PREFIX_STATE_CHANGE = "STATE_CHANGE:";
     public static final String MSG_HEARTBEAT = "HEARTBEAT";
     public static final String PREFIX_ERROR = "ERROR:";
+    public static final String PREFIX_HELLO = "HELLO:";
+
+    public record InfoHandshake(String version, String rig) {}
+
+    public static InfoHandshake parsearHello(String linea) {
+        if (linea == null || !linea.startsWith(PREFIX_HELLO)) {
+            throw new IllegalArgumentException("Prefijo HELLO invalido");
+        }
+        String payload = linea.substring(PREFIX_HELLO.length()).trim();
+        if (payload.isEmpty()) {
+            throw new IllegalArgumentException("Payload HELLO vacio");
+        }
+        String[] partes = payload.split(",", 2);
+        String version = partes[0].trim();
+        if (version.isEmpty()) {
+            throw new IllegalArgumentException("Version vacia en HELLO");
+        }
+        String rig = (partes.length > 1 && !partes[1].trim().isEmpty()) ? partes[1].trim() : "desconocido";
+        return new InfoHandshake(version, rig);
+    }
+
+    public static String crearHello(String version, String rig) {
+        return String.format(Locale.US, "%s%s,%s\n", PREFIX_HELLO, version, rig);
+    }
+
+    public static boolean esCompatibleMajorMinor(String versionA, String versionB) {
+        if (versionA == null || versionB == null) return false;
+        String[] a = versionA.split("-")[0].split("\\.");
+        String[] b = versionB.split("-")[0].split("\\.");
+        if (a.length < 2 || b.length < 2) return false;
+        return a[0].equals(b[0]) && a[1].equals(b[1]);
+    }
 
     // RF-05: Parsea y valida el vector de distancias sensoriales del cliente (4, 6, 8 o 10 canales).
     public static VectorSensores parsearTelemetria(String linea) {

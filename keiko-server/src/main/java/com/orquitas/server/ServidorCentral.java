@@ -86,6 +86,8 @@ public class ServidorCentral implements OyenteAuditor {
         System.out.println();
         System.out.println("==================================================================");
         System.out.println("  PROYECTO ORQUITAS (KEIKO) - SERVIDOR CENTRAL (CEREBRO)");
+        System.out.printf("  Version: %s | Rig: %s%n",
+                ConfiguracionServidor.VERSION_SISTEMA, ConfiguracionServidor.RIG_HARDWARE);
         System.out.println("  Programacion Sobre Redes & Desarrollo de Sistemas - Ciclo 2026");
         System.out.println("  Neuroph 2.98 (2 Redes: 3US + 2Laser) + Bluetooth SPP / TCP");
         System.out.println("==================================================================\n");

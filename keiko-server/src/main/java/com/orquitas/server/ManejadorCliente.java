@@ -168,12 +168,34 @@ public class ManejadorCliente implements Runnable {
             procesarTelemetria(linea);
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_EVENT)) {
             procesarEvento(linea);
+        } else if (linea.startsWith(MensajeProtocolo.PREFIX_HELLO)) {
+            procesarHello(linea);
         } else if (linea.equals(MensajeProtocolo.MSG_HEARTBEAT)) {
             enviarMensaje(MensajeProtocolo.crearHeartbeat());
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_ERROR)) {
             LOGGER.warning("[CLIENTE] " + linea);
         } else {
             LOGGER.warning("[PROTOCOLO] Mensaje no reconocido: " + linea);
+        }
+    }
+
+    private void procesarHello(String linea) {
+        try {
+            MensajeProtocolo.InfoHandshake hs = MensajeProtocolo.parsearHello(linea);
+            boolean versionOk = MensajeProtocolo.esCompatibleMajorMinor(
+                    ConfiguracionServidor.VERSION_SISTEMA, hs.version());
+            boolean rigOk = ConfiguracionServidor.RIG_HARDWARE.equals(hs.rig());
+            if (versionOk && rigOk) {
+                LOGGER.info(String.format("[HANDSHAKE OK] Cliente=%s | Version=%s | Rig=%s",
+                        descripcionOrigen, hs.version(), hs.rig()));
+            } else {
+                LOGGER.warning(String.format(
+                        "[VERSION MISMATCH] Cliente=%s reporta Version=%s Rig=%s | Esperado Version=%s.* Rig=%s",
+                        descripcionOrigen, hs.version(), hs.rig(),
+                        ConfiguracionServidor.VERSION_SISTEMA, ConfiguracionServidor.RIG_HARDWARE));
+            }
+        } catch (Exception e) {
+            LOGGER.warning("[HANDSHAKE] Error al parsear HELLO: " + e.getMessage());
         }
     }
 

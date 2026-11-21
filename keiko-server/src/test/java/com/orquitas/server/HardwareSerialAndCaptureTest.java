@@ -136,6 +136,57 @@ public class HardwareSerialAndCaptureTest {
         assertEquals(5555, cfg.getPuerto());
     }
 
+    @Test
+    public void testStreamSessionHandlesHelloHandshakeCleanly() throws Exception {
+        PipedOutputStream clientTx = new PipedOutputStream();
+        PipedInputStream serverRx = new PipedInputStream(clientTx);
+        PipedOutputStream serverTx = new PipedOutputStream();
+        PipedInputStream clientRx = new PipedInputStream(serverTx);
+
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(new ConfiguracionServidor().resolverArchivoModelo());
+        PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
+
+        ManejadorCliente sesion = new ManejadorCliente(
+                serverRx, serverTx, "Test-Hello", () -> {},
+                gestorEstomago, null, clasificador, planificador, 180L, 5000L);
+
+        java.util.List<String> logs = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        java.util.logging.Logger handlerLogger = java.util.logging.Logger.getLogger(ManejadorCliente.class.getName());
+        java.util.logging.Handler captureHandler = new java.util.logging.Handler() {
+            @Override public void publish(java.util.logging.LogRecord record) { logs.add(record.getMessage()); }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        handlerLogger.addHandler(captureHandler);
+
+        Thread serverThread = new Thread(sesion, "Test-HelloSession");
+        serverThread.start();
+
+        BufferedWriter toServer = new BufferedWriter(new OutputStreamWriter(clientTx, StandardCharsets.UTF_8));
+        BufferedReader fromServer = new BufferedReader(new InputStreamReader(clientRx, StandardCharsets.UTF_8));
+
+        try {
+            toServer.write("HELLO:" + ConfiguracionServidor.VERSION_SISTEMA + "," + ConfiguracionServidor.RIG_HARDWARE + "\n");
+            toServer.write("HELLO:1.0.0,other-rig\n");
+            toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1000\n");
+            toServer.flush();
+
+            String cmdLine = leerHastaPrefijo(fromServer, "COMMAND:");
+            assertTrue(cmdLine.startsWith("COMMAND:"), "Debe procesar TELEMETRY tras HELLO");
+            assertTrue(sesion.isConectado(), "La sesion debe seguir conectada tras HELLO");
+            assertTrue(logs.stream().anyMatch(m -> m.contains("[HANDSHAKE OK]")), "Debe registrar HANDSHAKE OK");
+            assertTrue(logs.stream().anyMatch(m -> m.contains("[VERSION MISMATCH]")), "Debe advertir VERSION MISMATCH");
+            assertFalse(logs.stream().anyMatch(m -> m.contains("[PROTOCOLO] Mensaje no reconocido")),
+                    "HELLO no debe tratarse como mensaje no reconocido");
+        } finally {
+            handlerLogger.removeHandler(captureHandler);
+            sesion.cerrar();
+            toServer.close();
+            fromServer.close();
+            serverThread.join(1000);
+        }
+    }
+
     private static String leerHastaPrefijo(BufferedReader reader, String prefijo) throws IOException {
         for (int i = 0; i < 15; i++) {
             String line = reader.readLine();

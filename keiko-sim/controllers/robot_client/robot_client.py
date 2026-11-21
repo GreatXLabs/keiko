@@ -32,6 +32,9 @@ try:
 except Exception:
     pass
 
+KEIKO_VERSION = "2.0.0-audit.1"
+KEIKO_RIG = "mega-3us-2laser"
+
 LOG_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs", "simulation_client.log"))
 os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
 
@@ -247,6 +250,7 @@ def main():
             s.settimeout(0.5)
             s.connect((server_host, server_port))
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            s.sendall(f"HELLO:{KEIKO_VERSION},{KEIKO_RIG}\n".encode("utf-8"))
             s.setblocking(False)
             sock = s
             rx_buffer = ""

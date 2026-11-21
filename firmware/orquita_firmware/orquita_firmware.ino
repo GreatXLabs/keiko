@@ -41,6 +41,9 @@
 // 1. CONFIGURACION RAPIDA DE HARDWARE Y PINES (EDITABLE POR EL EQUIPO)
 // ============================================================================
 
+#define KEIKO_VERSION "2.0.0-audit.1"
+#define KEIKO_RIG     "mega-3us-2laser"
+
 // Si se cambia a true, usa el cable USB (Serial) en lugar del HC-05 (Serial1)
 // para hablar con keiko-server (ej: java -jar keiko-server.jar --serial /dev/ttyUSB0 --baud 115200)
 #define USAR_USB_COMO_ENLACE_SERVIDOR false
@@ -242,6 +245,13 @@ void logInfo(const __FlashStringHelper *msg) {
 #else
   (void)msg;
 #endif
+}
+
+void enviarHello() {
+  ENLACE_SERVIDOR.print(F("HELLO:"));
+  ENLACE_SERVIDOR.print(F(KEIKO_VERSION));
+  ENLACE_SERVIDOR.print(F(","));
+  ENLACE_SERVIDOR.println(F(KEIKO_RIG));
 }
 
 // ============================================================================
@@ -686,6 +696,7 @@ void activarModoCompetencia() {
     solicitarArmadoEstomago();
   }
 
+  enviarHello();
   ENLACE_SERVIDOR.println(F("STATUS:MODO_COMPETENCIA_ON"));
   logInfo(F("\n>>> [COMPETENCIA ON] Modo Competencia ACTIVADO (Sensores + Barrido + Traccion + Picker listos)."));
 }
@@ -1131,6 +1142,7 @@ void setup() {
   desarmarEstomago();
 
   ultimoMensajeServidorMs = millis();
+  enviarHello();
   imprimirMenuUsb();
   logInfo(F(">>> [REPOSO SEGURO] Todo apagado (PWM=0, Motores libres). Envia 'k' para iniciar/detener Modo Competencia."));
 }
