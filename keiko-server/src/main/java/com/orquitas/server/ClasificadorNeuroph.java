@@ -150,9 +150,16 @@ public class ClasificadorNeuroph {
         return CLASES_US_3[maxIdx];
     }
 
+    private double ultimaConfianzaCanica = 0.0;
+
+    public double getUltimaConfianzaCanica() {
+        return ultimaConfianzaCanica;
+    }
+
     // Clasifica detección de canicas con Red 2 (modelo_canicas.nnet)
     public synchronized String clasificarCanicas(VectorSensores sensores) {
         if (neuralNetCanicas == null || sensores == null || sensores.getCantidadSensores() < 6) {
+            this.ultimaConfianzaCanica = 0.0;
             return "NINGUNA";
         }
         double nUsIzq = Math.min(1.0, Math.max(0.0, (sensores.getUsLeft() - 2.0) / 248.0));
@@ -173,7 +180,46 @@ public class ClasificadorNeuroph {
                 maxIdx = i;
             }
         }
-        return CLASES_CANICAS_4[maxIdx];
+        this.ultimaConfianzaCanica = maxVal;
+        String clase = CLASES_CANICAS_4[maxIdx];
+
+        // Filtro cinemático de ángulos laterales abiertos (> +18°):
+        // Cuando los servos abren hacia los costados para proteger las ruedas, el ultrasonido frontal
+        // no cubre ese ángulo; si el US lateral ya ve pared cercana (< 38 cm), es muro oblicuo y no canica.
+        double servoDeg = sensores.getAnguloServo();
+        if (servoDeg >= 18.0) {
+            if ("LOBITO_IZQ".equals(clase) && sensores.getUsLeft() < 38.0) {
+                return "NINGUNA";
+            }
+            if ("LOBITO_DER".equals(clase) && sensores.getUsRight() < 38.0) {
+                return "NINGUNA";
+            }
+            if ("LOBITO_CENTRO".equals(clase)) {
+                return "NINGUNA";
+            }
+        }
+
+        // Confirmación binocular estricta para el hueco central (|Y| <= 3.5 cm):
+        // Dado que cada VL53L0X tiene un cono óptico de ±12.5°, cuando solo un láser detecta la canica
+        // ésta aún se encuentra frente al paragolpes lateral (|Y| > 3.5 cm). Solo es LOBITO_CENTRO
+        // cuando AMBOS láseres detectan la canica a distancias equilibradas.
+        if (!"NINGUNA".equals(clase) && sensores.getUsCenter() >= 16.0) {
+            double dl = sensores.getLaserLeft();
+            double dr = sensores.getLaserRight();
+            if (servoDeg <= -10.0 && dl <= 23.0 && dr <= 23.0 && Math.abs(dl - dr) <= 3.8) {
+                return "LOBITO_CENTRO";
+            }
+            if ("LOBITO_CENTRO".equals(clase)) {
+                if (dl < dr - 3.5) {
+                    return "LOBITO_IZQ";
+                }
+                if (dr < dl - 3.5) {
+                    return "LOBITO_DER";
+                }
+            }
+        }
+
+        return clase;
     }
 
     // Evalúa un par coaxial individual (para compatibilidad con tests legacy y modelos de 2 entradas)

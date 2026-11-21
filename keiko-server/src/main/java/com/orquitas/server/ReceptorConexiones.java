@@ -19,28 +19,38 @@ public class ReceptorConexiones implements Runnable {
     private final GestorEstomago gestorEstomago;
     private final ClasificadorNeuroph clasificador;
     private final PlanificadorNavegacion planificador;
+    private final long cooldownCapturaMs;
+    private final long intervaloHeartbeatMs;
     private final List<ManejadorCliente> clientesConectados = Collections.synchronizedList(new ArrayList<>());
 
     private ServerSocket serverSocket;
     private volatile boolean corriendo = false;
 
-    // Inicializa el receptor asignando puerto y servicios de clasificacion y persistencia.
     public ReceptorConexiones(int puerto, GestorEstomago gestorEstomago,
                               ClasificadorNeuroph clasificador,
                               PlanificadorNavegacion planificador) {
+        this(puerto, gestorEstomago, clasificador, planificador,
+                ConfiguracionServidor.COOLDOWN_CAPTURA_MS, ConfiguracionServidor.INTERVALO_HEARTBEAT_MS);
+    }
+
+    public ReceptorConexiones(int puerto, GestorEstomago gestorEstomago,
+                              ClasificadorNeuroph clasificador,
+                              PlanificadorNavegacion planificador,
+                              long cooldownCapturaMs,
+                              long intervaloHeartbeatMs) {
         this.puerto = puerto;
         this.gestorEstomago = gestorEstomago;
         this.clasificador = clasificador;
         this.planificador = planificador;
+        this.cooldownCapturaMs = cooldownCapturaMs;
+        this.intervaloHeartbeatMs = intervaloHeartbeatMs;
     }
 
-    // Inicia el hilo receptor de conexiones de red.
     public void iniciar() {
         Thread thread = new Thread(this, "ReceptorConexiones-Puerto-" + puerto);
         thread.start();
     }
 
-    // Bucle principal de aceptacion de sockets entrantes y despacho de sesiones concurrentes.
     @Override
     public void run() {
         corriendo = true;
@@ -51,7 +61,8 @@ public class ReceptorConexiones implements Runnable {
             while (corriendo && !serverSocket.isClosed()) {
                 Socket clientSocket = serverSocket.accept();
                 ManejadorCliente manejador = new ManejadorCliente(
-                        clientSocket, gestorEstomago, this, clasificador, planificador);
+                        clientSocket, gestorEstomago, this, clasificador, planificador,
+                        cooldownCapturaMs, intervaloHeartbeatMs);
                 clientesConectados.add(manejador);
                 Thread clientThread = new Thread(manejador, "SesionCliente-" + clientSocket.getPort());
                 clientThread.start();
@@ -65,7 +76,6 @@ public class ReceptorConexiones implements Runnable {
         }
     }
 
-    // Transmite un mensaje a todas las sesiones de clientes conectadas activamente.
     public void transmitirATodos(String mensaje) {
         synchronized (clientesConectados) {
             for (ManejadorCliente client : clientesConectados) {
@@ -74,12 +84,10 @@ public class ReceptorConexiones implements Runnable {
         }
     }
 
-    // Remueve una sesion de cliente cerrada de la coleccion activa.
     public void removerCliente(ManejadorCliente handler) {
         clientesConectados.remove(handler);
     }
 
-    // Cierra el socket del servidor y finaliza todas las sesiones activas de clientes.
     public void detener() {
         corriendo = false;
         try {
@@ -88,11 +96,13 @@ public class ReceptorConexiones implements Runnable {
             }
         } catch (IOException ignored) {}
 
+        List<ManejadorCliente> copiaClientes;
         synchronized (clientesConectados) {
-            for (ManejadorCliente c : clientesConectados) {
-                c.cerrar();
-            }
+            copiaClientes = new ArrayList<>(clientesConectados);
             clientesConectados.clear();
+        }
+        for (ManejadorCliente c : copiaClientes) {
+            c.cerrar();
         }
         LOGGER.info("[SERVIDOR DETENIDO]");
     }

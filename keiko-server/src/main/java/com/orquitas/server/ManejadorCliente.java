@@ -9,78 +9,179 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Manejador concurrente de una sesion de cliente conectado por Socket TCP / RFCOMM.
+ * Manejador concurrente de una sesion de cliente conectado por Socket TCP o Puerto Serie (Bluetooth RFCOMM/SPP / USB).
  */
 public class ManejadorCliente implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ManejadorCliente.class.getName());
+    private static final int MAX_BYTES_TRAMA = 512;
 
     private final Socket socket;
+    private final InputStream flujoEntrada;
+    private final OutputStream flujoSalida;
+    private final String descripcionOrigen;
+    private final Closeable recursoCierre;
     private final GestorEstomago gestorEstomago;
     private final ReceptorConexiones receptor;
     private final ClasificadorNeuroph clasificador;
     private final PlanificadorNavegacion planificador;
+    private final long cooldownCapturaMs;
+    private final long intervaloHeartbeatMs;
     private final AtomicBoolean conectado = new AtomicBoolean(true);
 
-    private BufferedReader lector;
     private BufferedWriter escritor;
     private final Object bloqueoEscritura = new Object();
+    private volatile long ultimoEnvioMs = 0L;
+    private long ultimaCapturaMs = 0L;
 
-    // Asigna el socket del cliente y las dependencias de logica y persistencia.
     public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
                             ReceptorConexiones receptor,
                             ClasificadorNeuroph clasificador,
                             PlanificadorNavegacion planificador) {
+        this(socket, gestorEstomago, receptor, clasificador, planificador,
+                ConfiguracionServidor.COOLDOWN_CAPTURA_MS, ConfiguracionServidor.INTERVALO_HEARTBEAT_MS);
+    }
+
+    public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
+                            ReceptorConexiones receptor,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs) {
         this.socket = socket;
+        this.flujoEntrada = null;
+        this.flujoSalida = null;
+        this.descripcionOrigen = String.valueOf(socket.getRemoteSocketAddress());
+        this.recursoCierre = socket;
         this.gestorEstomago = gestorEstomago;
         this.receptor = receptor;
         this.clasificador = clasificador;
         this.planificador = planificador;
+        this.cooldownCapturaMs = cooldownCapturaMs;
+        this.intervaloHeartbeatMs = intervaloHeartbeatMs;
     }
 
-    // Bucle concurrente de lectura de tramas entrantes del cliente.
+    public ManejadorCliente(InputStream flujoEntrada,
+                            OutputStream flujoSalida,
+                            String descripcionOrigen,
+                            Closeable recursoCierre,
+                            GestorEstomago gestorEstomago,
+                            ReceptorConexiones receptor,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs) {
+        this.socket = null;
+        this.flujoEntrada = flujoEntrada;
+        this.flujoSalida = flujoSalida;
+        this.descripcionOrigen = descripcionOrigen;
+        this.recursoCierre = recursoCierre;
+        this.gestorEstomago = gestorEstomago;
+        this.receptor = receptor;
+        this.clasificador = clasificador;
+        this.planificador = planificador;
+        this.cooldownCapturaMs = cooldownCapturaMs;
+        this.intervaloHeartbeatMs = intervaloHeartbeatMs;
+    }
+
     @Override
     public void run() {
-        LOGGER.info(() -> "[CLIENTE CONECTADO] Desde: " + socket.getRemoteSocketAddress());
-        try {
-            // Desactiva Nagle: las tramas cortas de telemetria/comando no deben retenerse en buffer.
-            socket.setTcpNoDelay(true);
-        } catch (SocketException e) {
-            LOGGER.warning("[RED] No se pudo habilitar TCP_NODELAY: " + e.getMessage());
+        LOGGER.info(() -> "[CLIENTE CONECTADO] Desde: " + descripcionOrigen);
+        if (socket != null) {
+            try {
+                socket.setTcpNoDelay(true);
+            } catch (SocketException e) {
+                LOGGER.warning("[RED] No se pudo habilitar TCP_NODELAY: " + e.getMessage());
+            }
         }
+
+        Thread hiloHeartbeat = null;
         try {
-            lector = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-            escritor = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+            InputStream in = (socket != null) ? socket.getInputStream() : flujoEntrada;
+            OutputStream out = (socket != null) ? socket.getOutputStream() : flujoSalida;
+            escritor = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+            ultimoEnvioMs = System.currentTimeMillis();
 
-            String linea;
-            while (conectado.get() && (linea = lector.readLine()) != null) {
-                linea = linea.trim();
-                if (linea.isEmpty()) continue;
+            if (intervaloHeartbeatMs > 0) {
+                hiloHeartbeat = iniciarHiloHeartbeat();
+            }
 
-                if (linea.startsWith(MensajeProtocolo.PREFIX_TELEMETRY)) {
-                    procesarTelemetria(linea);
-                } else if (linea.startsWith(MensajeProtocolo.PREFIX_EVENT)) {
-                    procesarEvento(linea);
-                } else if (linea.equals(MensajeProtocolo.MSG_HEARTBEAT)) {
-                    enviarMensaje(MensajeProtocolo.crearHeartbeat());
+            ByteArrayOutputStream bufferLinea = new ByteArrayOutputStream(128);
+            while (conectado.get()) {
+                int b;
+                try {
+                    b = in.read();
+                } catch (InterruptedIOException timeoutLectura) {
+                    continue;
+                }
+                if (b == -1) {
+                    break;
+                }
+                if (b == '\n' || b == '\r') {
+                    if (bufferLinea.size() > 0) {
+                        String linea = bufferLinea.toString(StandardCharsets.UTF_8).trim();
+                        bufferLinea.reset();
+                        if (!linea.isEmpty()) {
+                            despacharLinea(linea);
+                        }
+                    }
+                } else if (bufferLinea.size() < MAX_BYTES_TRAMA) {
+                    bufferLinea.write(b);
                 } else {
-                    LOGGER.warning("[PROTOCOLO] Mensaje no reconocido: " + linea);
+                    LOGGER.warning("[PROTOCOLO] Trama excesiva descartada defensivamente.");
+                    bufferLinea.reset();
                 }
             }
         } catch (IOException e) {
             if (conectado.get()) {
-                LOGGER.info("[CLIENTE DESCONECTADO] " + e.getMessage());
+                LOGGER.info("[CLIENTE DESCONECTADO] " + descripcionOrigen + " (" + e.getMessage() + ")");
             }
         } finally {
+            if (hiloHeartbeat != null) {
+                hiloHeartbeat.interrupt();
+            }
             cerrar();
         }
     }
 
-    // RF-05: Recibir datos de sensores del cliente Orquita y coordinar RF-06, RF-07 y RF-08.
+    private Thread iniciarHiloHeartbeat() {
+        Thread t = new Thread(() -> {
+            long EsperaChequeo = Math.max(25L, intervaloHeartbeatMs / 2L);
+            while (conectado.get() && !Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(EsperaChequeo);
+                    if (conectado.get() && (System.currentTimeMillis() - ultimoEnvioMs) >= intervaloHeartbeatMs) {
+                        enviarMensaje(MensajeProtocolo.crearHeartbeat());
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }, "Heartbeat-" + descripcionOrigen);
+        t.setDaemon(true);
+        t.start();
+        return t;
+    }
+
+    private void despacharLinea(String linea) {
+        if (linea.startsWith(MensajeProtocolo.PREFIX_TELEMETRY)) {
+            procesarTelemetria(linea);
+        } else if (linea.startsWith(MensajeProtocolo.PREFIX_EVENT)) {
+            procesarEvento(linea);
+        } else if (linea.equals(MensajeProtocolo.MSG_HEARTBEAT)) {
+            enviarMensaje(MensajeProtocolo.crearHeartbeat());
+        } else if (linea.startsWith(MensajeProtocolo.PREFIX_ERROR)) {
+            LOGGER.warning("[CLIENTE] " + linea);
+        } else {
+            LOGGER.warning("[PROTOCOLO] Mensaje no reconocido: " + linea);
+        }
+    }
+
     private void procesarTelemetria(String linea) {
         try {
             VectorSensores sensores = MensajeProtocolo.parsearTelemetria(linea);
             if (!sensores.isValido()) {
-                LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico.");
+                LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico: " + linea);
                 return;
             }
             String[] pares = clasificador.clasificarPares(sensores);
@@ -95,14 +196,29 @@ public class ManejadorCliente implements Runnable {
         }
     }
 
-    // Recibe senal de ingesta (RF-02) y registra la captura en disco (RF-03).
-    private void procesarEvento(String linea) {
+    private synchronized void procesarEvento(String linea) {
         try {
             String evento = linea.substring(MensajeProtocolo.PREFIX_EVENT.length()).trim();
             LOGGER.info("[EVENTO RECIBIDO] " + evento);
 
             if (evento.contains("CAPTURA")) {
-                gestorEstomago.registrarCaptura(evento);
+                if (planificador != null && planificador.getEstado() == EstadoRobot.ESCAPE) {
+                    LOGGER.info("[CAPTURA IGNORADA] El sistema ya se encuentra en MODO ESCAPE.");
+                    return;
+                }
+                if (gestorEstomago.contarCapturasValidas() >= ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE) {
+                    LOGGER.info("[CAPTURA IGNORADA] Ya existen 3 capturas fisicas registradas en estomago.txt.");
+                    return;
+                }
+                long ahora = System.currentTimeMillis();
+                if (cooldownCapturaMs > 0 && ultimaCapturaMs > 0 && (ahora - ultimaCapturaMs) < cooldownCapturaMs) {
+                    LOGGER.info("[CAPTURA IGNORADA] Rebote descartado dentro de ventana anti-rebote (" + (ahora - ultimaCapturaMs) + " ms).");
+                    return;
+                }
+                ultimaCapturaMs = ahora;
+                int total = gestorEstomago.registrarCaptura(evento);
+                System.out.printf("[ESTOMAGO] Canica recolectada! Total persistido en estomago.txt: %d/%d (%s)%n",
+                        total, ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE, evento);
                 if (planificador != null) {
                     planificador.notificarCaptura();
                 }
@@ -118,40 +234,49 @@ public class ManejadorCliente implements Runnable {
                     }
                     planificador.notificarColision(lado);
                 }
+            } else if (evento.startsWith("SALIDA_META:")) {
+                if (planificador != null) {
+                    try {
+                        String data = evento.substring("SALIDA_META:".length()).trim();
+                        String[] parts = data.split(",");
+                        double ex = Double.parseDouble(parts[0].trim());
+                        double ey = Double.parseDouble(parts[1].trim());
+                        planificador.establecerSalidaMeta(ex, ey);
+                        LOGGER.info(String.format("[META SALIDA] Registrada meta de escape en (%.2f, %.2f)", ex, ey));
+                    } catch (Exception ignored) {}
+                }
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "[EVENTO] Error al registrar captura: " + e.getMessage(), e);
         }
     }
 
-    // RF-08: Enviar indicacion al cliente (comando motriz u orden).
     public void enviarMensaje(String mensaje) {
         synchronized (bloqueoEscritura) {
             if (!conectado.get() || escritor == null) return;
             try {
                 escritor.write(mensaje);
                 escritor.flush();
+                ultimoEnvioMs = System.currentTimeMillis();
             } catch (IOException e) {
-                LOGGER.warning("[ENVIO] Error al enviar: " + e.getMessage());
+                LOGGER.warning("[ENVIO] Error al enviar a " + descripcionOrigen + ": " + e.getMessage());
                 cerrar();
             }
         }
     }
 
-    // Cierra el socket y remueve este manejador del registro de clientes activos.
     public void cerrar() {
         if (conectado.compareAndSet(true, false)) {
             try {
-                if (socket != null && !socket.isClosed()) socket.close();
+                if (recursoCierre != null) recursoCierre.close();
             } catch (IOException ignored) {}
             if (receptor != null) {
                 receptor.removerCliente(this);
             }
-            LOGGER.info("[CLIENT HANDLER] Sesion cerrada.");
+            LOGGER.info("[CLIENT HANDLER] Sesion cerrada: " + descripcionOrigen);
         }
     }
 
-    // Retorna si la sesion de comunicacion continua activa.
     public boolean isConectado() {
         return conectado.get();
     }
