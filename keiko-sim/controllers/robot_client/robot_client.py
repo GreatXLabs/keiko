@@ -32,7 +32,7 @@ try:
 except Exception:
     pass
 
-KEIKO_VERSION = "2.0.0-audit.1"
+KEIKO_VERSION = "2.0.0-audit.2"
 KEIKO_RIG = "mega-3us-2laser"
 
 LOG_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs", "simulation_client.log"))

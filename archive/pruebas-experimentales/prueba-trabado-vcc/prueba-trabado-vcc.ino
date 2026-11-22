@@ -17,7 +17,7 @@
 
 const uint8_t NUM_SERVOS = 2;
 const uint8_t CANAL[NUM_SERVOS] = {2, 3};
-const uint16_t NEUTRO[NUM_SERVOS] = {1475, 1500};
+const uint16_t NEUTRO[NUM_SERVOS] = {1485, 1500};
 const int8_t SENTIDO[NUM_SERVOS] = {1, -1};
 const uint16_t VEL_US[NUM_SERVOS] = {240, 200};
 const uint8_t PASOS_ARRANQUE = 10;

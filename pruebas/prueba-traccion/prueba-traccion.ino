@@ -6,16 +6,13 @@
     M2 -> trasero izquierdo       M4 -> trasero derecho
     Bornera EXT_PWR -> batería (jumper PWR según cómo se alimente el Mega)
 
-  Al arrancar todo queda frenado. Conviene probar con el auto levantado
-  (ruedas en el aire). Por el monitor serie (9600):
+  Al arrancar todo queda frenado. Manejo (monitor serie USB a 9600, o el
+  HC-05 por Bluetooth en Serial1 D18/D19 a 9600; mismos comandos):
+    W adelante, S atrás, A gira a la izquierda, D gira a la derecha
+      (mantener apretada la tecla; al soltar frena a los ~0,45 s)
+    espacio o 'p' -> frena todo
     '1'..'4' -> gira ese motor solo hacia adelante 2 s y frena
-    'i'      -> recorre los 4 motores de a uno, en orden, 2 s cada uno
-    'a'      -> los 4 hacia adelante 2 s
-    'r'      -> los 4 hacia atrás 2 s
-    'z'      -> gira a la izquierda en el lugar 2 s
-    'd'      -> gira a la derecha en el lugar 2 s
-    'p'      -> frena todo
-    '+' / '-' -> sube o baja la velocidad
+    '+' / '-' -> sube o baja la velocidad (arranca en 180)
   Si un motor gira al revés con '1'..'4', cambiar su valor en INVERTIDO
   (o invertir sus dos cables en el borne del shield).
 */
@@ -85,34 +82,46 @@ void fijarVelocidad(int16_t v) {
 
 void setup() {
   Serial.begin(9600);
+  Serial1.begin(9600);  // HC-05: los mismos comandos llegan por Bluetooth
   Serial.println(F("Prueba de tracción (shield L293D, M1-M4)"));
-  Serial.println(F("Comandos: 1-4 motor solo, i los 4 en orden, a adelante, r atrás, z/d girar, p frenar, +/- velocidad"));
+  Serial.println(F("Comandos: WASD mover (mantener), espacio frenar, 1-4 motor solo, +/- velocidad"));
   fijarVelocidad(velocidad);
   frenarTodo();
 }
 
-void loop() {
-  if (!Serial.available()) {
-    return;
+// Manejo con teclado: mientras llegan teclas (repetición del terminal) se mueve;
+// si dejan de llegar por HOLD_MS, frena solo.
+const uint16_t HOLD_MS = 450;
+unsigned long ultimaTecla = 0;
+bool enMarcha = false;
+
+void manejar(uint8_t izq, uint8_t der) {
+  for (uint8_t k = 0; k < NUM_MOTORES; k++) {
+    correr(k, ES_IZQUIERDO[k] ? izq : der);
   }
-  char c = Serial.read();
+  ultimaTecla = millis();
+  enMarcha = true;
+}
+
+void loop() {
+  if (enMarcha && millis() - ultimaTecla > HOLD_MS) {
+    for (uint8_t k = 0; k < NUM_MOTORES; k++) motor[k]->run(RELEASE);
+    enMarcha = false;
+  }
+  char c;
+  if (Serial.available()) c = Serial.read();
+  else if (Serial1.available()) c = Serial1.read();
+  else return;
+  if (c >= 'A' && c <= 'Z') c += 32;
   switch (c) {
+    case 'w': manejar(FORWARD, FORWARD); break;
+    case 's': manejar(BACKWARD, BACKWARD); break;
+    case 'a': manejar(BACKWARD, FORWARD); break;   // gira a la izquierda
+    case 'd': manejar(FORWARD, BACKWARD); break;   // gira a la derecha
+    case ' ': case 'p': frenarTodo(); enMarcha = false; break;
     case '1': case '2': case '3': case '4':
       probarUno(c - '1');
-      Serial.println(F("Frenado"));
       break;
-    case 'i':
-      for (uint8_t k = 0; k < NUM_MOTORES; k++) {
-        probarUno(k);
-        delay(500);
-      }
-      Serial.println(F("Fin del recorrido"));
-      break;
-    case 'a': moverFlancos(FORWARD, FORWARD, F("Los 4 hacia adelante")); break;
-    case 'r': moverFlancos(BACKWARD, BACKWARD, F("Los 4 hacia atrás")); break;
-    case 'z': moverFlancos(BACKWARD, FORWARD, F("Girando a la izquierda")); break;
-    case 'd': moverFlancos(FORWARD, BACKWARD, F("Girando a la derecha")); break;
-    case 'p': frenarTodo(); break;
     case '+': fijarVelocidad(velocidad + PASO_VEL); break;
     case '-': fijarVelocidad(velocidad - PASO_VEL); break;
   }

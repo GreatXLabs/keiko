@@ -24,6 +24,7 @@ public class ReceptorSerie implements Runnable {
     private final PlanificadorNavegacion planificador;
     private final long cooldownCapturaMs;
     private final long intervaloHeartbeatMs;
+    private final boolean autoStartEnHello;
 
     private volatile boolean corriendo = false;
     private volatile ManejadorCliente sesionActiva;
@@ -37,6 +38,18 @@ public class ReceptorSerie implements Runnable {
                          PlanificadorNavegacion planificador,
                          long cooldownCapturaMs,
                          long intervaloHeartbeatMs) {
+        this(nombrePuerto, baudios, gestorEstomago, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, false);
+    }
+
+    public ReceptorSerie(String nombrePuerto,
+                         int baudios,
+                         GestorEstomago gestorEstomago,
+                         ClasificadorNeuroph clasificador,
+                         PlanificadorNavegacion planificador,
+                         long cooldownCapturaMs,
+                         long intervaloHeartbeatMs,
+                         boolean autoStartEnHello) {
         this.nombrePuerto = nombrePuerto;
         this.baudios = baudios;
         this.gestorEstomago = gestorEstomago;
@@ -44,6 +57,7 @@ public class ReceptorSerie implements Runnable {
         this.planificador = planificador;
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
+        this.autoStartEnHello = autoStartEnHello;
     }
 
     public static List<String> listarPuertosDisponibles() {
@@ -90,7 +104,7 @@ public class ReceptorSerie implements Runnable {
                 ManejadorCliente manejador = new ManejadorCliente(
                         in, out, "Serie:" + nombrePuerto + "@" + baudios,
                         port::closePort, gestorEstomago, null, clasificador, planificador,
-                        cooldownCapturaMs, intervaloHeartbeatMs);
+                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello);
                 sesionActiva = manejador;
                 manejador.run();
             } catch (Exception e) {

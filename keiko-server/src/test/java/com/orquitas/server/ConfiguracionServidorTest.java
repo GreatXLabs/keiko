@@ -56,4 +56,12 @@ public class ConfiguracionServidorTest {
         assertEquals(env.toFile().getAbsolutePath(),
                 ConfiguracionServidor.buscarEnvAscendente(classes.toFile()).getAbsolutePath());
     }
+
+    @Test
+    public void testCliAutoStartFlag() {
+        ConfiguracionServidor defaultCfg = ConfiguracionServidor.desdeArgumentos(new String[]{});
+        ConfiguracionServidor autoCfg = ConfiguracionServidor.desdeArgumentos(new String[]{"--auto-start"});
+        assertEquals(false, defaultCfg.isAutoStartSolicitado());
+        assertEquals(true, autoCfg.isAutoStartSolicitado());
+    }
 }

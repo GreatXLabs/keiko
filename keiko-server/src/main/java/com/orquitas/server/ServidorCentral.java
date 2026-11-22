@@ -1,7 +1,10 @@
 package com.orquitas.server;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.logging.Logger;
@@ -27,13 +30,15 @@ public class ServidorCentral implements OyenteAuditor {
         this.planificador = new PlanificadorNavegacion(gestorEstomago);
         this.receptorConexiones = new ReceptorConexiones(
                 configuracion.getPuerto(), gestorEstomago, clasificador, planificador,
-                configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs());
+                configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs(),
+                configuracion.isAutoStartSolicitado());
 
         if (configuracion.getPuertoSerie() != null && !configuracion.getPuertoSerie().isBlank()) {
             this.receptorSerie = new ReceptorSerie(
                     configuracion.getPuertoSerie(), configuracion.getBaudiosSerie(),
                     gestorEstomago, clasificador, planificador,
-                    configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs());
+                    configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs(),
+                    configuracion.isAutoStartSolicitado());
         } else {
             this.receptorSerie = null;
         }
@@ -74,7 +79,38 @@ public class ServidorCentral implements OyenteAuditor {
             System.out.println("[SHUTDOWN] Servidor Central detenido limpiamente.");
         }));
 
-        System.out.println("[SISTEMA LISTO] Servidor operativo y a la espera de telemetria de la Orquita...\n");
+        System.out.println("[SISTEMA LISTO] Servidor operativo y a la espera de telemetria de la Orquita...");
+        System.out.println("[CONTROL] Escribi 'start' (CMD:START) o 'stop' (CMD:STOP) en consola, o usa --auto-start.\n");
+        iniciarConsolaControl();
+    }
+
+    private void iniciarConsolaControl() {
+        Thread consola = new Thread(() -> {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+                String linea;
+                while ((linea = br.readLine()) != null) {
+                    String cmd = linea.trim().toLowerCase();
+                    if ("start".equals(cmd) || "k".equals(cmd)) {
+                        enviarComandoControl(MensajeProtocolo.crearCmdStart());
+                        System.out.println("[CONTROL] Enviado CMD:START a clientes conectados.");
+                    } else if ("stop".equals(cmd) || "x".equals(cmd)) {
+                        enviarComandoControl(MensajeProtocolo.crearCmdStop());
+                        System.out.println("[CONTROL] Enviado CMD:STOP a clientes conectados.");
+                    }
+                }
+            } catch (Exception ignored) {
+                // Sin stdin interactivo en ejecucion daemon/headless
+            }
+        }, "ConsolaControl-Keiko");
+        consola.setDaemon(true);
+        consola.start();
+    }
+
+    public void enviarComandoControl(String mensaje) {
+        receptorConexiones.transmitirATodos(mensaje);
+        if (receptorSerie != null) {
+            receptorSerie.transmitirATodos(mensaje);
+        }
     }
 
     private void imprimirBanner() {
@@ -137,11 +173,7 @@ public class ServidorCentral implements OyenteAuditor {
     @Override
     public void onModoEscapeActivado(List<RegistroCaptura> caps) {
         planificador.activarModoEscape();
-        String msgEscape = MensajeProtocolo.crearModoEscape();
-        receptorConexiones.transmitirATodos(msgEscape);
-        if (receptorSerie != null) {
-            receptorSerie.transmitirATodos(msgEscape);
-        }
+        enviarComandoControl(MensajeProtocolo.crearModoEscape());
     }
 
     public static void main(String[] args) {

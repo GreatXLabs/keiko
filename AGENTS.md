@@ -17,7 +17,7 @@ Especificación técnica de ingeniería, enrutador de documentación y reglas op
 
 ## 1. Regla Obligatoria de Versionado y Changelog
 
-- **Fuente única de verdad:** el archivo raíz [`VERSION`](VERSION) define la versión activa del ecosistema (actualmente `2.0.0-audit.1`, rig `mega-3us-2laser`).
+- **Fuente única de verdad:** el archivo raíz [`VERSION`](VERSION) define la versión activa del ecosistema (actualmente `2.0.0-audit.2`, rig `mega-3us-2laser`).
 - **Sincronización obligatoria entre módulos:** cualquier cambio en código, modelos `.nnet`, protocolo serie/TCP o parámetros de simulación debe mantener sincronizados `VERSION`, `keiko-server/pom.xml`, `ConfiguracionServidor.java`, `orquita_firmware.ino`, `keiko-sim/config/simulation_params.json` y `robot_client.py`.
 - **Validación automática:** antes de finalizar cambios o abrir PR, ejecutar:
   ```bash
@@ -35,7 +35,7 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 
 | Información Buscada | Archivo / Directorio de Referencia | Contenido Principal |
 | :--- | :--- | :--- |
-| **Versión y Compatibilidad** | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), [`scripts/check_versions.sh`](scripts/check_versions.sh) | Versión activa (`2.0.0-audit.1`), matriz de compatibilidad y verificador cruzado de 9 puntos. |
+| **Versión y Compatibilidad** | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), [`scripts/check_versions.sh`](scripts/check_versions.sh) | Versión activa (`2.0.0-audit.2`), matriz de compatibilidad y verificador cruzado de 9 puntos. |
 | **Auditoría Fase A y Backlog Fase B** | [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md) | Auditoría de unificación, hashes `.nnet`, inventario `SIM-01..13`, `HRD-01..14`, `COMP-01..05` y estado real de pruebas. |
 | **Reglamento, Pista y Puntuación** | [`docs/consignas/La Competencia.md`](docs/consignas/La%20Competencia.md) | Geometría de la Bahía (~1.80 m base, ~1.20 m profundidad, ~1.70 m²), salida de 30 cm, 2 obstáculos 3D (6×6 cm, alt. mín. 6 cm), 3 canicas (1.6 cm), etapas y puntuación. |
 | **Consigna General e Hitos** | [`docs/consignas/Consigna y Alcances.md`](docs/consignas/Consigna%20y%20Alcances.md) | Alcance integral del proyecto (PSR + DS), metodología SCRUM y criterios globales de evaluación. |
@@ -56,11 +56,11 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 - **Microcontrolador:** Arduino Mega 2560.
 - **Tracción 4WD Skid-Steer:** Shield **L293D** (`AFMotor`, bornes `M1..M4`, inversión de sentido configurada en firmware para los 4 motores).
 - **Driver PWM / Servos:** **PCA9685** en dirección I2C `0x40` (bus I2C del Mega: `D20 = SDA`, `D21 = SCL`).
-- **Fila Sensorial Superior (Obstáculos y Salida):** **3× HC-SR04** fijos (Izquierda, Centro, Derecha): `TRIG {24, 27, 29}`, `ECHO {25, 26, 28}`.
-- **Fila Sensorial Inferior (Detección de Canicas):** **2× VL53L0X** frontales (`0x30` con `XSHUT = A8`, `0x31` con `XSHUT = A9`) montados sobre **2× servos SG90** en canales `0` y `1` del PCA9685 realizando barrido en espejo.
-- **Picker y Sensor de Estómago:** **2× servos SG90 modificados a 360°** en canales `2` y `3` del PCA9685 (+ motor DC auxiliar en L298N `ENA = D45`, `IN1 = D22`, `IN2 = D23`) y **1× VL53L0X** interno de estómago (`0x32` con `XSHUT = A10`) para confirmación física de captura.
-- **Enlace de Comunicación:** módulo Bluetooth **HC-05** en `Serial1` (`D18`/`D19` a `9600` bps) o enlace USB de banco en `Serial` (`115200` bps).
-- **Restricción del Cliente:** el microcontrolador solo muestrea, aplica filtrado de frontera (mediana + EMA), actúa sobre motores/servos/picker y ejecuta el Fail-Safe; no contiene lógica de navegación ni clasificación.
+- **Fila Sensorial Superior (Obstáculos y Salida):** **3× HC-SR04** fijos (Izquierda, Centro, Derecha): `TRIG {24, 26, 28}`, `ECHO {25, 27, 29}` (validado en robot real el 2026-11-19).
+- **Fila Sensorial Inferior (Detección de Canicas):** **2× VL53L0X** frontales (`0x30` con `XSHUT = A8`, `0x31` con `XSHUT = A9`) montados sobre **2× servos SG90** en canales `0` y `1` del PCA9685 realizando barrido en espejo (`LASER_SENTIDO = {1, -1}`, rango `-45°..+60°`).
+- **Picker y Sensor de Estómago:** **2× servos SG90 modificados a 360°** en canales `2` y `3` del PCA9685 (`PICKER_NEUTRO = {1485, 1500}`, `PICKER_VEL_US = {360, 300}`, tope de giro `10 s` y corte al capturar) y **1× VL53L0X** interno de estómago (`0x32` con `XSHUT = A10`) para confirmación física de captura.
+- **Enlace de Comunicación:** módulo Bluetooth **HC-05** en `Serial1` (`D18`/`D19` a `9600` bps); USB (`Serial`, `115200` bps) libre para diagnóstico.
+- **Restricción del Cliente:** el microcontrolador solo muestrea en bucle no bloqueante, actúa sobre motores/servos/picker (arranca en reposo hasta recibir `CMD:START` o `'k'`) y ejecuta el Fail-Safe (`< 500 ms`); no contiene lógica de navegación ni clasificación.
 
 ---
 
@@ -94,6 +94,7 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 | `COMMAND` | Servidor → Cliente | `COMMAND:<v_left>,<v_right>,<estado>\n` — velocidades diferenciales y estado FSM activo. |
 | `EVENT` | Cliente → Servidor | `EVENT:CAPTURA` / `EVENT:CAPTURA_LOBITO_<n>` — notificación física de captura en estómago. |
 | `STATE_CHANGE` | Servidor → Cliente | `STATE_CHANGE:<estado>\n` — conmutación formal de estado (ej. `ESCAPE`). |
+| `CMD:START` / `CMD:STOP` | Servidor → Cliente | Arranque o detención de la corrida autónoma en el firmware Mega (`--auto-start` o consola `start`/`stop`). |
 | `HEARTBEAT` | Bidireccional | `HEARTBEAT\n` — liveness de enlace (`INTERVALO_HEARTBEAT_MS = 200 ms`). |
 
 - **Fail-Safe Obligatorio (`< 500 ms`):** si transcurren más de **500 ms** sin recibir `COMMAND` ni `HEARTBEAT`, el cliente (Mega y Webots) debe detener de inmediato tracción y picker.
