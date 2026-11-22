@@ -12,8 +12,11 @@ Plataforma objetivo: **Arduino Mega 2560** + shield **L293D** + driver PWM I2C *
 
 > **Nota de migración UNO → Mega:** en el Mega el bus I2C está en `D20` (SDA) / `D21` (SCL), y el shield L293D tapa `A0–A5`, por lo que las líneas `XSHUT` finales usan `A8–A10` (ver [`PICKER-ESTOMAGO-Y-ALIMENTACION.md`](PICKER-ESTOMAGO-Y-ALIMENTACION.md)). Algunos sketches de diagnóstico inicial todavía referencian `A4`/`A5` o `A0`/`A1` en sus comentarios o constantes.
 
-### 1.1 Frente sensorial integrado
+### 1.1 Frente sensorial integrado y prueba de estrés combinada
 - [`detector-mixto/detector-mixto.ino`](detector-mixto/detector-mixto.ino): Prueba integrada del frente sensorial completo: 3 HC-SR04 arriba (`TRIG/ECHO`: izq `13/12`, med `11/10`, der `9/8`) y 2 VL53L0X abajo (`XSHUT`: izq `A8`, der `A9`; el del estómago en `A10` queda apagado) montados sobre servos SG90 en el PCA9685 (canales `0` y `1`).
+- [`prueba-ultrasonidos-mega/prueba-ultrasonidos-mega.ino`](prueba-ultrasonidos-mega/prueba-ultrasonidos-mega.ino): Prueba y diagnóstico de los 3 HC-SR04 con el cableado real del Mega (`24/25`, `26/27`, `28/29`), modo ordenado vs. seguido y detección automática de pares cruzados (`'d'`).
+- [`prueba-laser-mega/prueba-laser-mega.ino`](prueba-laser-mega/prueba-laser-mega.ino): Lectura simultánea en mm de los 3 VL53L0X del Mega (`XSHUT A8 -> 0x30`, `A9 -> 0x31`, `A10 -> 0x32`) y escaneo I2C (`'i'`).
+- [`prueba-todo-junto/prueba-todo-junto.ino`](prueba-todo-junto/prueba-todo-junto.ino): Prueba combinada de caída de tensión (brownout) operando tracción `WASD` (USB + HC-05 `Serial1`), picker 360°, barrido de láseres, 3 VL53L0X y 3 HC-SR04 en simultáneo, registrando reinicios en EEPROM y reseteos del PCA9685.
 
 ### 1.2 Comunicación Bluetooth (HC-05)
 - [`prueba-hc05/prueba-hc05.ino`](prueba-hc05/prueba-hc05.ino): Puente USB-Bluetooth (`Serial` a 115200 bps ↔ `Serial1` en `D18`/`D19` a 9600 bps por defecto), monitoreo del pin `STATE` (`D30`) y envío de `PING` cada 2 s.
@@ -29,11 +32,11 @@ Plataforma objetivo: **Arduino Mega 2560** + shield **L293D** + driver PWM I2C *
 - [`prueba-servo-360/prueba-servo-360.ino`](prueba-servo-360/prueba-servo-360.ino): Calibración del punto neutro, sentido y velocidad (en µs) de los 2 servos SG90 modificados a 360° del picker en PCA9685 (`2` = izq, `3` = der).
 
 ### 1.5 Tracción y sistema de recolección (picker + estómago)
-- [`prueba-traccion/prueba-traccion.ino`](prueba-traccion/prueba-traccion.ino): Prueba individual (`'1'..'4'`), secuencial (`'i'`) y de maniobras (avance, retroceso, giro) de los 4 motores DC en el shield L293D (`M1..M4`), con bandera `INVERTIDO` por motor.
-- [`prueba-picker/prueba-picker.ino`](prueba-picker/prueba-picker.ino): Prueba del motor DC auxiliar del picker mediante puente H L298N (`ENA = D45` en Timer5, `IN1 = D22`, `IN2 = D23`) con control de sentido, velocidad y rampa.
-- [`picker-girando/picker-girando.ino`](picker-girando/picker-girando.ino): Giro continuo de los dos servos SG90 360° del picker (PCA9685 canales `2` y `3`) con neutro y sentido calibrados; control por serie (`'p'` frena, `'g'` gira).
-- [`picker-estomago/picker-estomago.ino`](picker-estomago/picker-estomago.ino): Picker continuo (PCA9685 canales `2` y `3`) + sensor VL53L0X interno del estómago (`XSHUT = A10`, dirección `0x32`). Se arma con `'a'` al entrar en `CAPTURA`, aprende la línea base actual y notifica una sola vez ante una variación grande de lectura.
-- [`picker-destrabe/picker-destrabe.ino`](picker-destrabe/picker-destrabe.ino): Picker (PCA9685 canales `2` y `3`) con rutina de destrabe por oscilación rápida (retroceso corto + empuje) disparada al medir caída de tensión interna `Vcc` del Mega contra la referencia de 1.1 V (aplica únicamente cuando los servos comparten los 5 V del Mega, no con XL4015 aislado).
+- [`prueba-traccion/prueba-traccion.ino`](prueba-traccion/prueba-traccion.ino): Prueba de los 4 motores DC en shield L293D (`M1..M4`) con control `WASD` (USB y HC-05 `Serial1` a 9600 bps, timeout de hombre muerto 450 ms), prueba individual `'1'..'4'` y ajuste `+/-` de velocidad.
+- [`prueba-picker/prueba-picker.ino`](prueba-picker/prueba-picker.ino): Prueba histórica del motor DC con L298N (`ENA = D45`, `IN1 = D22`, `IN2 = D23`) previa a la adopción de los 2 servos 360° en PCA9685.
+- [`picker-girando/picker-girando.ino`](picker-girando/picker-girando.ino): Giro continuo de los dos servos SG90 360° del picker (PCA9685 canales `2` y `3`) con neutro `{1485, 1500}` y sentido calibrados; control por serie (`'p'` frena, `'g'` gira).
+- [`picker-estomago/picker-estomago.ino`](picker-estomago/picker-estomago.ino): Picker continuo (PCA9685 canales `2` y `3`, `VEL_US = {360, 300}`) + sensor VL53L0X interno del estómago (`XSHUT = A10`, dirección `0x32`). Se arma con `'a'` al entrar en `CAPTURA`, aprende la línea base actual y notifica una sola vez ante una variación grande de lectura.
+- [`picker-destrabe/picker-destrabe.ino`](picker-destrabe/picker-destrabe.ino): Picker (PCA9685 canales `2` y `3`, neutro `{1485, 1500}`) con rutina de destrabe por oscilación rápida disparada al medir caída de tensión interna `Vcc` del Mega (aplica únicamente sin XL4015 aislado).
 
 ---
 

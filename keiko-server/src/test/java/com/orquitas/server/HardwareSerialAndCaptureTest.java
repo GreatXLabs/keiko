@@ -187,6 +187,53 @@ public class HardwareSerialAndCaptureTest {
         }
     }
 
+    @Test
+    public void testStreamSessionIgnoresDbgAndSendsCmdStartWhenAutoStart() throws Exception {
+        PipedOutputStream clientTx = new PipedOutputStream();
+        PipedInputStream serverRx = new PipedInputStream(clientTx);
+        PipedOutputStream serverTx = new PipedOutputStream();
+        PipedInputStream clientRx = new PipedInputStream(serverTx);
+
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(new ConfiguracionServidor().resolverArchivoModelo());
+        PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
+
+        ManejadorCliente sesion = new ManejadorCliente(
+                serverRx, serverTx, "Test-Mega-AutoStart", () -> {},
+                gestorEstomago, null, clasificador, planificador, 180L, 5000L, true);
+
+        java.util.List<String> logs = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        java.util.logging.Logger handlerLogger = java.util.logging.Logger.getLogger(ManejadorCliente.class.getName());
+        java.util.logging.Handler captureHandler = new java.util.logging.Handler() {
+            @Override public void publish(java.util.logging.LogRecord record) { logs.add(record.getMessage()); }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        handlerLogger.addHandler(captureHandler);
+
+        Thread serverThread = new Thread(sesion, "Test-MegaAutoStart");
+        serverThread.start();
+
+        BufferedWriter toServer = new BufferedWriter(new OutputStreamWriter(clientTx, StandardCharsets.UTF_8));
+        BufferedReader fromServer = new BufferedReader(new InputStreamReader(clientRx, StandardCharsets.UTF_8));
+
+        try {
+            toServer.write("HELLO:" + ConfiguracionServidor.VERSION_SISTEMA + "," + ConfiguracionServidor.RIG_HARDWARE + "\n");
+            toServer.write("DBG:estomago=42 base=42 det=2 cambios=0\n");
+            toServer.flush();
+
+            String startLine = leerHastaPrefijo(fromServer, "CMD:START");
+            assertEquals("CMD:START", startLine);
+            assertFalse(logs.stream().anyMatch(m -> m.contains("[PROTOCOLO] Mensaje no reconocido")),
+                    "DBG: no debe tratarse como mensaje no reconocido");
+        } finally {
+            handlerLogger.removeHandler(captureHandler);
+            sesion.cerrar();
+            toServer.close();
+            fromServer.close();
+            serverThread.join(1000);
+        }
+    }
+
     private static String leerHastaPrefijo(BufferedReader reader, String prefijo) throws IOException {
         for (int i = 0; i < 15; i++) {
             String line = reader.readLine();

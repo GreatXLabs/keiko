@@ -87,4 +87,11 @@ public class ProtocolParserTest {
         assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearHello("HELLO:"));
         assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearHello("TELEMETRY:1,2,3,4"));
     }
+
+    @Test
+    public void formatControlCommandsStartStopYPrefijoDbg() {
+        assertEquals("CMD:START\n", MensajeProtocolo.crearCmdStart());
+        assertEquals("CMD:STOP\n", MensajeProtocolo.crearCmdStop());
+        assertEquals("DBG:", MensajeProtocolo.PREFIX_DBG);
+    }
 }

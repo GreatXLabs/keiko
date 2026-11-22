@@ -5,9 +5,9 @@
     'c' -> los dos al centro (90°)
     'a' -> los dos a 0°
     'z' -> los dos a 180°
-    's' -> barrido lento completo 0° -> 180° -> 0°
-    'b' -> barrido como el del detector (-45° hacia el centro a +60° hacia
-           afuera, la izquierda y la derecha en espejo), 2 veces
+    's' -> barrido lento completo 0° -> 180° -> 0°, los dos en espejo
+    'b' -> barrido como el de la doc (-45° hacia el centro a +60° hacia
+           afuera, paso 5°, 40 ms por paso, en espejo), ida y vuelta 3 veces
 */
 
 #include <Wire.h>
@@ -43,28 +43,34 @@ void barridoCompleto() {
   Serial.println(F("Barrido completo 0 -> 180 -> 0"));
   for (int16_t g = 0; g <= 180; g += 2) {
     moverServo(0, g);
-    moverServo(1, g);
+    moverServo(1, 180 - g);  // espejado: uno va hacia afuera y el otro hacia adentro
     delay(30);
   }
   for (int16_t g = 180; g >= 0; g -= 2) {
     moverServo(0, g);
-    moverServo(1, g);
+    moverServo(1, 180 - g);  // espejado: uno va hacia afuera y el otro hacia adentro
     delay(30);
   }
   Serial.println(F("Fin del barrido"));
 }
 
+// Como SIMULACION-UNITY.md sección 4: -45 (hacia el centro) a +60 (hacia afuera),
+// paso 5°, ida y vuelta, 40 ms por paso, los dos servos en espejo.
+const int8_t ANG_MIN = -45, ANG_MAX = 60, ANG_PASO = 5;
+const uint8_t PAUSA_PASO_MS = 40;
+
+void irAAngulo(int8_t ang) {
+  for (uint8_t k = 0; k < NUM_SERVOS; k++) {
+    moverServo(k, SERVO_CENTRO[k] + SERVO_SENTIDO[k] * ang);
+  }
+  delay(PAUSA_PASO_MS);
+}
+
 void barridoDetector() {
-  Serial.println(F("Barrido del detector: -45 (centro) a +60 (afuera)"));
-  for (uint8_t vuelta = 0; vuelta < 2; vuelta++) {
-    for (int8_t ang = -45; ang <= 60; ang += 15) {
-      for (uint8_t k = 0; k < NUM_SERVOS; k++) {
-        moverServo(k, SERVO_CENTRO[k] + SERVO_SENTIDO[k] * ang);
-      }
-      Serial.print(F("  ang "));
-      Serial.println(ang);
-      delay(400);
-    }
+  Serial.println(F("Barrido del detector: -45 (centro) a +60 (afuera), paso 5, ida y vuelta x3"));
+  for (uint8_t vuelta = 0; vuelta < 3; vuelta++) {
+    for (int8_t ang = ANG_MIN; ang <= ANG_MAX; ang += ANG_PASO) irAAngulo(ang);
+    for (int8_t ang = ANG_MAX; ang >= ANG_MIN; ang -= ANG_PASO) irAAngulo(ang);
   }
   moverAmbos(90);
 }

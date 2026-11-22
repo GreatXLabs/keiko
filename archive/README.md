@@ -10,15 +10,18 @@ Este directorio conserva código, documentación y experimentos previos que ya n
 - `orquita_firmware_uno.ino`: Primer firmware del robot basado en **Arduino UNO R3 + Driver L298N + 4 HC-SR04** (38400 bps en D0/D1, sensor bucal digital en D2). Reemplazado por `firmware/orquita_firmware/orquita_firmware.ino` (Arduino Mega 2560).
 - `circuito_electronico_uno.md`: Diagrama de cableado y BOM original para Arduino UNO + L298N. Reemplazado por `pruebas/PICKER-ESTOMAGO-Y-ALIMENTACION.md`.
 
-### 2. `archive/sensores-legacy/`
+### 2. `archive/firmware-mega-tests-emi/`
+- `orquita_firmware_tests_emi.ino`: Sketch Mega previo consolidado desde `origin/tests-emi` (`7814e0b` / `2.0.0-audit.1`). Contenía pines ultrasónicos invertidos en medio/derecha (`TRIG {24, 27, 29}`), sentido de láser `{-1, -1}`, neutros de picker `{1500, 1465}` y loop semi-bloqueante. Reemplazado en `2.0.0-audit.2` por el firmware no bloqueante validado en el robot real el 2026-11-19 (`orquita_mega` de `feat/integracion-robot-real`), ahora en `firmware/orquita_firmware/orquita_firmware.ino`.
+
+### 3. `archive/sensores-legacy/`
 - `configuracion_sensores_ia.md`: Especificación previa de doble plano coaxial con 4/6/8/10 sensores ultrasónicos HC-SR04.
 - `ESTUDIO_SENSORES_CONFIGURACIONES.md`: Comparativa técnica entre arreglos puramente ultrasónicos (previa a la adopción del arreglo mixto `3 US + 2 Láser ToF`).
 
-### 3. `archive/hitos/`
+### 4. `archive/hitos/`
 - `HITO3/`: Carpeta de entrega académica del Hito 3 (incluye `DCU - Keiko.md`, `VCU - SQs - Clases.drawio.xml` y una copia histórica estática en `codigo/*.java` que no debe editarse; el código vivo reside en `keiko-server/`).
 - `GUIA_MODIFICACION_DOCUMENTACION_HITO2.md`: Guía de ajustes documentales de la segunda entrega académica.
 
-### 4. `archive/pruebas-experimentales/`
+### 5. `archive/pruebas-experimentales/`
 Experimentos de hardware/percepción descartados o superados durante la exploración de campo:
 - `detector-6-ultrasonidos/`: Prototipo con matriz 3x2 de 6 HC-SR04 (descartado por crosstalk acústico y menor resolución sobre canicas de 16 mm frente a VL53L0X).
 - `lidar_scanner/`: Barrido 2D de un VL53L0X en PCA9685 con visualización en tiempo real (`live_plot.py`, `map_plot.py`, `room_scan.py`, `scan_match.py`, `classify_live.py`, `test_icp.py`). Útil como referencia de ICP/nube de puntos; superado por el barrido dual en espejo (`detector-mixto`).

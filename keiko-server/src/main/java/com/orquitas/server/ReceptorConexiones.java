@@ -21,6 +21,7 @@ public class ReceptorConexiones implements Runnable {
     private final PlanificadorNavegacion planificador;
     private final long cooldownCapturaMs;
     private final long intervaloHeartbeatMs;
+    private final boolean autoStartEnHello;
     private final List<ManejadorCliente> clientesConectados = Collections.synchronizedList(new ArrayList<>());
 
     private ServerSocket serverSocket;
@@ -38,12 +39,23 @@ public class ReceptorConexiones implements Runnable {
                               PlanificadorNavegacion planificador,
                               long cooldownCapturaMs,
                               long intervaloHeartbeatMs) {
+        this(puerto, gestorEstomago, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, false);
+    }
+
+    public ReceptorConexiones(int puerto, GestorEstomago gestorEstomago,
+                              ClasificadorNeuroph clasificador,
+                              PlanificadorNavegacion planificador,
+                              long cooldownCapturaMs,
+                              long intervaloHeartbeatMs,
+                              boolean autoStartEnHello) {
         this.puerto = puerto;
         this.gestorEstomago = gestorEstomago;
         this.clasificador = clasificador;
         this.planificador = planificador;
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
+        this.autoStartEnHello = autoStartEnHello;
     }
 
     public void iniciar() {
@@ -62,7 +74,7 @@ public class ReceptorConexiones implements Runnable {
                 Socket clientSocket = serverSocket.accept();
                 ManejadorCliente manejador = new ManejadorCliente(
                         clientSocket, gestorEstomago, this, clasificador, planificador,
-                        cooldownCapturaMs, intervaloHeartbeatMs);
+                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello);
                 clientesConectados.add(manejador);
                 Thread clientThread = new Thread(manejador, "SesionCliente-" + clientSocket.getPort());
                 clientThread.start();

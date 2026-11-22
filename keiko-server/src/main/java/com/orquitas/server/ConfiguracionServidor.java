@@ -15,7 +15,7 @@ import java.util.logging.Logger;
 public final class ConfiguracionServidor {
     private static final Logger LOGGER = Logger.getLogger(ConfiguracionServidor.class.getName());
 
-    public static final String VERSION_SISTEMA = "2.0.0-audit.1";
+    public static final String VERSION_SISTEMA = "2.0.0-audit.2";
     public static final String RIG_HARDWARE = "mega-3us-2laser";
 
     public static final int PUERTO_PREDETERMINADO = 5000;
@@ -38,6 +38,7 @@ public final class ConfiguracionServidor {
     private long intervaloHeartbeatMs;
     private boolean resetSolicitado;
     private boolean listarPuertosSolicitado;
+    private boolean autoStartSolicitado;
     private String directorioBaseEnv;
 
     public ConfiguracionServidor() {
@@ -53,6 +54,7 @@ public final class ConfiguracionServidor {
         this.capturasRequeridasEscape = obtenerInt(envMap, "CAPTURAS_REQUERIDAS_ESCAPE", CAPTURAS_REQUERIDAS_ESCAPE);
         this.cooldownCapturaMs = obtenerLong(envMap, "CAPTURE_COOLDOWN_MS", COOLDOWN_CAPTURA_MS);
         this.intervaloHeartbeatMs = obtenerLong(envMap, "HEARTBEAT_INTERVAL_MS", INTERVALO_HEARTBEAT_MS);
+        this.autoStartSolicitado = Boolean.parseBoolean(obtenerString(envMap, "AUTO_START", "false"));
     }
 
     public static ConfiguracionServidor desdeArgumentos(String[] args) {
@@ -75,6 +77,8 @@ public final class ConfiguracionServidor {
                 cfg.setResetSolicitado(true);
             } else if ("--list-ports".equalsIgnoreCase(arg)) {
                 cfg.setListarPuertosSolicitado(true);
+            } else if ("--auto-start".equalsIgnoreCase(arg)) {
+                cfg.setAutoStartSolicitado(true);
             }
         }
         return cfg;
@@ -211,6 +215,9 @@ public final class ConfiguracionServidor {
 
     public boolean isListarPuertosSolicitado() { return listarPuertosSolicitado; }
     public void setListarPuertosSolicitado(boolean listarPuertosSolicitado) { this.listarPuertosSolicitado = listarPuertosSolicitado; }
+
+    public boolean isAutoStartSolicitado() { return autoStartSolicitado; }
+    public void setAutoStartSolicitado(boolean autoStartSolicitado) { this.autoStartSolicitado = autoStartSolicitado; }
 
     public File getArchivoEstomago() {
         File ruta = new File(rutaArchivoEstomago);

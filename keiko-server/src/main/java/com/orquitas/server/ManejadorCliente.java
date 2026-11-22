@@ -26,7 +26,9 @@ public class ManejadorCliente implements Runnable {
     private final PlanificadorNavegacion planificador;
     private final long cooldownCapturaMs;
     private final long intervaloHeartbeatMs;
+    private final boolean autoStartEnHello;
     private final AtomicBoolean conectado = new AtomicBoolean(true);
+    private final AtomicBoolean autoStartEnviado = new AtomicBoolean(false);
 
     private BufferedWriter escritor;
     private final Object bloqueoEscritura = new Object();
@@ -47,6 +49,17 @@ public class ManejadorCliente implements Runnable {
                             PlanificadorNavegacion planificador,
                             long cooldownCapturaMs,
                             long intervaloHeartbeatMs) {
+        this(socket, gestorEstomago, receptor, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, false);
+    }
+
+    public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
+                            ReceptorConexiones receptor,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs,
+                            boolean autoStartEnHello) {
         this.socket = socket;
         this.flujoEntrada = null;
         this.flujoSalida = null;
@@ -58,6 +71,7 @@ public class ManejadorCliente implements Runnable {
         this.planificador = planificador;
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
+        this.autoStartEnHello = autoStartEnHello;
     }
 
     public ManejadorCliente(InputStream flujoEntrada,
@@ -70,6 +84,22 @@ public class ManejadorCliente implements Runnable {
                             PlanificadorNavegacion planificador,
                             long cooldownCapturaMs,
                             long intervaloHeartbeatMs) {
+        this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
+                gestorEstomago, receptor, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, false);
+    }
+
+    public ManejadorCliente(InputStream flujoEntrada,
+                            OutputStream flujoSalida,
+                            String descripcionOrigen,
+                            Closeable recursoCierre,
+                            GestorEstomago gestorEstomago,
+                            ReceptorConexiones receptor,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs,
+                            boolean autoStartEnHello) {
         this.socket = null;
         this.flujoEntrada = flujoEntrada;
         this.flujoSalida = flujoSalida;
@@ -81,6 +111,7 @@ public class ManejadorCliente implements Runnable {
         this.planificador = planificador;
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
+        this.autoStartEnHello = autoStartEnHello;
     }
 
     @Override
@@ -172,6 +203,8 @@ public class ManejadorCliente implements Runnable {
             procesarHello(linea);
         } else if (linea.equals(MensajeProtocolo.MSG_HEARTBEAT)) {
             enviarMensaje(MensajeProtocolo.crearHeartbeat());
+        } else if (linea.startsWith(MensajeProtocolo.PREFIX_DBG)) {
+            LOGGER.fine("[DEBUG CLIENTE] " + linea);
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_ERROR)) {
             LOGGER.warning("[CLIENTE] " + linea);
         } else {
@@ -193,6 +226,10 @@ public class ManejadorCliente implements Runnable {
                         "[VERSION MISMATCH] Cliente=%s reporta Version=%s Rig=%s | Esperado Version=%s.* Rig=%s",
                         descripcionOrigen, hs.version(), hs.rig(),
                         ConfiguracionServidor.VERSION_SISTEMA, ConfiguracionServidor.RIG_HARDWARE));
+            }
+            if (autoStartEnHello && autoStartEnviado.compareAndSet(false, true)) {
+                LOGGER.info("[AUTO-START] Enviando CMD:START tras handshake a " + descripcionOrigen);
+                enviarMensaje(MensajeProtocolo.crearCmdStart());
             }
         } catch (Exception e) {
             LOGGER.warning("[HANDSHAKE] Error al parsear HELLO: " + e.getMessage());

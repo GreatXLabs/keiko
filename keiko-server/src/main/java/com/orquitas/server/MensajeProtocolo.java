@@ -13,6 +13,9 @@ public class MensajeProtocolo {
     public static final String MSG_HEARTBEAT = "HEARTBEAT";
     public static final String PREFIX_ERROR = "ERROR:";
     public static final String PREFIX_HELLO = "HELLO:";
+    public static final String PREFIX_DBG = "DBG:";
+    public static final String CMD_START = "CMD:START";
+    public static final String CMD_STOP = "CMD:STOP";
 
     public record InfoHandshake(String version, String rig) {}
 
@@ -125,5 +128,15 @@ public class MensajeProtocolo {
     // Construye un mensaje de error formal para el enlace de comunicaciones.
     public static String crearError(String detalle) {
         return String.format("%s%s\n", PREFIX_ERROR, detalle);
+    }
+
+    // Inicia la corrida autonoma en firmware Mega (CMD:START).
+    public static String crearCmdStart() {
+        return CMD_START + "\n";
+    }
+
+    // Detiene la corrida autonoma y pasa el firmware Mega a reposo (CMD:STOP).
+    public static String crearCmdStop() {
+        return CMD_STOP + "\n";
     }
 }

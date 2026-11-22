@@ -40,9 +40,9 @@
 // ---- Picker (igual que picker-girando) ----
 const uint8_t NUM_SERVOS = 2;
 const uint8_t CANAL[NUM_SERVOS] = {2, 3};
-const uint16_t NEUTRO[NUM_SERVOS] = {1475, 1500};
+const uint16_t NEUTRO[NUM_SERVOS] = {1485, 1500};
 const int8_t SENTIDO[NUM_SERVOS] = {1, -1};
-const uint16_t VEL_US[NUM_SERVOS] = {240, 200};
+const uint16_t VEL_US[NUM_SERVOS] = {360, 300};
 const uint8_t PASOS_ARRANQUE = 10;
 const uint8_t MS_POR_PASO = 50;
 const uint16_t MS_CHEQUEO_PCA = 500;

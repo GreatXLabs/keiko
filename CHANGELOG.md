@@ -6,6 +6,40 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
+## [2.0.0-audit.2] — 2026-11-21
+
+Integración de la rama `feat/integracion-robot-real` (`5f22632`, archivada bajo tag `archive/feat-integracion-robot-real`) con calibraciones físicas y firmware no bloqueante validado sobre el robot real (pruebas del 2026-11-19), manteniendo sincronizado todo el ecosistema antes de iniciar la Fase B (`2.0.0`).
+
+### Matriz de Compatibilidad (`2.0.0-audit.2`)
+
+| Componente | Ruta / Artefacto | Versión | Rig / Especificación | Verificación |
+| :--- | :--- | :---: | :---: | :--- |
+| **Raíz (`VERSION`)** | [`VERSION`](VERSION) | `2.0.0-audit.2` | `mega-3us-2laser` | `./scripts/check_versions.sh` (9/9 `[OK]`) |
+| **Servidor Central (Java 21)** | [`keiko-server/pom.xml`](keiko-server/pom.xml) + [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) | `2.0.0-audit.2` | `mega-3us-2laser` | `mvn clean test` (39/39 OK) + `mvn package` |
+| **Firmware Robot (Mega 2560)** | [`firmware/orquita_firmware/orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino) | `2.0.0-audit.2` | `mega-3us-2laser` | Loop no bloqueante (`orquita_mega`) + `HELLO:2.0.0-audit.2,mega-3us-2laser` |
+| **Simulador 3D (Webots)** | [`keiko-sim/config/simulation_params.json`](keiko-sim/config/simulation_params.json) + [`robot_client.py`](keiko-sim/controllers/robot_client/robot_client.py) | `2.0.0-audit.2` | `mega-3us-2laser` | `py_compile` OK + `HELLO:2.0.0-audit.2,mega-3us-2laser` |
+| **Modelos `.nnet`** | [`modelo_ultrasonico.nnet`](keiko-server/models/modelo_ultrasonico.nnet) + [`modelo_canicas.nnet`](keiko-server/models/modelo_canicas.nnet) | `2.0.0-audit.2` | 3US + 2Laser | Sin cambios respecto a `2.0.0-audit.1` (`c0952be2...` / `9e717570...`) |
+
+### Added (Agregado)
+- **Control `CMD:START` / `CMD:STOP` y `DBG:` en `keiko-server`:** constantes y serialización en [`MensajeProtocolo.java`](keiko-server/src/main/java/com/orquitas/server/MensajeProtocolo.java), flag `--auto-start` (`AUTO_START` en `.env`) y consola interactiva (`start`/`stop`) en [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) / [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java), y manejo silencioso de tramas `DBG:` en [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java). **Por qué:** el firmware validado arranca en reposo seguro esperando `CMD:START` (o `'k'`) y puede emitir telemetría `DBG:` de estómago.
+- **Nuevas pruebas físicas en `pruebas/`:** [`prueba-ultrasonidos-mega/`](pruebas/prueba-ultrasonidos-mega/prueba-ultrasonidos-mega.ino), [`prueba-laser-mega/`](pruebas/prueba-laser-mega/prueba-laser-mega.ino) y [`prueba-todo-junto/`](pruebas/prueba-todo-junto/prueba-todo-junto.ino) (test de caída de tensión / EEPROM brownout), catalogadas en [`pruebas/README.md`](pruebas/README.md).
+
+### Changed (Modificado)
+- **Firmware oficial validado en robot real ([`firmware/orquita_firmware/orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino)):** reemplaza el sketch heredado de `tests-emi` por `orquita_mega` (434 líneas, bucle no bloqueante), con pines HC-SR04 verificados (`TRIG {24, 26, 28}`, `ECHO {25, 27, 29}`), sentido espejo de láseres `{1, -1}`, neutros y velocidades de picker `{1485, 1500}` / `{360, 300}`, tope duro de giro de `10 s`, corte inmediato de picker tras captura, rearmado de estómago gestionado por cambio de estado del servidor, fix de underflow de `millis()` en fail-safe/manual y handshake `HELLO:<version>,<rig>`. **Por qué:** el sketch previo de `tests-emi` tenía invertidos los canales US medio/derecho y valores de servos/picker no calibrados sobre el prototipo físico.
+- **Calibración en sketches de `pruebas/`:** actualizados `PICKER-ESTOMAGO-Y-ALIMENTACION.md`, `picker-*`, `prueba-servo*` (`NEUTRO={1485,1500}`, `VEL_US={360,300}`, barrido espejo) y `prueba-traccion.ino` (control `WASD` por USB y HC-05 `Serial1`).
+- **Alineación documental:** actualizados [`AGENTS.md`](AGENTS.md), [`README.md`](README.md), [`keiko-server/README.md`](keiko-server/README.md), [`keiko-sim/README.md`](keiko-sim/README.md) y [`archive/README.md`](archive/README.md) con los pines reales y el nuevo flujo `CMD:START`/`CMD:STOP`.
+
+### Archived (Archivado)
+- Movido el sketch Mega previo de `tests-emi` a [`archive/firmware-mega-tests-emi/orquita_firmware_tests_emi.ino`](archive/firmware-mega-tests-emi/orquita_firmware_tests_emi.ino).
+
+### Tests Run (Evidencia de Pruebas — 2026-11-21)
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`exit 0`).
+- `cd keiko-server && mvn clean test`: **39/39 OK** (0 Failures, 0 Errors, 0 Skipped; `2.634 s`; incluye nuevos tests para `CMD:START`/`CMD:STOP`/`PREFIX_DBG`, `--auto-start` y `DBG:` + auto-start en `ManejadorCliente`).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`** (`0.687 s`).
+- `python3 -m py_compile keiko-sim/controllers/robot_client/robot_client.py`: **OK** (`exit 0`).
+
+---
+
 ## [2.0.0-audit.1] — 2026-11-21
 
 Consolidación en fase A de las líneas divergentes (`main`, `origin/feat/hw-field-ready` y `origin/tests-emi`) sobre un árbol unificado para el hardware objetivo `mega-3us-2laser`, incorporando versionado sincronizado, handshake `HELLO` y auditoría exhaustiva de cumplimiento anti-hardcoding previa a la refactorización de Fase B (`2.0.0`).

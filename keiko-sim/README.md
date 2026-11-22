@@ -1,6 +1,6 @@
 # Keiko-Sim: Entorno de Simulación Robótica 3D
 
-Módulo de simulación 3D en **Webots (R2025a)** para el ecosistema **Proyecto Orquitas (Keiko)** (`2.0.0-audit.1` | `mega-3us-2laser`).
+Módulo de simulación 3D en **Webots (R2025a)** para el ecosistema **Proyecto Orquitas (Keiko)** (`2.0.0-audit.2` | `mega-3us-2laser`).
 
 Permite validar la arquitectura distribuida Hardware-in-the-Loop (`keiko-server` en Java 21 + `robot_client.py` en Webots), generar datasets V2 de entrenamiento para **Neuroph 2.98** y ejecutar baterías multi-escenario en la **Bahía de Caza**.
 
@@ -27,7 +27,7 @@ Permite validar la arquitectura distribuida Hardware-in-the-Loop (`keiko-server`
 ```text
 keiko-sim/
 ├── config/
-│   └── simulation_params.json        <- Geometría, física, versión (2.0.0-audit.1) y rig (mega-3us-2laser)
+│   └── simulation_params.json        <- Geometría, física, versión (2.0.0-audit.2) y rig (mega-3us-2laser)
 ├── worlds/
 │   ├── bahia_de_caza_scen_1..14.wbt  <- Escenarios reglamentarios de prueba
 │   ├── bahia_de_caza_circular*.wbt   <- Variante circular (standalone y cliente)
