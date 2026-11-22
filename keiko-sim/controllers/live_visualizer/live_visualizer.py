@@ -75,12 +75,20 @@ def detect_exit(supervisor):
     if ex is not None and ey is not None:
         if ey > 0.45:
             wall = "north"
+            exit_pos = (float(ex), float(ey - 0.35))
+            return wall, exit_pos, math.pi / 2
         elif ex > 0.45:
             wall = "east"
+            exit_pos = (float(ex - 0.35), float(ey))
+            return wall, exit_pos, 0.0
         elif ey < -0.45:
             wall = "south"
+            exit_pos = (float(ex), float(ey + 0.35))
+            return wall, exit_pos, -math.pi / 2
         else:
             wall = "west"
+            exit_pos = (float(ex + 0.35), float(ey))
+            return wall, exit_pos, math.pi
     else:
         wall = os.environ.get("EXIT_WALL", "").strip().lower()
         if wall not in EXIT_GEOM:
@@ -90,8 +98,8 @@ def detect_exit(supervisor):
                 world_name = ""
             wall = next((w for w in ("east", "south", "west", "north") if w in world_name), "north")
 
-    exit_pos, exit_yaw = EXIT_GEOM[wall]
-    return wall, exit_pos, exit_yaw
+        exit_pos, exit_yaw = EXIT_GEOM[wall]
+        return wall, exit_pos, exit_yaw
 
 def main():
     with open(LOG_FILE_PATH, "w") as lf:

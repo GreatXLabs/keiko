@@ -6,7 +6,7 @@
 
     <groupId>com.orquitas</groupId>
     <artifactId>keiko-server</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0-audit.1</version>
     <packaging>jar</packaging>
 
     <name>keiko-server</name>
@@ -17,6 +17,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <neuroph.version>2.98</neuroph.version>
+        <jserialcomm.version>2.11.0</jserialcomm.version>
         <junit.version>5.10.2</junit.version>
     </properties>
 
@@ -26,6 +27,13 @@
             <groupId>com.github.neuroph</groupId>
             <artifactId>neuroph-core</artifactId>
             <version>${neuroph.version}</version>
+        </dependency>
+
+        <!-- Comunicacion Serie / Bluetooth SPP (COMx, /dev/rfcomm0, USB) -->
+        <dependency>
+            <groupId>com.fazecast</groupId>
+            <artifactId>jSerialComm</artifactId>
+            <version>${jserialcomm.version}</version>
         </dependency>
 
         <!-- Testing -->

@@ -69,4 +69,22 @@ public class ProtocolParserTest {
     public void testFormatHeartbeat() {
         assertEquals("HEARTBEAT\n", MensajeProtocolo.crearHeartbeat());
     }
+
+    @Test
+    public void parsearHelloValidoYCompatibilidad() {
+        MensajeProtocolo.InfoHandshake info = MensajeProtocolo.parsearHello("HELLO:2.0.0-audit.1,mega-3us-2laser");
+        assertEquals("2.0.0-audit.1", info.version());
+        assertEquals("mega-3us-2laser", info.rig());
+        assertEquals("HELLO:2.0.0-audit.1,mega-3us-2laser\n", MensajeProtocolo.crearHello("2.0.0-audit.1", "mega-3us-2laser"));
+        assertTrue(MensajeProtocolo.esCompatibleMajorMinor("2.0.0-audit.1", "2.0.3"));
+        assertFalse(MensajeProtocolo.esCompatibleMajorMinor("2.0.0-audit.1", "2.1.0"));
+        assertFalse(MensajeProtocolo.esCompatibleMajorMinor("2.0.0-audit.1", "1.0.0"));
+        assertFalse(MensajeProtocolo.esCompatibleMajorMinor(null, "2.0.0"));
+    }
+
+    @Test
+    public void parsearHelloInvalidoLanzaExcepcion() {
+        assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearHello("HELLO:"));
+        assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearHello("TELEMETRY:1,2,3,4"));
+    }
 }

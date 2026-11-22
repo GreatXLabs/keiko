@@ -47,6 +47,8 @@ class ArenaMapper:
         return math.hypot(x - self.exit_pos[0], y - self.exit_pos[1]) < 0.45
 
     def world_to_grid(self, x, y):
+        if x is None or y is None or math.isnan(x) or math.isnan(y):
+            return 0, 0
         c = int(round((x - self.x_min) / self.res))
         r = int(round((y - self.y_min) / self.res))
         return r, c

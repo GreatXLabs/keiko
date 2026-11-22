@@ -10,37 +10,76 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Parametros de configuracion del Servidor Central cargados desde archivo .env o variables de entorno.
+ * Parametros de configuracion del Servidor Central cargados desde CLI, archivo .env o variables de entorno.
  */
 public final class ConfiguracionServidor {
     private static final Logger LOGGER = Logger.getLogger(ConfiguracionServidor.class.getName());
 
+    public static final String VERSION_SISTEMA = "2.0.0-audit.1";
+    public static final String RIG_HARDWARE = "mega-3us-2laser";
+
     public static final int PUERTO_PREDETERMINADO = 5000;
+    public static final int BAUDIOS_SERIE_PREDETERMINADOS = 9600;
     public static final String NOMBRE_ARCHIVO_ESTOMAGO = "estomago.txt";
     public static final int AUDITOR_SONDEO_MS = 25;
     public static final int CAPTURAS_REQUERIDAS_ESCAPE = 3;
-    public static final String RUTA_MODELO_PREDETERMINADA = "../keiko-sim/data/models/orquitas_production_champion.nnet";
+    public static final long COOLDOWN_CAPTURA_MS = 1500L;
+    public static final long INTERVALO_HEARTBEAT_MS = 200L;
+    public static final String RUTA_MODELO_PREDETERMINADA = "models/modelo_ultrasonico.nnet";
 
     private int puerto;
+    private String puertoSerie;
+    private int baudiosSerie;
     private String rutaArchivoEstomago;
     private String rutaArchivoModelo;
     private int auditorSondeoMs;
     private int capturasRequeridasEscape;
+    private long cooldownCapturaMs;
+    private long intervaloHeartbeatMs;
+    private boolean resetSolicitado;
+    private boolean listarPuertosSolicitado;
     private String directorioBaseEnv;
 
-    // Inicializa la configuracion cargando variables desde .env y entorno de ejecucion.
     public ConfiguracionServidor() {
         Map<String, String> envMap = cargarArchivoEnv();
 
         this.puerto = obtenerInt(envMap, "PORT", PUERTO_PREDETERMINADO);
+        this.puertoSerie = obtenerString(envMap, "SERIAL_PORT", null);
+        this.baudiosSerie = obtenerInt(envMap, "SERIAL_BAUD", BAUDIOS_SERIE_PREDETERMINADOS);
         this.rutaArchivoEstomago = obtenerString(envMap, "ESTOMAGO_FILE_PATH",
                 obtenerString(envMap, "ESTOMAGO_FILE_NAME", NOMBRE_ARCHIVO_ESTOMAGO));
         this.rutaArchivoModelo = obtenerString(envMap, "MODEL_FILE_PATH", RUTA_MODELO_PREDETERMINADA);
         this.auditorSondeoMs = Math.min(obtenerInt(envMap, "AUDITOR_POLLING_MS", AUDITOR_SONDEO_MS), 25);
         this.capturasRequeridasEscape = obtenerInt(envMap, "CAPTURAS_REQUERIDAS_ESCAPE", CAPTURAS_REQUERIDAS_ESCAPE);
+        this.cooldownCapturaMs = obtenerLong(envMap, "CAPTURE_COOLDOWN_MS", COOLDOWN_CAPTURA_MS);
+        this.intervaloHeartbeatMs = obtenerLong(envMap, "HEARTBEAT_INTERVAL_MS", INTERVALO_HEARTBEAT_MS);
     }
 
-    // Lee pares clave-valor de archivo .env buscando en directorio actual y superiores.
+    public static ConfiguracionServidor desdeArgumentos(String[] args) {
+        ConfiguracionServidor cfg = new ConfiguracionServidor();
+        if (args == null) return cfg;
+
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            if ("--port".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setPuerto(Integer.parseInt(args[++i]));
+            } else if ("--serial".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setPuertoSerie(args[++i]);
+            } else if ("--baud".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setBaudiosSerie(Integer.parseInt(args[++i]));
+            } else if ("--model".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setRutaArchivoModelo(args[++i]);
+            } else if ("--estomago".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setRutaArchivoEstomago(args[++i]);
+            } else if ("--reset".equalsIgnoreCase(arg)) {
+                cfg.setResetSolicitado(true);
+            } else if ("--list-ports".equalsIgnoreCase(arg)) {
+                cfg.setListarPuertosSolicitado(true);
+            }
+        }
+        return cfg;
+    }
+
     private Map<String, String> cargarArchivoEnv() {
         Map<String, String> mapa = new HashMap<>();
         String[] candidatos = {
@@ -90,7 +129,6 @@ public final class ConfiguracionServidor {
         return mapa;
     }
 
-    // Ubica el .env junto al modulo compilado (target/classes o el jar), sin depender del CWD.
     private static String rutaEnvJuntoAlCodigo() {
         try {
             File code = new File(ConfiguracionServidor.class.getProtectionDomain()
@@ -102,7 +140,6 @@ public final class ConfiguracionServidor {
         }
     }
 
-    // Sube hasta tres niveles buscando un .env.
     static File buscarEnvAscendente(File inicio) {
         File dir = inicio;
         for (int i = 0; i < 3 && dir != null; i++, dir = dir.getParentFile()) {
@@ -112,7 +149,6 @@ public final class ConfiguracionServidor {
         return null;
     }
 
-    // Obtiene una cadena priorizando entorno de sistema, mapa .env y valor por defecto.
     private static String obtenerString(Map<String, String> envMap, String key, String defaultValue) {
         String val = System.getenv(key);
         if (val != null && !val.trim().isEmpty()) return val.trim();
@@ -123,7 +159,6 @@ public final class ConfiguracionServidor {
         return defaultValue;
     }
 
-    // Obtiene un entero priorizando entorno de sistema, mapa .env y valor por defecto.
     private static int obtenerInt(Map<String, String> envMap, String key, int defaultValue) {
         String val = obtenerString(envMap, key, null);
         if (val != null) {
@@ -134,56 +169,74 @@ public final class ConfiguracionServidor {
         return defaultValue;
     }
 
-    // Retorna el puerto TCP configurado.
-    public int getPuerto() { return puerto; }
+    private static long obtenerLong(Map<String, String> envMap, String key, long defaultValue) {
+        String val = obtenerString(envMap, key, null);
+        if (val != null) {
+            try {
+                return Long.parseLong(val.trim());
+            } catch (NumberFormatException ignored) {}
+        }
+        return defaultValue;
+    }
 
-    // Asigna el puerto TCP del servidor.
+    public int getPuerto() { return puerto; }
     public void setPuerto(int puerto) { this.puerto = puerto; }
 
-    // Retorna la ruta al archivo de persistencia del estomago.
-    public String getRutaArchivoEstomago() { return rutaArchivoEstomago; }
+    public String getPuertoSerie() { return puertoSerie; }
+    public void setPuertoSerie(String puertoSerie) { this.puertoSerie = puertoSerie; }
 
-    // Asigna la ruta al archivo de persistencia del estomago.
+    public int getBaudiosSerie() { return baudiosSerie; }
+    public void setBaudiosSerie(int baudiosSerie) { this.baudiosSerie = baudiosSerie; }
+
+    public String getRutaArchivoEstomago() { return rutaArchivoEstomago; }
     public void setRutaArchivoEstomago(String rutaArchivoEstomago) { this.rutaArchivoEstomago = rutaArchivoEstomago; }
 
-    // Retorna la ruta al archivo de red neuronal.
     public String getRutaArchivoModelo() { return rutaArchivoModelo; }
-
-    // Asigna la ruta al archivo de red neuronal.
     public void setRutaArchivoModelo(String rutaArchivoModelo) { this.rutaArchivoModelo = rutaArchivoModelo; }
 
-    // Retorna el intervalo de sondeo del hilo auditor en milisegundos.
     public int getAuditorSondeoMs() { return auditorSondeoMs; }
-
-    // Asigna el intervalo de sondeo del hilo auditor en milisegundos.
     public void setAuditorSondeoMs(int ms) { this.auditorSondeoMs = ms; }
 
-    // Retorna el numero de capturas requeridas para conmutar al modo escape.
     public int getCapturasRequeridasEscape() { return capturasRequeridasEscape; }
-
-    // Asigna el numero de capturas requeridas para conmutar al modo escape.
     public void setCapturasRequeridasEscape(int c) { this.capturasRequeridasEscape = c; }
 
-    // Retorna el objeto File asociado a la ruta del estomago.
+    public long getCooldownCapturaMs() { return cooldownCapturaMs; }
+    public void setCooldownCapturaMs(long cooldownCapturaMs) { this.cooldownCapturaMs = cooldownCapturaMs; }
+
+    public long getIntervaloHeartbeatMs() { return intervaloHeartbeatMs; }
+    public void setIntervaloHeartbeatMs(long intervaloHeartbeatMs) { this.intervaloHeartbeatMs = intervaloHeartbeatMs; }
+
+    public boolean isResetSolicitado() { return resetSolicitado; }
+    public void setResetSolicitado(boolean resetSolicitado) { this.resetSolicitado = resetSolicitado; }
+
+    public boolean isListarPuertosSolicitado() { return listarPuertosSolicitado; }
+    public void setListarPuertosSolicitado(boolean listarPuertosSolicitado) { this.listarPuertosSolicitado = listarPuertosSolicitado; }
+
     public File getArchivoEstomago() {
         File ruta = new File(rutaArchivoEstomago);
-        // Las rutas relativas de la configuracion se anclan al .env para no depender del CWD.
         if (ruta.isAbsolute() || directorioBaseEnv == null) {
             return ruta;
         }
         return new File(directorioBaseEnv, rutaArchivoEstomago);
     }
 
-    // Resuelve la ubicacion real del archivo de red neuronal buscando rutas relativas habituales.
     public File resolverArchivoModelo() {
         File file = new File(rutaArchivoModelo);
         if (file.exists()) return file;
-        File alt1 = new File("keiko-sim/data/models/orquitas_production_champion.nnet");
-        if (alt1.exists()) return alt1;
-        File alt2 = new File("../keiko-sim/data/models/orquitas_production_champion.nnet");
-        if (alt2.exists()) return alt2;
-        File alt3 = new File("../../keiko-sim/data/models/orquitas_production_champion.nnet");
-        if (alt3.exists()) return alt3;
+        if (directorioBaseEnv != null) {
+            File juntoAEnv = new File(directorioBaseEnv, rutaArchivoModelo);
+            if (juntoAEnv.exists()) return juntoAEnv;
+        }
+        String[] candidatos = {
+            "models/modelo_ultrasonico.nnet",
+            "keiko-server/models/modelo_ultrasonico.nnet",
+            "../keiko-sim/data/models/modelo_ultrasonico.nnet",
+            "keiko-sim/data/models/modelo_ultrasonico.nnet"
+        };
+        for (String c : candidatos) {
+            File alt = new File(c);
+            if (alt.exists()) return alt;
+        }
         return file;
     }
 }

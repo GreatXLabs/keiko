@@ -1,113 +1,136 @@
-# Servidor Central (Cerebro) - Proyecto Orquitas (Keiko)
+# Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia con Inteligencia Artificial (**Neuroph 2.98**), persistencia crítica y concurrencia para el proyecto "Orquitas: Inteligencia y Supervivencia en la Bahía de Caza" (Programación Sobre Redes & Desarrollo de Sistemas, Ciclo 2026).
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad serie/Bluetooth SPP y TCP, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.0-audit.1` | `mega-3us-2laser`)**.
 
 ---
 
 ## 1. Arquitectura Técnica y Concurrencia
 
-El Servidor Central actúa como el **Cerebro** del cetáceo robótico y coordina múltiples flujos de ejecución concurrentes:
-
 ```text
-[Cliente: Orquita (Webots / Arduino)]
+[Cliente: La Orquita (Arduino Mega HC-05 / Webots robot_client.py)]
          |
-         | (Bluetooth RFCOMM/SPP o TCP Socket - Puerto 8888)
+         | (Bluetooth RFCOMM/SPP vía jSerialComm o Socket TCP - Puerto default 5000)
          v
-+-------------------------------------------------------------------------+
-|                         SERVIDOR CENTRAL (PC)                           |
-|                                                                         |
-|  [Hilo 1: NetworkServer / ClientHandler]                                |
-|    - Lectura no bloqueante de telemetría y eventos                      |
-|    - Transmisión periódica de HEARTBEAT (liveness < 500 ms)             |
-|                                                                         |
-|  [Hilo 2: NeurophClassifier]                                            |
-|    - Normalización de vectores sensoriales [4 sensores]                 |
-|    - Clasificación con red neuronal .nnet calibrada                     |
-|                                                                         |
-|  [Hilo 3: EstomagoManager - Hilo Escritor]                             |
-|    - Sección Crítica con ReentrantReadWriteLock (Fair Lock)            |
-|    - Escritura atómica de capturas en estomago.txt                      |
-|    - flush() obligatorio y FileDescriptor.sync() físico a disco         |
-|                                                                         |
-|  [Hilo 4: AuditorThread - Hilo Lector ("La Linareada")]                 |
-|    - Sondeo periódico continuo de estomago.txt (Read Lock)             |
-|    - Evaluación exclusiva contra almacenamiento físico (sin variables) |
-|    - Disparo irreversible de MODO_ESCAPE al validar 3 capturas         |
-|                                                                         |
-|  [Hilo 5: NavigationPlanner (FSM)]                                      |
-|    - BÚSQUEDA -> APROXIMACIÓN -> CAPTURA -> ESCAPE -> FINALIZACIÓN      |
-+-------------------------------------------------------------------------+
++-----------------------------------------------------------------------------+
+|                           SERVIDOR CENTRAL (PC)                             |
+|                                                                             |
+|  [ReceptorConexiones (TCP) / ReceptorSerie (Serial) -> ManejadorCliente]    |
+|    - Valida handshake HELLO:<version>,<rig> (major.minor + rig)             |
+|    - Lee tramas ASCII '\n' (TELEMETRY, EVENT, HEARTBEAT)                    |
+|    - Emite HEARTBEAT periódico (200 ms por defecto, Fail-Safe < 500 ms)     |
+|                                                                             |
+|  [ClasificadorNeuroph — Arquitectura Dual Neuroph 2.98 (3US + 2Laser)]      |
+|    - Red 1 (modelo_ultrasonico.nnet): 1 entrada -> {BLOQUEO, ESPACIO_LIBRE, |
+|      SALIDA} evaluada en los 3 sectores [IZQ, CEN, DER]                     |
+|    - Red 2 (modelo_canicas.nnet): 6 entradas [usL, usC, usR, lasL, lasR,    |
+|      angServo] -> {LOBITO_CENTRO, LOBITO_DER, LOBITO_IZQ, NINGUNA}          |
+|                                                                             |
+|  [GestorEstomago — Hilo Escritor]                                           |
+|    - Sección crítica synchronized(bloqueoArchivo) sobre estomago.txt        |
+|    - Escritura secuencial con flush() y FileDescriptor.sync() a disco       |
+|                                                                             |
+|  [AuditorEstomago — Hilo Lector ("La Linareada")]                           |
+|    - Sondeo periódico cada <= 25 ms sobre estomago.txt                      |
+|    - Activa MODO ESCAPE únicamente al validar 3 capturas físicas en disco   |
+|                                                                             |
+|  [PlanificadorNavegacion — FSM]                                             |
+|    - BUSQUEDA -> APROXIMACION -> CAPTURA -> ESCAPE -> FINALIZACION          |
++-----------------------------------------------------------------------------+
 ```
 
 ---
 
 ## 2. Requisitos y Compatibilidad con Apache NetBeans
 
-- **Java Development Kit:** Java 21 LTS (OpenJDK / Temurin).
-- **Gestor de Construcción:** Apache Maven 3.9+.
-- **Compatibilidad con NetBeans:** 100% nativa.
-  - En Apache NetBeans: **File -> Open Project... -> Seleccionar la carpeta `keiko-server/`**.
-  - NetBeans detectará automáticamente el archivo `pom.xml` y todas las dependencias (incluyendo Neuroph 2.98).
-  - Para ejecutar desde NetBeans: Clic derecho en el proyecto -> **Run** o **Debug**.
-  - Para ejecutar pruebas: Clic derecho -> **Test**.
+- **JDK:** Java 21 LTS (OpenJDK / Temurin).
+- **Build:** Apache Maven 3.9+.
+- **Dependencias principales ([`pom.xml`](pom.xml)):**
+  - `com.github.neuroph:neuroph-core:2.98`
+  - `com.fazecast:jSerialComm:2.11.0`
+  - `org.junit.jupiter:junit-jupiter-*:5.10.2`
+- **Apache NetBeans:** **File -> Open Project... -> `keiko-server/`**. Detecta automáticamente `pom.xml`, permite **Run**, **Debug** y **Test** con `ServidorCentral` como clase principal.
 
 ---
 
-## 3. Comandos de Consola y Maven
+## 3. Comandos Maven y Suite de Pruebas
 
-### Compilar y Ejecutar Pruebas Unitarias y de Concurrencia
+### Compilar y ejecutar pruebas automatizadas
 ```bash
+cd keiko-server
 mvn clean test
 ```
-Ejecuta las pruebas automatizadas:
-- `ConcurrencyEstomagoTest`: Prueba de estrés con 5 hilos escritores simultáneos disputando el bloqueo exclusivo y el hilo auditor leyendo periódicamente.
-- `NeurophInferenceTest`: Verificación de inferencia neuronal para las 5 clases del entorno (`ESPACIO_LIBRE`, `LOBITO`, `MURO`, `OBSTACULO`, `SALIDA`).
-- `ProtocolParserTest`: Validación de parseo defensivo de tramas y detección de datos corruptos.
+Ejecuta las **8 clases de prueba (36 tests JUnit 5)**:
+- `ProtocolParserTest` (8 tests): parseo de `TELEMETRY`, `HELLO`, `esCompatibleMajorMinor` y rechazo de tramas corruptas.
+- `PlanificadorNavegacionTest` (9 tests): transiciones FSM, evasión de bloqueos, anti-bucle y modo `ESCAPE`.
+- `ConfiguracionServidorTest` (3 tests): carga de `.env`, argumentos CLI y resolución de rutas.
+- `HardwareSerialAndCaptureTest` (3 tests): cooldown anti-rebote de capturas y manejo de `EVENT:CAPTURA` / `HELLO`.
+- `TwoNetworksInferenceTest` (4 tests): inferencia dual con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
+- `ConcurrencyEstomagoTest` (2 tests): estrés concurrente entre múltiples hilos escritores y `AuditorEstomago`.
+- `Hito2IntegrationTest` (2 tests): integración cliente-servidor con `SimuladorOrquitaCliente`.
+- `NeurophInferenceTest` (5 tests): compatibilidad y carga de modelos `.nnet`.
 
-### Empaquetar JAR Ejecutable Autónomo (Fat JAR)
+### Empaquetar Fat JAR ejecutable
 ```bash
 mvn package -DskipTests=true
 ```
-Genera el binario ejecutable `target/keiko-server.jar` con todas las librerías incluidas (Neuroph, SLF4J, etc.).
+Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como `Main-Class`.
 
-### Iniciar Servidor Central
+---
+
+## 4. Ejecución, Flags CLI y Configuración (`.env`)
+
+`ConfiguracionServidor` lee variables de entorno, archivo `.env` (ver [`.env.example`](.env.example)) y argumentos CLI (estos últimos tienen precedencia):
+
+| Flag CLI | Variable `.env` | Valor por defecto | Descripción |
+| :--- | :--- | :--- | :--- |
+| `--port <n>` | `PORT` | `5000` | Puerto TCP del servidor (los lanzadores de Webots usan `--port 8888`) |
+| `--serial <dev>` | `SERIAL_PORT` | *(desactivado)* | Puerto serie físico (`COM5`, `/dev/rfcomm0`, `/dev/ttyUSB0`, `/dev/ttyACM0`) |
+| `--baud <bps>` | `SERIAL_BAUD` | `9600` | Velocidad serie (`9600` para HC-05, `115200` para USB Mega) |
+| `--model <ruta>` | `MODEL_FILE_PATH` | `models/modelo_ultrasonico.nnet` | Ruta al modelo `.nnet` primario (`ClasificadorNeuroph` carga también `modelo_canicas.nnet` del mismo directorio) |
+| `--estomago <ruta>` | `ESTOMAGO_FILE_PATH` | `estomago.txt` | Ruta al archivo de persistencia física |
+| `--reset` | — | `false` | Vacía `estomago.txt` al iniciar una nueva pasada oficial |
+| `--list-ports` | — | `false` | Lista puertos serie/Bluetooth detectados por `jSerialComm` y finaliza |
+
+### Ejemplos de ejecución
 ```bash
-# Iniciar en puerto por defecto (8888)
+# Modo TCP por defecto (puerto 5000)
 java -jar target/keiko-server.jar
 
-# Iniciar reseteando el estómago para una nueva pasada oficial
-java -jar target/keiko-server.jar --port 8888 --reset
+# Modo simulación Webots (puerto 8888 + reset de estómago)
+java -jar target/keiko-server.jar --port 8888 --model ../keiko-sim/data/models/modelo_ultrasonico.nnet --reset
 
-# Parámetros adicionales configurables:
-# --port <puerto>
-# --model <ruta_al_modelo.nnet>
-# --estomago <ruta_archivo_estomago>
-# --reset (borra capturas previas)
+# Modo hardware físico por Bluetooth SPP (/dev/rfcomm0 o COMx)
+java -jar target/keiko-server.jar --list-ports
+java -jar target/keiko-server.jar --serial /dev/rfcomm0 --baud 9600 --reset
+
+# Alternativa Linux con puente RFCOMM <-> TCP (sin crear /dev/rfcomm0 con sudo)
+java -jar target/keiko-server.jar --port 5000 --reset
+python3 scripts/bt_rfcomm_bridge.py --mac XX:XX:XX:XX:XX:XX --port 5000
 ```
 
 ---
 
-## 4. Persistencia del Estómago ("La Linareada")
+## 5. Persistencia del Estómago ("La Linareada")
 
-Por estricto contrato de la cátedra:
-1. **Archivo Físico Único:** `estomago.txt`.
-2. **Prohibición de Memoria Volátil:** No se utilizan contadores en memoria (`int captures`, etc.) para definir el estado biológico. Si el servidor se apaga o reinicia, reconstruye su estado leyendo `estomago.txt`.
-3. **Sección Crítica:** Protegida mediante `ReentrantReadWriteLock(fair=true)`.
-4. **Vaciado de Buffer Hardware:** Tras escribir una captura, se ejecuta:
-   ```java
-   bw.flush();
-   fos.getFD().sync(); // Garantiza escritura en almacenamiento físico
-   ```
-5. **Auditor de la Bahía:** El `AuditorThread` lee periódicamente el archivo y dispara el evento `onPanzaLlena` al detectar exactamente 3 capturas válidas, activando formalmente el `MODO_ESCAPE`.
+1. **Archivo físico único:** `estomago.txt`.
+2. **Sin contadores volátiles en memoria:** la transición a `ESCAPE` depende exclusivamente de los registros leídos de `estomago.txt`. Si el servidor se reinicia con 3 capturas ya persistidas, `ServidorCentral.iniciar()` restaura `MODO_ESCAPE` automáticamente.
+3. **Sección crítica y sincronización física:** `GestorEstomago` protege toda operación sobre el archivo con `synchronized(bloqueoArchivo)` y ejecuta `bw.flush(); fos.getFD().sync();` en cada escritura.
+4. **Cooldown anti-rebote:** `ManejadorCliente` filtra rebotes mecánicos repetidos dentro de `CAPTURE_COOLDOWN_MS` (`1500 ms` por defecto).
+5. **Hilo Auditor:** `AuditorEstomago` sondea cada `AUDITOR_POLLING_MS` (`<= 25 ms`) y dispara `onModoEscapeActivado` + `STATE_CHANGE:ESCAPE` al confirmar 3 capturas válidas.
 
 ---
 
-## 5. Protocolo de Comunicación (RFCOMM/SPP)
+## 6. Protocolo de Comunicación (Bluetooth SPP / TCP)
 
-| Mensaje | Dirección | Significado |
+Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
+
+| Mensaje | Dirección | Formato / Significado |
 | :--- | :---: | :--- |
-| `TELEMETRY:<ll>,<lr>,<hl>,<hr>,<ts>\n` | Cliente -> Servidor | Lecturas de 4 sensores HC-SR04 en cm |
-| `COMMAND:<v_left>,<v_right>,<estado>\n` | Servidor -> Cliente | Órdenes de velocidad motriz para 4WD |
-| `EVENT:CAPTURA\n` | Cliente -> Servidor | Detección física de canica en boca |
-| `STATE_CHANGE:<estado>\n` | Servidor -> Cliente | Conmutación de FSM (ej. `ESCAPE`) |
-| `HEARTBEAT\n` | Bidireccional | Watchdog y mantenimiento de enlace (< 500 ms) |
+| `HELLO` | Cliente → Servidor | `HELLO:<version>,<rig>\n` (ej. `HELLO:2.0.0-audit.1,mega-3us-2laser`) |
+| `TELEMETRY` | Cliente → Servidor | `TELEMETRY:<us_izq>,<us_cen>,<us_der>,<laser_izq>,<laser_der>,<ang_servo>,<ts_ms>\n` |
+| `COMMAND` | Servidor → Cliente | `COMMAND:<v_left>,<v_right>,<estado>\n` |
+| `EVENT` | Cliente → Servidor | `EVENT:CAPTURA` o `EVENT:CAPTURA_LOBITO_<n>` |
+| `STATE_CHANGE` | Servidor → Cliente | `STATE_CHANGE:<estado>\n` (ej. `STATE_CHANGE:ESCAPE`) |
+| `HEARTBEAT` | Bidireccional | `HEARTBEAT\n` (mantiene vivo el enlace por debajo del watchdog de `500 ms`) |
+
+> **Nota de auditoría (`2.0.0-audit.1`):** `ClasificadorNeuroph` y `PlanificadorNavegacion` conservan todavía filtros/umbrales heredados y soporte de pose de simulación inventariados en [`docs/AUDITORIA_CONSOLIDACION.md`](../docs/AUDITORIA_CONSOLIDACION.md) (`SIM-03..13`, `HRD-01..14`) para su retiro en Fase B (`2.0.0`).
