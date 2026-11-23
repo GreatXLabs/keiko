@@ -64,4 +64,16 @@ public class ConfiguracionServidorTest {
         assertEquals(false, defaultCfg.isAutoStartSolicitado());
         assertEquals(true, autoCfg.isAutoStartSolicitado());
     }
+
+    @Test
+    public void testResolucionModoTui() {
+        ConfiguracionServidor defaultCfg = ConfiguracionServidor.desdeArgumentos(new String[]{});
+        ConfiguracionServidor noTuiCfg = ConfiguracionServidor.desdeArgumentos(new String[]{"--no-tui"});
+        ConfiguracionServidor forceTuiCfg = ConfiguracionServidor.desdeArgumentos(new String[]{"--tui"});
+
+        assertEquals(false, defaultCfg.resolverModoTui(false));
+        assertEquals(true, defaultCfg.resolverModoTui(true));
+        assertEquals(false, noTuiCfg.resolverModoTui(true));
+        assertEquals(true, forceTuiCfg.resolverModoTui(false));
+    }
 }
