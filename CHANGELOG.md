@@ -6,6 +6,46 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
+## [2.0.0] — 2026-11-23
+
+Línea base oficial de Fase B: erradicación completa de atajos de simulación (`SIM-01..13`), reglas sensoriales hardcodeadas (`HRD-01..14`) y hallazgos complementarios (`COMP-01..05`). Toda clasificación perceptual emana exclusivamente de **Neuroph 2.98** (`modelo_ultrasonico.nnet` + `modelo_canicas.nnet`) sobre telemetría limpia de 7 campos idéntica entre Arduino Mega 2560 y Webots.
+
+### Matriz de Compatibilidad (`2.0.0`)
+
+| Componente | Ruta / Artefacto | Versión | Rig / Especificación | Hash / Verificación |
+| :--- | :--- | :---: | :---: | :--- |
+| **Raíz (`VERSION`)** | [`VERSION`](VERSION) | `2.0.0` | `mega-3us-2laser` | `./scripts/check_versions.sh` (**9/9 `[OK]`**) |
+| **Servidor Central (Java 21)** | [`keiko-server/pom.xml`](keiko-server/pom.xml) + [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) | `2.0.0` | `mega-3us-2laser` | `mvn clean test` (**47/47 OK**) + `mvn package` |
+| **Firmware Robot (Mega 2560)** | [`firmware/orquita_firmware/orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino) | `2.0.0` | `mega-3us-2laser` | `PERMITIR_MANUAL 0` + `HELLO:2.0.0,mega-3us-2laser` |
+| **Simulador 3D (Webots)** | [`keiko-sim/config/simulation_params.json`](keiko-sim/config/simulation_params.json) + [`robot_client.py`](keiko-sim/controllers/robot_client/robot_client.py) | `2.0.0` | `mega-3us-2laser` | `unittest` (**33/33 OK**) + `TELEMETRY:` 7 campos |
+| **Red Neuronal 1 (Sector US)** | [`modelo_ultrasonico.nnet`](keiko-server/models/modelo_ultrasonico.nnet) | `2.0.0` | `1 → 8 → 3` (`{BLOQUEO, ESPACIO_LIBRE, SALIDA}`) | SHA-256 `9e932230e84a2a0ef79bcc17d2f510df87d1936e87ef27828ab79fe4285c7877` (`5 373 B`, acc `99.17%`) |
+| **Red Neuronal 2 (Canicas)** | [`modelo_canicas.nnet`](keiko-server/models/modelo_canicas.nnet) | `2.0.0` | `6 → 32 → 16 → 4` (`{LOBITO_CENTRO, LOBITO_DER, LOBITO_IZQ, NINGUNA}`) | SHA-256 `7fb3ed7d2c461b19fa2cb36d2dd97108b874c20928bea41aeaa82df56f66236d` (`35 745 B`, acc `97.29%`) |
+
+### Removed / Erradicated (Eliminado — `SIM-01..13`, `HRD-01..14`)
+- **Protocolo y telemetría sin pose (`SIM-01..04`):** retirados `(rx, ry, yaw)` y `EVENT:SALIDA_META` de [`robot_client.py`](keiko-sim/controllers/robot_client/robot_client.py), el parseo de pose en [`MensajeProtocolo.java`](keiko-server/src/main/java/com/orquitas/server/MensajeProtocolo.java), `hasPose`/`getPosX`/`getPosY`/`getTheta` de [`VectorSensores.java`](keiko-server/src/main/java/com/orquitas/server/VectorSensores.java) y la rama `SALIDA_META:` de [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java). **Por qué:** garantizar paridad estricta de 7 campos entre simulación y hardware físico.
+- **Filtros post-inferencia en `ClasificadorNeuroph.java` (`HRD-01`, `HRD-02`, `COMP-05`):** eliminadas las sobreescrituras por `servoDeg >= 18.0` y reasignaciones geométricas `dl`/`dr`; la clasificación perceptual proviene íntegramente de `NeuralNetwork.calculate()` + argmax.
+- **Lógica hardcodeada y escape por GPS en `PlanificadorNavegacion.java` (`SIM-05..13`, `HRD-03..14`, `COMP-02`):** reescrito como máquina de estados puramente simbólica operando sobre la terna `[IZQ, CEN, DER]` de Neuroph 2.98 y memoria temporal FSM, eliminando `verificarEscudoPerimetral`, `esPuntoEnPared`, `esLaserEnPared`, `esSombraObstaculoUltrasonico`, `esAnchoTicsCanicaValido` y cualquier lectura de distancias crudas.
+
+### Changed (Modificado)
+- **Breakout simbólico y guarda `SALIDA`+`BLOQUEO` en [`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java):** agregado contador simbólico `episodiosMismoLado` (`UMBRAL_EPISODIOS_MISMO_LADO = 4`, olvidado tras `150` ciclos) para ejecutar retroceso + pivote hacia el interior ante bucles tangenciales en el perímetro, y retroceso + pivote ante `SALIDA` lateral simultánea con `BLOQUEO` central en `BUSQUEDA`.
+- **Alineación física del simulador y rig (`COMP-01`):** unificado barrido continuo `[-45°, +60°]` paso `5°` en [`simulation_params.json`](keiko-sim/config/simulation_params.json), [`robot_client.py`](keiko-sim/controllers/robot_client/robot_client.py) y [`benchmark_hil.py`](keiko-sim/scripts/benchmark_hil.py) (con `CAPTURE_COOLDOWN_MS=0` para `--mode=fast`), y ajustado el estrecho de salida de [`build_worlds.py`](keiko-sim/scripts/build_worlds.py) a **`0.300 m`** exactos.
+- **Datasets V2 y reentrenamiento Neuroph 2.98:** actualizado [`generate_datasets.py`](keiko-sim/scripts/generate_datasets.py) (cobertura `[-45°, +60°]`, proyección cross-beam `y_hit`, banda negativa de suelo `23.0–35.5 cm`, rechazos laterales `>= +20°` y umbrales acústicos `BLOQUEO`/`SALIDA` calibrados) y reentrenados ambos `.nnet` (`99.17%` / `97.29%` en `neuroph-train`), sincronizados en las 3 rutas del repositorio.
+
+### Fixed (Corregido)
+- **`live_visualizer.py` y suite Python `keiko-sim/tests`:** corregida la llamada a `UltrasonicPhysicsModel.apply(..., active_obstacles_xy=...)` en [`live_visualizer.py`](keiko-sim/controllers/live_visualizer/live_visualizer.py) y alineados `test_meshes_and_arena.py`, `test_ultrasonic_physics.py` y `test_robot_client_protocol.py`.
+
+### Security / Competition Hardening (`COMP-03`)
+- **Bloqueo de control manual en competencia ([`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino)):** fijado `#define PERMITIR_MANUAL 0` por defecto (deshabilita comandos `wasdkx ` por USB/BT; cambiar a `1` solo en pruebas de banco).
+
+### Tests Run (Evidencia de Pruebas — 2026-11-23)
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.0 | mega-3us-2laser`, `exit 0`).
+- `cd keiko-server && mvn clean test`: **47/47 OK** (`0` Failures, `0` Errors, `0` Skipped, `2.501 s`; `ProtocolParserTest` 10/10, `PlanificadorNavegacionTest` 14/14, `ConfiguracionServidorTest` 4/4, `HardwareSerialAndCaptureTest` 5/5, `TwoNetworksInferenceTest` 5/5, `ConcurrencyEstomagoTest` 2/2, `Hito2IntegrationTest` 2/2, `NeurophInferenceTest` 5/5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`** (`0.637 s`).
+- `python3 -m unittest discover -s keiko-sim/tests -v`: **33/33 OK** (`8.006 s`, incluye `TestWebotsHeadlessLoad`).
+- Benchmark HIL Webots headless (`benchmark_hil.py --scenarios 1-8 --port 8888`, Neuroph 2.98 puro): reducción de colisiones `165 → 58` respecto a la línea base pre-Fase B, y mejora tras breakout simbólico de `3/24` a **`7/24` capturas** (`5/8` escenarios `PARTIAL`; `SCEN-1` y `SCEN-5` con `2/3`).
+
+---
+
 ## [2.0.0-audit.2] — 2026-11-21
 
 Integración de la rama `feat/integracion-robot-real` (`5f22632`, archivada bajo tag `archive/feat-integracion-robot-real`) con calibraciones físicas y firmware no bloqueante validado sobre el robot real (pruebas del 2026-11-19), manteniendo sincronizado todo el ecosistema antes de iniciar la Fase B (`2.0.0`).

@@ -17,7 +17,7 @@ Especificación técnica de ingeniería, enrutador de documentación y reglas op
 
 ## 1. Regla Obligatoria de Versionado y Changelog
 
-- **Fuente única de verdad:** el archivo raíz [`VERSION`](VERSION) define la versión activa del ecosistema (actualmente `2.0.0-audit.2`, rig `mega-3us-2laser`).
+- **Fuente única de verdad:** el archivo raíz [`VERSION`](VERSION) define la versión activa del ecosistema (actualmente `2.0.0`, rig `mega-3us-2laser`).
 - **Sincronización obligatoria entre módulos:** cualquier cambio en código, modelos `.nnet`, protocolo serie/TCP o parámetros de simulación debe mantener sincronizados `VERSION`, `keiko-server/pom.xml`, `ConfiguracionServidor.java`, `orquita_firmware.ino`, `keiko-sim/config/simulation_params.json` y `robot_client.py`.
 - **Validación automática:** antes de finalizar cambios o abrir PR, ejecutar:
   ```bash
@@ -35,8 +35,8 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 
 | Información Buscada | Archivo / Directorio de Referencia | Contenido Principal |
 | :--- | :--- | :--- |
-| **Versión y Compatibilidad** | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), [`scripts/check_versions.sh`](scripts/check_versions.sh) | Versión activa (`2.0.0-audit.2`), matriz de compatibilidad y verificador cruzado de 9 puntos. |
-| **Auditoría Fase A y Backlog Fase B** | [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md) | Auditoría de unificación, hashes `.nnet`, inventario `SIM-01..13`, `HRD-01..14`, `COMP-01..05` y estado real de pruebas. |
+| **Versión y Compatibilidad** | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), [`scripts/check_versions.sh`](scripts/check_versions.sh) | Versión activa (`2.0.0`), matriz de compatibilidad y verificador cruzado de 9 puntos. |
+| **Auditoría de Consolidación y Resolución Fase B** | [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md) | Auditoría histórica Fase A y cierre `v2.0.0` (`SIM-01..13`, `HRD-01..14`, `COMP-01..05` resueltos), hashes `.nnet` y evidencia de pruebas. |
 | **Reglamento, Pista y Puntuación** | [`docs/consignas/La Competencia.md`](docs/consignas/La%20Competencia.md) | Geometría de la Bahía (~1.80 m base, ~1.20 m profundidad, ~1.70 m²), salida de 30 cm, 2 obstáculos 3D (6×6 cm, alt. mín. 6 cm), 3 canicas (1.6 cm), etapas y puntuación. |
 | **Consigna General e Hitos** | [`docs/consignas/Consigna y Alcances.md`](docs/consignas/Consigna%20y%20Alcances.md) | Alcance integral del proyecto (PSR + DS), metodología SCRUM y criterios globales de evaluación. |
 | **Redes, Protocolo y Persistencia** | [`docs/consignas/Reglas Técnicas de Programación Sobre Redes.md`](docs/consignas/Reglas%20Técnicas%20de%20Programación%20Sobre%20Redes.md) | Especificación PSR: Cliente vs. Servidor, tramas Bluetooth RFCOMM/SPP, condición de carrera en `estomago.txt`, hilo auditor y Fail-Safe. |
@@ -60,7 +60,7 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 - **Fila Sensorial Inferior (Detección de Canicas):** **2× VL53L0X** frontales (`0x30` con `XSHUT = A8`, `0x31` con `XSHUT = A9`) montados sobre **2× servos SG90** en canales `0` y `1` del PCA9685 realizando barrido en espejo (`LASER_SENTIDO = {1, -1}`, rango `-45°..+60°`).
 - **Picker y Sensor de Estómago:** **2× servos SG90 modificados a 360°** en canales `2` y `3` del PCA9685 (`PICKER_NEUTRO = {1485, 1500}`, `PICKER_VEL_US = {360, 300}`, tope de giro `10 s` y corte al capturar) y **1× VL53L0X** interno de estómago (`0x32` con `XSHUT = A10`) para confirmación física de captura.
 - **Enlace de Comunicación:** módulo Bluetooth **HC-05** en `Serial1` (`D18`/`D19` a `9600` bps); USB (`Serial`, `115200` bps) libre para diagnóstico.
-- **Restricción del Cliente:** el microcontrolador solo muestrea en bucle no bloqueante, actúa sobre motores/servos/picker (arranca en reposo hasta recibir `CMD:START` o `'k'`) y ejecuta el Fail-Safe (`< 500 ms`); no contiene lógica de navegación ni clasificación.
+- **Restricción del Cliente:** el microcontrolador solo muestrea en bucle no bloqueante, actúa sobre motores/servos/picker (arranca en reposo hasta recibir `CMD:START` o `'k'` si `PERMITIR_MANUAL` está activo; por defecto en competencia `#define PERMITIR_MANUAL 0`) y ejecuta el Fail-Safe (`< 500 ms`); no contiene lógica de navegación ni clasificación.
 
 ---
 
@@ -73,8 +73,8 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 
 ### Regla Estricta Anti-Hardcoding y Anti-Atajos de Simulación
 - **Prohibido hardcodear decisiones de navegación con umbrales crudos:** queda terminantemente prohibido reemplazar, corregir o anular la inferencia de Neuroph 2.98 mediante condicionales sobre distancias crudas en cm o ángulos de servo (`if (us < X)`, filtros de sombra, inyección directa de `"LOBITO"` o `"SALIDA"` por distancia). Toda clasificación perceptual debe emanar de las redes neuronales `.nnet`.
-- **Prohibido usar pose de simulación en navegación o inferencia:** queda terminantemente prohibido leer o transmitir `hasPose()`, `posX`, `posY`, `theta` o `EVENT:SALIDA_META` para tomar decisiones en `keiko-server`. El nodo `Supervisor` de Webots puede usar la pose únicamente para auditoría local del juez de simulación (colisiones, egreso y visualización/logging).
-- **Estado actual de deuda técnica:** las violaciones detectadas durante la consolidación de Fase A (`SIM-01..13` y `HRD-01..14`) están inventariadas en [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md) para su eliminación completa en Fase B (`2.0.0`).
+- **Prohibido usar pose de simulación en navegación o inferencia:** queda terminantemente prohibido leer o transmitir `hasPose()`, `posX`, `posY`, `theta` o `EVENT:SALIDA_META` en `keiko-server` o `robot_client.py`. El nodo `Supervisor` de Webots usa la pose únicamente para auditoría local del juez de simulación (colisiones, egreso y logging).
+- **Cumplimiento verificado en `2.0.0`:** todos los hallazgos `SIM-01..13`, `HRD-01..14` y `COMP-01..05` fueron erradicados; `ClasificadorNeuroph` y `PlanificadorNavegacion` operan 100% con inferencia Neuroph 2.98 y FSM simbólica (ver cierre en [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md)).
 
 ---
 
@@ -90,7 +90,7 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 | Mensaje | Dirección | Formato / Propósito |
 | :--- | :---: | :--- |
 | `HELLO` | Cliente → Servidor | `HELLO:<version>,<rig>\n` — verificación de versión `major.minor` y rig (`mega-3us-2laser`). |
-| `TELEMETRY` | Cliente → Servidor | `TELEMETRY:<us_izq>,<us_cen>,<us_der>,<laser_izq>,<laser_der>,<ang_servo>,<ts_ms>\n` (7 campos en hardware real; la extensión heredada de pose en sim está deprecada para Fase B). |
+| `TELEMETRY` | Cliente → Servidor | `TELEMETRY:<us_izq>,<us_cen>,<us_der>,<laser_izq>,<laser_der>,<ang_servo>,<ts_ms>\n` (estrictamente 7 campos idénticos entre hardware real y Webots). |
 | `COMMAND` | Servidor → Cliente | `COMMAND:<v_left>,<v_right>,<estado>\n` — velocidades diferenciales y estado FSM activo. |
 | `EVENT` | Cliente → Servidor | `EVENT:CAPTURA` / `EVENT:CAPTURA_LOBITO_<n>` — notificación física de captura en estómago. |
 | `STATE_CHANGE` | Servidor → Cliente | `STATE_CHANGE:<estado>\n` — conmutación formal de estado (ej. `ESCAPE`). |

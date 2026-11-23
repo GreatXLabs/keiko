@@ -34,10 +34,10 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <VL53L0X.h>
 
-#define KEIKO_VERSION "2.0.0-audit.2"
+#define KEIKO_VERSION "2.0.0"
 #define KEIKO_RIG     "mega-3us-2laser"
 
-#define PERMITIR_MANUAL 1
+#define PERMITIR_MANUAL 0       // 0 = competencia (desactiva wasdkx); 1 = habilita pruebas de banco wasdkx por USB/BT
 #define DEPURAR_ESTOMAGO 0      // manda DBG:estomago=... por el enlace (el servidor lo ignora)
 #define ESPEJAR_USB 0           // copia la telemetría al USB (115200) para depurar
 #define ENLACE Serial1          // HC-05
