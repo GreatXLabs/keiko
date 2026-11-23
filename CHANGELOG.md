@@ -6,11 +6,20 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [Unreleased] — TUI de Terminal en `keiko-server`
+## [Unreleased] — TUI ANSI y Servidor Bluetooth Exclusivo (`keiko-server`)
 
 ### Added (Agregado)
-- **TUI ANSI en vivo en `keiko-server` ([`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java)):** panel visual en terminal sin dependencias externas con banner ASCII fusionado (`KEIKO` sobre la orca braille), métricas de enlace en vivo (Hz, latencia `dt`, semáforo Fail-Safe `< 500 ms`), visualización de los 3 ultrasonidos `HC-SR04` + Red 1 (`modelo_ultrasonico.nnet`), los 2 láseres `VL53L0X` + indicador de barrido del servo `-45°..+60°` + Red 2 (`modelo_canicas.nnet`), terna fusionada, estado FSM, barras motrices diferenciales, progreso de `estomago.txt`, `DBG:estomago`, buffer de logs recientes (capturando `java.util.logging`) y barra de comandos (`start`/`k`, `stop`/`x`, `reset`, `view`/`v`, `clear`/`c`).
+- **TUI ANSI en vivo en `keiko-server` ([`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java)):** panel visual en terminal sin dependencias externas con banner ASCII fusionado (`KEIKO` sobre la orca braille), métricas de enlace Bluetooth en vivo (`BT <puerto>@<baudios>`, Hz, latencia `dt`, semáforo Fail-Safe `< 500 ms`), visualización de los 3 ultrasonidos `HC-SR04` + Red 1 (`modelo_ultrasonico.nnet`), los 2 láseres `VL53L0X` + indicador de barrido del servo `-45°..+60°` + Red 2 (`modelo_canicas.nnet`), terna fusionada, estado FSM, barras motrices diferenciales, progreso de `estomago.txt`, `DBG:estomago`, buffer de logs recientes (capturando `java.util.logging`) y barra de comandos (`start`/`k`, `stop`/`x`, `reset`, `view`/`v`, `clear`/`c`).
 - **Control de modo TUI y pruebas:** flags `--no-tui` (`NO_TUI` en `.env`) y `--tui` en [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) con fallback automático a salida plana cuando no hay consola interactiva, método `reiniciarParaPrueba()` en [`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java) y suite de pruebas [`ConsolaTuiTest.java`](keiko-server/src/test/java/com/orquitas/server/ConsolaTuiTest.java).
+
+### Changed / Removed (Simplificación UML Bluetooth-Only)
+- **Eliminación completa de transporte TCP en `keiko-server`:** retirados `ReceptorConexiones.java`, `SimuladorOrquitaCliente.java`, `keiko-server/scripts/bt_rfcomm_bridge.py`, constructores `Socket` de [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java) y flags `--port`/`PORT` de [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) y [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java). El servidor opera exclusivamente sobre enlace serie Bluetooth RFCOMM/SPP (`ReceptorSerie` vía `jSerialComm`, con puerto por defecto `/dev/rfcomm0` en Unix o `COM5` en Windows).
+- **Desconexión limpia en TUI ([`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java)):** al desconectarse el cliente serie se reinician el estado de handshake y contador de clientes sin doble decremento.
+
+### Tests Run (Evidencia de Pruebas — 2026-11-23)
+- `cd keiko-server && mvn clean test`: **52/52 OK** (0 Failures, 0 Errors, 0 Skipped).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.0 | mega-3us-2laser`).
 
 ---
 

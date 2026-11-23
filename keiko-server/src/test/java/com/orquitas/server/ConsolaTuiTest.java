@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ConsolaTuiTest {
 
     private EstadoMonitorTui crearEstadoBase() {
-        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(new String[]{"--port", "5050"});
+        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(new String[]{"--serial", "/dev/rfcomm0", "--baud", "9600"});
         return new EstadoMonitorTui(cfg, null, 0, List.of());
     }
 
@@ -31,10 +31,11 @@ public class ConsolaTuiTest {
         assertTrue(banner[13].contains("⣰⣿⠁"));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ConsolaTui.imprimirBannerPlano(new PrintStream(baos, true, StandardCharsets.UTF_8), "2.0.0-audit.2", "mega-3us-2laser");
+        ConsolaTui.imprimirBannerPlano(new PrintStream(baos, true, StandardCharsets.UTF_8), "2.0.0", "mega-3us-2laser");
         String salida = baos.toString(StandardCharsets.UTF_8);
         assertTrue(salida.contains("PROYECTO ORQUITAS (KEIKO)"));
         assertTrue(salida.contains("mega-3us-2laser"));
+        assertTrue(salida.contains("Bluetooth"));
     }
 
     @Test
@@ -43,7 +44,7 @@ public class ConsolaTuiTest {
         assertEquals(EstadoMonitorTui.EstadoFailSafe.SIN_ENLACE, estado.obtenerEstadoFailSafe(1000L));
         assertEquals(0.0, estado.calcularFrecuenciaHz(1000L), 0.01);
 
-        estado.registrarConexionCliente("127.0.0.1:50000", 1);
+        estado.registrarConexionCliente("Serie:/dev/rfcomm0@9600", 1);
         VectorSensores s = new VectorSensores(new double[]{50.0, 120.0, 30.0, 22.0, 999.0, -15.0}, 1000L);
         String[] terna = new String[]{"ESPACIO_LIBRE", "SALIDA", "BLOQUEO"};
         ComandoRobot cmd = new ComandoRobot(4.2, 2.0, EstadoRobot.BUSQUEDA);
@@ -64,7 +65,7 @@ public class ConsolaTuiTest {
     public void testRenderizadoDetalladoYCompactoConSensoresYLogs() {
         EstadoMonitorTui estado = crearEstadoBase();
         estado.registrarConexionCliente("Serie:/dev/rfcomm0@9600", 1);
-        estado.registrarHandshake("Serie:/dev/rfcomm0@9600", "2.0.0-audit.2", "mega-3us-2laser", true);
+        estado.registrarHandshake("Serie:/dev/rfcomm0@9600", "2.0.0", "mega-3us-2laser", true);
         estado.registrarDebugCliente("DBG:estomago=28mm");
         estado.registrarEvento("CAPTURA_LOBITO_1");
         estado.actualizarEstomago(1, List.of(new RegistroCaptura("lobito_ingesta", "CAPTURA_LOBITO_1")), false);
@@ -82,6 +83,8 @@ public class ConsolaTuiTest {
 
         String detallado = ConsolaTui.renderizarFrame(estado, 5040L, false);
         String plano = detallado.replaceAll("\033\\[[0-9;]*m", "");
+        assertFalse(plano.contains("TCP:"), "No debe mostrar transporte TCP en modo Bluetooth exclusivo");
+        assertTrue(plano.contains("BT /dev/rfcomm0 @ 9600"));
         assertTrue(plano.contains("US-IZQ"));
         assertTrue(plano.contains("14.2cm"));
         assertTrue(plano.contains("97%"));
@@ -105,6 +108,8 @@ public class ConsolaTuiTest {
 
         String compacto = ConsolaTui.renderizarFrame(estado, 5040L, true);
         assertTrue(compacto.contains("KEIKO TUI (COMPACTA)"));
+        assertTrue(compacto.contains("BT:/dev/rfcomm0@9600"));
+        assertFalse(compacto.contains("TCP:"), "La vista compacta tampoco debe mostrar TCP");
         assertTrue(compacto.contains("LOBITO_DER"));
         String[] lineasCompactas = compacto.split("\n");
         for (int i = 0; i < lineasCompactas.length - 1; i++) {

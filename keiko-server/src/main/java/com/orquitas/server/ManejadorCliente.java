@@ -1,27 +1,23 @@
 package com.orquitas.server;
 
 import java.io.*;
-import java.net.Socket;
-import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Manejador concurrente de una sesion de cliente conectado por Socket TCP o Puerto Serie (Bluetooth RFCOMM/SPP / USB).
+ * Manejador concurrente de una sesion Bluetooth RFCOMM/SPP sobre streams serie.
  */
 public class ManejadorCliente implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ManejadorCliente.class.getName());
     private static final int MAX_BYTES_TRAMA = 512;
 
-    private final Socket socket;
     private final InputStream flujoEntrada;
     private final OutputStream flujoSalida;
     private final String descripcionOrigen;
     private final Closeable recursoCierre;
     private final GestorEstomago gestorEstomago;
-    private final ReceptorConexiones receptor;
     private final ClasificadorNeuroph clasificador;
     private final PlanificadorNavegacion planificador;
     private final long cooldownCapturaMs;
@@ -36,70 +32,17 @@ public class ManejadorCliente implements Runnable {
     private volatile long ultimoEnvioMs = 0L;
     private long ultimaCapturaMs = 0L;
 
-    public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
-                            ReceptorConexiones receptor,
-                            ClasificadorNeuroph clasificador,
-                            PlanificadorNavegacion planificador) {
-        this(socket, gestorEstomago, receptor, clasificador, planificador,
-                ConfiguracionServidor.COOLDOWN_CAPTURA_MS, ConfiguracionServidor.INTERVALO_HEARTBEAT_MS);
-    }
-
-    public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
-                            ReceptorConexiones receptor,
-                            ClasificadorNeuroph clasificador,
-                            PlanificadorNavegacion planificador,
-                            long cooldownCapturaMs,
-                            long intervaloHeartbeatMs) {
-        this(socket, gestorEstomago, receptor, clasificador, planificador,
-                cooldownCapturaMs, intervaloHeartbeatMs, false);
-    }
-
-    public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
-                            ReceptorConexiones receptor,
-                            ClasificadorNeuroph clasificador,
-                            PlanificadorNavegacion planificador,
-                            long cooldownCapturaMs,
-                            long intervaloHeartbeatMs,
-                            boolean autoStartEnHello) {
-        this(socket, gestorEstomago, receptor, clasificador, planificador,
-                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null);
-    }
-
-    public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
-                            ReceptorConexiones receptor,
-                            ClasificadorNeuroph clasificador,
-                            PlanificadorNavegacion planificador,
-                            long cooldownCapturaMs,
-                            long intervaloHeartbeatMs,
-                            boolean autoStartEnHello,
-                            EstadoMonitorTui monitorTui) {
-        this.socket = socket;
-        this.flujoEntrada = null;
-        this.flujoSalida = null;
-        this.descripcionOrigen = String.valueOf(socket.getRemoteSocketAddress());
-        this.recursoCierre = socket;
-        this.gestorEstomago = gestorEstomago;
-        this.receptor = receptor;
-        this.clasificador = clasificador;
-        this.planificador = planificador;
-        this.cooldownCapturaMs = cooldownCapturaMs;
-        this.intervaloHeartbeatMs = intervaloHeartbeatMs;
-        this.autoStartEnHello = autoStartEnHello;
-        this.monitorTui = monitorTui;
-    }
-
     public ManejadorCliente(InputStream flujoEntrada,
                             OutputStream flujoSalida,
                             String descripcionOrigen,
                             Closeable recursoCierre,
                             GestorEstomago gestorEstomago,
-                            ReceptorConexiones receptor,
                             ClasificadorNeuroph clasificador,
                             PlanificadorNavegacion planificador,
                             long cooldownCapturaMs,
                             long intervaloHeartbeatMs) {
         this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
-                gestorEstomago, receptor, clasificador, planificador,
+                gestorEstomago, clasificador, planificador,
                 cooldownCapturaMs, intervaloHeartbeatMs, false, null);
     }
 
@@ -108,14 +51,13 @@ public class ManejadorCliente implements Runnable {
                             String descripcionOrigen,
                             Closeable recursoCierre,
                             GestorEstomago gestorEstomago,
-                            ReceptorConexiones receptor,
                             ClasificadorNeuroph clasificador,
                             PlanificadorNavegacion planificador,
                             long cooldownCapturaMs,
                             long intervaloHeartbeatMs,
                             boolean autoStartEnHello) {
         this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
-                gestorEstomago, receptor, clasificador, planificador,
+                gestorEstomago, clasificador, planificador,
                 cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null);
     }
 
@@ -124,20 +66,17 @@ public class ManejadorCliente implements Runnable {
                             String descripcionOrigen,
                             Closeable recursoCierre,
                             GestorEstomago gestorEstomago,
-                            ReceptorConexiones receptor,
                             ClasificadorNeuroph clasificador,
                             PlanificadorNavegacion planificador,
                             long cooldownCapturaMs,
                             long intervaloHeartbeatMs,
                             boolean autoStartEnHello,
                             EstadoMonitorTui monitorTui) {
-        this.socket = null;
         this.flujoEntrada = flujoEntrada;
         this.flujoSalida = flujoSalida;
         this.descripcionOrigen = descripcionOrigen;
         this.recursoCierre = recursoCierre;
         this.gestorEstomago = gestorEstomago;
-        this.receptor = receptor;
         this.clasificador = clasificador;
         this.planificador = planificador;
         this.cooldownCapturaMs = cooldownCapturaMs;
@@ -149,18 +88,11 @@ public class ManejadorCliente implements Runnable {
     @Override
     public void run() {
         LOGGER.info(() -> "[CLIENTE CONECTADO] Desde: " + descripcionOrigen);
-        if (socket != null) {
-            try {
-                socket.setTcpNoDelay(true);
-            } catch (SocketException e) {
-                LOGGER.warning("[RED] No se pudo habilitar TCP_NODELAY: " + e.getMessage());
-            }
-        }
 
         Thread hiloHeartbeat = null;
         try {
-            InputStream in = (socket != null) ? socket.getInputStream() : flujoEntrada;
-            OutputStream out = (socket != null) ? socket.getOutputStream() : flujoSalida;
+            InputStream in = flujoEntrada;
+            OutputStream out = flujoSalida;
             escritor = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
             ultimoEnvioMs = System.currentTimeMillis();
 
@@ -375,9 +307,6 @@ public class ManejadorCliente implements Runnable {
             try {
                 if (recursoCierre != null) recursoCierre.close();
             } catch (IOException ignored) {}
-            if (receptor != null) {
-                receptor.removerCliente(this);
-            }
             if (monitorTui != null) {
                 monitorTui.registrarDesconexionCliente(descripcionOrigen);
             }

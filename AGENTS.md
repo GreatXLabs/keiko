@@ -42,7 +42,7 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 | **Redes, Protocolo y Persistencia** | [`docs/consignas/Reglas Técnicas de Programación Sobre Redes.md`](docs/consignas/Reglas%20Técnicas%20de%20Programación%20Sobre%20Redes.md) | Especificación PSR: Cliente vs. Servidor, tramas Bluetooth RFCOMM/SPP, condición de carrera en `estomago.txt`, hilo auditor y Fail-Safe. |
 | **Informes Técnicos e IA** | [`docs/EXPLICACION_SISTEMA_HUMANO.md`](docs/EXPLICACION_SISTEMA_HUMANO.md), [`docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md`](docs/INFORME_INFERENCIA_RED_NEURONAL_SENSORES.md), [`docs/INFORME_NEUROPH_LECTURAS_CAMPO.md`](docs/INFORME_NEUROPH_LECTURAS_CAMPO.md), [`docs/INFORME_EJECUTIVO_LECTURAS_CAMPO_NEUROPH.md`](docs/INFORME_EJECUTIVO_LECTURAS_CAMPO_NEUROPH.md), [`docs/ITERACION_SIMULACION_3US_2LASER.md`](docs/ITERACION_SIMULACION_3US_2LASER.md), [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Fundamento físico-acústico, lecturas de campo, iteración `3US + 2Laser` y bitácora de experimentos. |
 | **Firmware del Robot (Cliente)** | [`firmware/orquita_firmware/orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino) | Sketch oficial para Arduino Mega 2560 (`mega-3us-2laser`). |
-| **Servidor Central (Cerebro)** | [`keiko-server/`](keiko-server/README.md) | Proyecto Java 21 / Maven / NetBeans (`ServidorCentral`, Neuroph 2.98 dual, `ReceptorSerie`, `GestorEstomago`, `AuditorEstomago`, `bt_rfcomm_bridge.py`). |
+| **Servidor Central (Cerebro)** | [`keiko-server/`](keiko-server/README.md) | Proyecto Java 21 / Maven / NetBeans (`ServidorCentral`, Neuroph 2.98 dual, `ReceptorSerie` Bluetooth-only, `ConsolaTui`, `GestorEstomago`, `AuditorEstomago`). |
 | **Simulador 3D (Webots)** | [`keiko-sim/`](keiko-sim/README.md) | Escenas `scen_1..14` y `circular`, `build_worlds.py`, `robot_client.py`, datasets/modelos y scripts `iniciar_simulacion.sh` / `iterar_simulacion.sh`. |
 | **Entrenamiento Distribuido** | [`neuroph-train/`](neuroph-train/README.md) | Cliente/Servidor Swing para entrenamiento y validación de redes `.nnet` en Neuroph 2.98 (`neuroph.aguilucho.ar:443`). |
 | **Modelos CAD 3D** | `modelos-3d/` | Ensamblajes FreeCAD (`.FCStd`), STL exportados (Git LFS) y planos técnicos. |
@@ -85,7 +85,7 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 - **Elementos:** **2 obstáculos** 3D (base 6×6 cm, altura ≥ 6 cm) y **3 Lobitos** (canicas físicas de 1.6 cm de diámetro).
 - **Ciclo biológico:** `BUSQUEDA` → `APROXIMACION` → `CAPTURA` (hasta 3) → `ESCAPE` (al verificar 3 registros en disco) → `FINALIZACION` (o `ERROR_SEGURO` ante timeout).
 
-### 5.2 Protocolo (Bluetooth RFCOMM/SPP o TCP, tramas ASCII terminadas en `\n`)
+### 5.2 Protocolo (Bluetooth RFCOMM/SPP exclusivo en `keiko-server`, tramas ASCII terminadas en `\n`)
 
 | Mensaje | Dirección | Formato / Propósito |
 | :--- | :---: | :--- |

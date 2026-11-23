@@ -124,7 +124,7 @@ public class ReceptorSerie implements Runnable {
                  OutputStream out = port.getOutputStream()) {
                 ManejadorCliente manejador = new ManejadorCliente(
                         in, out, origenSerie,
-                        port::closePort, gestorEstomago, null, clasificador, planificador,
+                        port::closePort, gestorEstomago, clasificador, planificador,
                         cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui);
                 sesionActiva = manejador;
                 manejador.run();

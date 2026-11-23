@@ -18,7 +18,8 @@ public final class ConfiguracionServidor {
     public static final String VERSION_SISTEMA = "2.0.0";
     public static final String RIG_HARDWARE = "mega-3us-2laser";
 
-    public static final int PUERTO_PREDETERMINADO = 5000;
+    public static final String PUERTO_SERIE_PREDETERMINADO_UNIX = "/dev/rfcomm0";
+    public static final String PUERTO_SERIE_PREDETERMINADO_WINDOWS = "COM5";
     public static final int BAUDIOS_SERIE_PREDETERMINADOS = 9600;
     public static final String NOMBRE_ARCHIVO_ESTOMAGO = "estomago.txt";
     public static final int AUDITOR_SONDEO_MS = 25;
@@ -27,7 +28,6 @@ public final class ConfiguracionServidor {
     public static final long INTERVALO_HEARTBEAT_MS = 200L;
     public static final String RUTA_MODELO_PREDETERMINADA = "models/modelo_ultrasonico.nnet";
 
-    private int puerto;
     private String puertoSerie;
     private int baudiosSerie;
     private String rutaArchivoEstomago;
@@ -46,8 +46,7 @@ public final class ConfiguracionServidor {
     public ConfiguracionServidor() {
         Map<String, String> envMap = cargarArchivoEnv();
 
-        this.puerto = obtenerInt(envMap, "PORT", PUERTO_PREDETERMINADO);
-        this.puertoSerie = obtenerString(envMap, "SERIAL_PORT", null);
+        this.puertoSerie = obtenerString(envMap, "SERIAL_PORT", obtenerPuertoSeriePorDefecto());
         this.baudiosSerie = obtenerInt(envMap, "SERIAL_BAUD", BAUDIOS_SERIE_PREDETERMINADOS);
         this.rutaArchivoEstomago = obtenerString(envMap, "ESTOMAGO_FILE_PATH",
                 obtenerString(envMap, "ESTOMAGO_FILE_NAME", NOMBRE_ARCHIVO_ESTOMAGO));
@@ -66,9 +65,7 @@ public final class ConfiguracionServidor {
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
-            if ("--port".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setPuerto(Integer.parseInt(args[++i]));
-            } else if ("--serial".equalsIgnoreCase(arg) && i + 1 < args.length) {
+            if ("--serial".equalsIgnoreCase(arg) && i + 1 < args.length) {
                 cfg.setPuertoSerie(args[++i]);
             } else if ("--baud".equalsIgnoreCase(arg) && i + 1 < args.length) {
                 cfg.setBaudiosSerie(Integer.parseInt(args[++i]));
@@ -190,8 +187,10 @@ public final class ConfiguracionServidor {
         return defaultValue;
     }
 
-    public int getPuerto() { return puerto; }
-    public void setPuerto(int puerto) { this.puerto = puerto; }
+    public static String obtenerPuertoSeriePorDefecto() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        return os.contains("win") ? PUERTO_SERIE_PREDETERMINADO_WINDOWS : PUERTO_SERIE_PREDETERMINADO_UNIX;
+    }
 
     public String getPuertoSerie() { return puertoSerie; }
     public void setPuertoSerie(String puertoSerie) { this.puertoSerie = puertoSerie; }

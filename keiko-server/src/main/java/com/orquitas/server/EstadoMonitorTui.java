@@ -51,7 +51,6 @@ public class EstadoMonitorTui {
 
     private final String version;
     private final String rig;
-    private final int puertoTcp;
     private final String puertoSerie;
     private final int baudiosSerie;
     private final String rutaEstomago;
@@ -66,7 +65,6 @@ public class EstadoMonitorTui {
     private int idxVentanaHz = 0;
     private int cantVentanaHz = 0;
 
-    private volatile List<String> direccionesRed = Collections.emptyList();
     private volatile List<String> puertosSerieDetectados = Collections.emptyList();
     private volatile int clientesConectados = 0;
     private volatile String clienteActivo = "---";
@@ -96,7 +94,6 @@ public class EstadoMonitorTui {
                             List<RegistroCaptura> registrosIniciales) {
         this.version = ConfiguracionServidor.VERSION_SISTEMA;
         this.rig = ConfiguracionServidor.RIG_HARDWARE;
-        this.puertoTcp = cfg.getPuerto();
         this.puertoSerie = cfg.getPuertoSerie();
         this.baudiosSerie = cfg.getBaudiosSerie();
         this.rutaEstomago = cfg.getArchivoEstomago().getPath();
@@ -112,8 +109,7 @@ public class EstadoMonitorTui {
         }
     }
 
-    public void actualizarRedYSerie(List<String> direcciones, List<String> puertos) {
-        this.direccionesRed = direcciones != null ? List.copyOf(direcciones) : Collections.emptyList();
+    public void actualizarPuertosSerie(List<String> puertos) {
         this.puertosSerieDetectados = puertos != null ? List.copyOf(puertos) : Collections.emptyList();
         marcarCambio();
     }
@@ -143,6 +139,10 @@ public class EstadoMonitorTui {
         }
         if (this.clientesConectados == 0) {
             this.clienteActivo = "---";
+            this.handshakeRecibido = false;
+            this.handshakeOk = false;
+            this.handshakeVersion = "---";
+            this.handshakeRig = "---";
         }
         agregarLog("INFO", "Cliente desconectado: " + origen);
         marcarCambio();
@@ -321,7 +321,6 @@ public class EstadoMonitorTui {
     public long getVersionRender() { return versionRender.get(); }
     public String getVersion() { return version; }
     public String getRig() { return rig; }
-    public int getPuertoTcp() { return puertoTcp; }
     public String getPuertoSerie() { return puertoSerie; }
     public int getBaudiosSerie() { return baudiosSerie; }
     public String getRutaEstomago() { return rutaEstomago; }
@@ -329,7 +328,6 @@ public class EstadoMonitorTui {
     public boolean isRedUltrasonicoCargada() { return redUltrasonicoCargada; }
     public boolean isRedCanicasCargada() { return redCanicasCargada; }
     public boolean isRedLegacyCargada() { return redLegacyCargada; }
-    public List<String> getDireccionesRed() { return direccionesRed; }
     public List<String> getPuertosSerieDetectados() { return puertosSerieDetectados; }
     public int getClientesConectados() { return clientesConectados; }
     public String getClienteActivo() { return clienteActivo; }

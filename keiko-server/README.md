@@ -1,23 +1,27 @@
 # Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad serie/Bluetooth SPP y TCP, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.0` | `mega-3us-2laser`)**.
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.0` | `mega-3us-2laser`)**.
 
 ---
 
 ## 1. Arquitectura Técnica y Concurrencia
 
 ```text
-[Cliente: La Orquita (Arduino Mega HC-05 / Webots robot_client.py)]
+[Cliente: La Orquita (Arduino Mega 2560 + HC-05 Serial1 @ 9600 bps)]
          |
-         | (Bluetooth RFCOMM/SPP vía jSerialComm o Socket TCP - Puerto default 5000)
+         | (Bluetooth RFCOMM/SPP exclusivo vía jSerialComm: /dev/rfcomm0 o COMx)
          v
 +-----------------------------------------------------------------------------+
-|                           SERVIDOR CENTRAL (PC)                             |
+|                    SERVIDOR CENTRAL (PC — Bluetooth Only)                   |
 |                                                                             |
-|  [ReceptorConexiones (TCP) / ReceptorSerie (Serial) -> ManejadorCliente]    |
+|  [ReceptorSerie (jSerialComm) -> ManejadorCliente (InputStream/OutputStream)]|
 |    - Valida handshake HELLO:<version>,<rig> (major.minor + rig)             |
-|    - Lee tramas ASCII '\n' (TELEMETRY, EVENT, HEARTBEAT)                    |
+|    - Lee tramas ASCII '\n' (TELEMETRY, EVENT, HEARTBEAT, DBG, ERROR)        |
 |    - Emite HEARTBEAT periódico (200 ms por defecto, Fail-Safe < 500 ms)     |
+|                                                                             |
+|  [ConsolaTui + EstadoMonitorTui]                                            |
+|    - TUI ANSI en vivo (sensores, Neuroph, FSM, Fail-Safe, estomago, logs)   |
+|    - Comandos: start/k, stop/x, reset, view/v, clear/c                      |
 |                                                                             |
 |  [ClasificadorNeuroph — Arquitectura Dual Neuroph 2.98 (3US + 2Laser)]      |
 |    - Red 1 (modelo_ultrasonico.nnet): 1 entrada -> {BLOQUEO, ESPACIO_LIBRE, |
@@ -59,14 +63,15 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **8 clases de prueba (47 tests JUnit 5)**:
+Ejecuta las **9 clases de prueba (52 tests JUnit 5)**:
 - `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `DBG:`, `esCompatibleMajorMinor` y rechazo de tramas corruptas.
 - `PlanificadorNavegacionTest` (14 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, breakout de perímetro, anti-bucle y modo `ESCAPE`.
-- `ConfiguracionServidorTest` (4 tests): carga de `.env`, argumentos CLI (`--auto-start`) y resolución de rutas.
+- `ConsolaTuiTest` (4 tests): renderizado detallado (`112` cols) y compacto (`92` cols) del monitor ANSI Bluetooth, cálculo de Hz, Fail-Safe `< 500 ms` y reset.
+- `ConfiguracionServidorTest` (5 tests): carga de `.env`, argumentos CLI (`--auto-start`, `--no-tui`, `--tui`) y resolución de rutas.
 - `HardwareSerialAndCaptureTest` (5 tests): cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados (`SALIDA_META`).
 - `TwoNetworksInferenceTest` (5 tests): inferencia dual pura con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
 - `ConcurrencyEstomagoTest` (2 tests): estrés concurrente entre múltiples hilos escritores y `AuditorEstomago`.
-- `Hito2IntegrationTest` (2 tests): integración cliente-servidor con `SimuladorOrquitaCliente`.
+- `Hito2IntegrationTest` (2 tests): integración de persistencia concurrente e inferencia dual Neuroph + FSM.
 - `NeurophInferenceTest` (5 tests): compatibilidad y carga de modelos `.nnet`.
 
 ### Empaquetar Fat JAR ejecutable
@@ -83,8 +88,7 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
 
 | Flag CLI | Variable `.env` | Valor por defecto | Descripción |
 | :--- | :--- | :--- | :--- |
-| `--port <n>` | `PORT` | `5000` | Puerto TCP del servidor (los lanzadores de Webots usan `--port 8888`) |
-| `--serial <dev>` | `SERIAL_PORT` | *(desactivado)* | Puerto serie físico (`COM5`, `/dev/rfcomm0`, `/dev/ttyUSB0`, `/dev/ttyACM0`) |
+| `--serial <dev>` | `SERIAL_PORT` | `/dev/rfcomm0` (Unix) / `COM5` (Win) | Puerto serie Bluetooth SPP/USB (`COM5`, `/dev/rfcomm0`, `/dev/ttyUSB0`, `/dev/ttyACM0`) |
 | `--baud <bps>` | `SERIAL_BAUD` | `9600` | Velocidad serie (`9600` para HC-05, `115200` para USB Mega) |
 | `--model <ruta>` | `MODEL_FILE_PATH` | `models/modelo_ultrasonico.nnet` | Ruta al modelo `.nnet` primario (`ClasificadorNeuroph` carga también `modelo_canicas.nnet` del mismo directorio) |
 | `--estomago <ruta>` | `ESTOMAGO_FILE_PATH` | `estomago.txt` | Ruta al archivo de persistencia física |
@@ -98,19 +102,15 @@ Comandos interactivos disponibles en la consola del servidor: `start` (`k`), `st
 
 ### Ejemplos de ejecución
 ```bash
-# Modo TCP por defecto (puerto 5000)
-java -jar target/keiko-server.jar
-
-# Modo simulación Webots (puerto 8888 + reset de estómago)
-java -jar target/keiko-server.jar --port 8888 --model ../keiko-sim/data/models/modelo_ultrasonico.nnet --reset
-
-# Modo hardware físico por Bluetooth SPP (/dev/rfcomm0 o COMx)
+# Listar puertos Bluetooth / serie disponibles
 java -jar target/keiko-server.jar --list-ports
-java -jar target/keiko-server.jar --serial /dev/rfcomm0 --baud 9600 --reset
 
-# Alternativa Linux con puente RFCOMM <-> TCP (sin crear /dev/rfcomm0 con sudo)
-java -jar target/keiko-server.jar --port 5000 --reset
-python3 scripts/bt_rfcomm_bridge.py --mac XX:XX:XX:XX:XX:XX --port 5000
+# Modo Bluetooth HC-05 por defecto (/dev/rfcomm0 @ 9600 en Linux, COM5 @ 9600 en Windows)
+java -jar target/keiko-server.jar --reset
+
+# Especificando puerto Bluetooth o serie explícito y auto-arranque
+java -jar target/keiko-server.jar --serial /dev/rfcomm0 --baud 9600 --reset --auto-start
+java -jar target/keiko-server.jar --serial COM5 --baud 9600 --reset
 ```
 
 ---

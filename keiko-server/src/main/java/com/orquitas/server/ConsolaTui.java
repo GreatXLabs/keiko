@@ -133,7 +133,7 @@ public class ConsolaTui {
         out.println("  PROYECTO ORQUITAS (KEIKO) - SERVIDOR CENTRAL (CEREBRO)");
         out.printf("  Version: %s | Rig: %s%n", version, rig);
         out.println("  Programacion Sobre Redes & Desarrollo de Sistemas - Ciclo 2026");
-        out.println("  Neuroph 2.98 (2 Redes: 3US + 2Laser) + Bluetooth SPP / TCP");
+        out.println("  Neuroph 2.98 (2 Redes: 3US + 2Laser) + Bluetooth RFCOMM/SPP");
         out.println("==================================================================\n");
     }
 
@@ -260,11 +260,12 @@ public class ConsolaTui {
 
     private static String renderizarModoCompacto(EstadoMonitorTui estado, long ahoraMs) {
         List<String> lineas = new ArrayList<>(22);
+        String puerto = estado.getPuertoSerie() != null ? estado.getPuertoSerie() : "---";
         String header = String.format(Locale.US,
-                "%sKEIKO // ORQUITAS%s  %s | %s | TCP:%d%s",
+                "%sKEIKO // ORQUITAS%s  %s | %s | BT:%s@%d",
                 BOLD + CIAN, RESET,
-                estado.getVersion(), estado.getRig(), estado.getPuertoTcp(),
-                estado.getPuertoSerie() != null ? " SER:" + estado.getPuertoSerie() : "");
+                estado.getVersion(), estado.getRig(),
+                puerto, estado.getBaudiosSerie());
         lineas.add(cajaSuperior("KEIKO TUI (COMPACTA)", ANCHO_COMPACTO));
         lineas.add(filaCaja(header, ANCHO_COMPACTO));
 
@@ -328,9 +329,9 @@ public class ConsolaTui {
         der.add(filaCaja(String.format("Ver: %s%s%s | Rig: %s%s%s",
                 CIAN, estado.getVersion(), RESET, BLANCO, estado.getRig(), RESET), w));
 
-        String transporte = "TCP :" + estado.getPuertoTcp()
-                + (estado.getPuertoSerie() != null ? " + " + estado.getPuertoSerie() : "");
-        der.add(filaCaja("Red/Ser : " + recortar(transporte, w - 14), w));
+        String puerto = estado.getPuertoSerie() != null ? estado.getPuertoSerie() : "---";
+        String enlaceBt = String.format(Locale.US, "BT %s @ %d", puerto, estado.getBaudiosSerie());
+        der.add(filaCaja("Enlace  : " + recortar(enlaceBt, w - 14), w));
         der.add(filaCaja(String.format("Cliente : %s (%d)",
                 recortar(estado.getClienteActivo(), 24), estado.getClientesConectados()), w));
 
@@ -392,7 +393,7 @@ public class ConsolaTui {
         EstadoMonitorTui.SnapshotTelemetria snap = estado.getUltimaTelemetria();
         if (snap == null || snap.sensores() == null) {
             lineas.add(filaCaja(AMARILLO + "  [ESPERANDO TELEMETRIA]" + RESET
-                    + " Conecte Webots o Arduino Mega (TELEMETRY:usL,usC,usR,lsrL,lsrR,servo,ts).", w));
+                    + " Conecte Arduino Mega por Bluetooth HC-05 (TELEMETRY:usL,usC,usR,lsrL,lsrR,servo,ts).", w));
             lineas.add(filaCaja("  Fila Superior : 3x HC-SR04 (IZQ, CEN, DER) -> Red 1 (BLOQUEO / ESPACIO_LIBRE / SALIDA)", w));
             lineas.add(filaCaja("  Fila Inferior : 2x VL53L0X + Servo SG90 (-45°..+60°) -> Red 2 (LOBITO_IZQ/CEN/DER/NINGUNA)", w));
             lineas.add(cajaInferior(w));
