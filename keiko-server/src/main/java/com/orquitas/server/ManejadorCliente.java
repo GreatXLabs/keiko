@@ -281,29 +281,6 @@ public class ManejadorCliente implements Runnable {
                 if (planificador != null) {
                     planificador.notificarCaptura();
                 }
-            } else if (evento.contains("COLISION")) {
-                if (planificador != null) {
-                    String lado = "unknown";
-                    if (evento.contains("COLISION_")) {
-                        lado = evento.substring(evento.indexOf("COLISION_") + "COLISION_".length()).trim().toLowerCase();
-                    } else if (evento.contains("lado=")) {
-                        try {
-                            lado = evento.split("lado=")[1].split("[,\\s]")[0].trim().toLowerCase();
-                        } catch (Exception ignored) {}
-                    }
-                    planificador.notificarColision(lado);
-                }
-            } else if (evento.startsWith("SALIDA_META:")) {
-                if (planificador != null) {
-                    try {
-                        String data = evento.substring("SALIDA_META:".length()).trim();
-                        String[] parts = data.split(",");
-                        double ex = Double.parseDouble(parts[0].trim());
-                        double ey = Double.parseDouble(parts[1].trim());
-                        planificador.establecerSalidaMeta(ex, ey);
-                        LOGGER.info(String.format("[META SALIDA] Registrada meta de escape en (%.2f, %.2f)", ex, ey));
-                    } catch (Exception ignored) {}
-                }
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "[EVENTO] Error al registrar captura: " + e.getMessage(), e);
