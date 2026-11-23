@@ -3,7 +3,7 @@
 Generador de datasets sinteticos para las 2 redes neuronales de Orquitas (Keiko).
 
 Genera, sin dependencias externas (solo stdlib), dos CSV balanceados y fisicamente
-consistentes con el modelo acustico/optico del proyecto:
+consistentes con el modelo acustico/optico del proyecto (rig mega-3us-2laser):
 
 1. dataset_ultrasonico.csv  -> dist_us, class_label
    Clases: BLOQUEO / ESPACIO_LIBRE / SALIDA
@@ -15,19 +15,19 @@ Reglas fisicas aplicadas:
 - Ultrasonido HC-SR04: cuantizacion de 0.25 cm, ruido gaussiano
   sigma = 0.35 + 0.01 * distancia (ver controllers/common/ultrasonic_physics.py).
   Las canicas (1.6 cm) quedan por debajo del haz a 5.5 cm de altura: no bloquean el US.
-- Laser ToF VL53L0X: reposo sobre piso limpio 37-42 cm, canica 6.8-22.0 cm, ruido ~0.4 cm
-  (ver controllers/common/laser_physics.py). Solo hay 2 lasers (izq/der) y un angulo
-  de servo espejado: -45 deg hacia adentro, +60 deg hacia afuera.
-- Canica: laser bajo (2.5-20.0 cm) + US correspondiente despejado (>= laser + 2.4 cm,
-  mide el fondo detras de la canica). Con servo frontal la canica se ve de frente.
-- Obstaculo/muro: laser en banda de canica + servo frontal sólo es NINGUNA si el US
-  correspondiente confirma la misma distancia (us <= laser + 2.5 cm).
+- Laser ToF VL53L0X: reposo sobre piso limpio 37-42 cm, canica 3.5-21.0 cm, ruido ~0.4 cm
+  (ver controllers/common/laser_physics.py). Barrido espejo [-45.0, +60.0] grados.
+- Canica: laser bajo (3.5-21.0 cm) en angulo frontal/interior [-45, +18] deg + US despejado
+  detras de la canica (>= 40 cm y sin gradiente de muro cercano).
+- Obstaculo/muro: lectura baja con US < 36 cm, gradiente oblicuo rasante,
+  lecturas intermedias (>= 22.5 cm), o angulos exteriores [+19.5, +60] deg (muro lateral).
 
 Uso:
     python3 keiko-sim/scripts/generate_datasets.py
 """
 
 import csv
+import math
 import os
 import random
 
@@ -35,21 +35,16 @@ DATASETS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "datasets")
 )
 SEED = 42
-SAMPLES_PER_CLASS = 1500
+SAMPLES_PER_CLASS = 2000
 US_QUANTUM_CM = 0.25
 
 # Bandas oficiales de clasificacion (cm).
 US_CLASSES = (
-    ("BLOQUEO", (2.0, 16.0)),
-    ("ESPACIO_LIBRE", (17.0, 165.0)),
-    ("SALIDA", (180.0, 250.0)),
+    ("BLOQUEO", (2.0, 17.5)),
+    ("ESPACIO_LIBRE", (19.5, 175.0)),
+    ("SALIDA", (186.0, 250.0)),
 )
-US_FREE = (20.0, 250.0)          # espacio despejado (>18 cm)
-US_MARBLE_FREE = (20.0, 250.0)   # espacio despejado detrás de canica (el US a 5.5cm pasa por encima de la canica de 1.6cm y mide fondo de pista >= d_canica + 8cm)
 LASER_FLOOR = (35.0, 43.0)       # reposo sobre piso limpio (media 38.5 cm, con ruido 35-43 cm)
-MARBLE_RANGE = (2.5, 20.0)       # distancia fisica de deteccion util de canica para embocado
-LASER_MARBLE = (2.0, 23.0)       # canica detectable en cono optico ToF con ruido
-LASER_OBSTACLE = (2.0, 30.0)     # obstaculo o muro
 SERVO_MIN_DEG = -45.0
 SERVO_MAX_DEG = 60.0
 
@@ -76,50 +71,72 @@ def noisy_laser(rng, true_cm, band):
     return round(target, 1)
 
 
-def confirm_wall_reading(rng, laser, us):
-    """En NINGUNA, un laser en banda de canica exige que el US mida la misma distancia (muro/obstaculo)."""
-    if not (LASER_MARBLE[0] <= laser <= LASER_MARBLE[1]):
-        return us
-    # Banda capada a laser + 2.2: la cuantizacion de 0.25 cm puede sumar hasta 0.25 cm y el
-    # self-check exige us <= laser + 2.5 cm para confirmar contacto.
-    return noisy_us(
-        rng,
-        rng.uniform(max(2.0, laser - 1.5), min(28.0, laser + 2.0)),
-        (2.0, min(28.0, laser + 2.2)),
-    )
+def sample_bay_us(rng, min_cm, max_cm=250.0):
+    """Muestrea distancias US realistas de la bahia (alta densidad entre 40-115 cm)."""
+    lo = max(2.0, min_cm)
+    hi = max(lo, max_cm)
+    if lo < 115.0 and rng.random() < 0.65:
+        return noisy_us(rng, rng.uniform(lo, min(hi, 115.0)), (lo, hi))
+    return noisy_us(rng, rng.uniform(lo, hi), (lo, hi))
 
 
 def build_ultrasonic_rows(rng):
     rows = []
     for label, band in US_CLASSES:
         if label == "ESPACIO_LIBRE":
-            # 750 muestras densas en la zona de transición frontera (17-35 cm) y 750 en fondo (35-165 cm)
-            for _ in range(SAMPLES_PER_CLASS // 2):
-                rows.append((noisy_us(rng, rng.uniform(17.0, 35.0), band), label))
-            for _ in range(SAMPLES_PER_CLASS - (SAMPLES_PER_CLASS // 2)):
-                rows.append((noisy_us(rng, rng.uniform(35.0, 165.0), band), label))
+            n_low = SAMPLES_PER_CLASS // 3
+            n_high = SAMPLES_PER_CLASS // 4
+            n_mid = SAMPLES_PER_CLASS - n_low - n_high
+            for _ in range(n_low):
+                rows.append((noisy_us(rng, rng.uniform(19.5, 35.0), band), label))
+            for _ in range(n_mid):
+                rows.append((noisy_us(rng, rng.uniform(35.0, 155.0), band), label))
+            for _ in range(n_high):
+                rows.append((noisy_us(rng, rng.uniform(155.0, 175.0), band), label))
+        elif label == "BLOQUEO":
+            n_edge = SAMPLES_PER_CLASS // 3
+            for _ in range(n_edge):
+                rows.append((noisy_us(rng, rng.uniform(12.5, 17.5), band), label))
+            for _ in range(SAMPLES_PER_CLASS - n_edge):
+                rows.append((noisy_us(rng, rng.uniform(2.0, 17.5), band), label))
         else:
-            for _ in range(SAMPLES_PER_CLASS):
-                rows.append((noisy_us(rng, rng.uniform(*band), band), label))
+            n_edge = SAMPLES_PER_CLASS // 4
+            for _ in range(n_edge):
+                rows.append((noisy_us(rng, rng.uniform(186.0, 205.0), band), label))
+            for _ in range(SAMPLES_PER_CLASS - n_edge):
+                rows.append((noisy_us(rng, rng.uniform(186.0, 250.0), band), label))
+    rows[0] = (2.00, "BLOQUEO")
+    for i, (_, lbl) in enumerate(rows):
+        if lbl == "SALIDA":
+            rows[i] = (250.00, "SALIDA")
+            break
     rng.shuffle(rows)
     return rows
 
 
 def build_marble_rows(rng):
     rows = []
-    # 1. NINGUNA (Piso limpio, muros en todos los ángulos, obstáculos 3D, curvas, esquinas)
-    for _ in range(SAMPLES_PER_CLASS):
+    # 1. NINGUNA (Piso limpio, bandas intermedias >= 22.5 cm, muros cercanos < 36 cm, angulos >= 20 deg)
+    for idx in range(SAMPLES_PER_CLASS):
+        if idx == 0:
+            rows.append((2.0, 2.0, 2.0, 2.0, 2.0, -45.0, "NINGUNA"))
+            continue
+        if idx == 1:
+            rows.append((250.0, 250.0, 250.0, 43.0, 43.0, 60.0, "NINGUNA"))
+            continue
+
         scenario = rng.choices(
             ("limpio", "muro_frontal", "muro_oblicuo_izq", "muro_oblicuo_der",
              "muro_oblicuo_inward_izq", "muro_oblicuo_inward_der",
+             "muro_rasante_grad_izq", "muro_rasante_grad_der",
              "muro_lateral_izq", "muro_lateral_der",
-             "muro_exterior_izq", "muro_exterior_der",
+             "muro_exterior_izq", "muro_exterior_der", "muro_exterior_ambos",
              "obstaculo_izq", "obstaculo_der", "obstaculo_frontal",
              "esquina_curva_izq", "esquina_curva_der",
-             "pared_rasante_izq", "pared_rasante_der",
              "muro_especular_izq", "muro_especular_der",
-             "laser_medio_ninguna", "contacto_inmediato"),
-            weights=(5, 8, 7, 7, 10, 10, 8, 8, 4, 4, 5, 5, 5, 5, 5, 4, 4, 3, 3, 4, 4),
+             "laser_medio_izq", "laser_medio_der", "laser_medio_ambos",
+             "contacto_inmediato"),
+            weights=(5, 5, 5, 5, 10, 10, 8, 8, 6, 6, 14, 14, 5, 4, 4, 4, 5, 5, 3, 3, 12, 12, 7, 5),
         )[0]
         las_izq = noisy_laser(rng, rng.uniform(*LASER_FLOOR), LASER_FLOOR)
         las_der = noisy_laser(rng, rng.uniform(*LASER_FLOOR), LASER_FLOOR)
@@ -131,171 +148,227 @@ def build_marble_rows(rng):
         if scenario == "limpio":
             pass
         elif scenario == "muro_frontal":
-            d_m = rng.uniform(3.0, 28.0)
-            las_izq = noisy_laser(rng, d_m, (2.0, 30.0))
-            las_der = noisy_laser(rng, d_m, (2.0, 30.0))
-            us_cen = noisy_us(rng, d_m, (2.0, 32.0))
-            us_izq = noisy_us(rng, d_m + rng.uniform(-1.0, 2.5), (2.0, 32.0))
-            us_der = noisy_us(rng, d_m + rng.uniform(-1.0, 2.5), (2.0, 32.0))
+            d_m = rng.uniform(3.0, 32.0)
+            las_izq = noisy_laser(rng, d_m, (2.0, 34.0))
+            las_der = noisy_laser(rng, d_m, (2.0, 34.0))
+            us_cen = noisy_us(rng, d_m, (2.0, 35.5))
+            us_izq = noisy_us(rng, d_m + rng.uniform(-1.0, 3.0), (2.0, 35.5))
+            us_der = noisy_us(rng, d_m + rng.uniform(-1.0, 3.0), (2.0, 35.5))
         elif scenario == "muro_oblicuo_izq":
-            d_w = rng.uniform(4.0, 25.0)
-            las_izq = noisy_laser(rng, d_w, (2.5, 28.0))
-            las_der = noisy_laser(rng, rng.uniform(d_w + 2.0, min(35.0, d_w + 12.0)), (d_w + 1.5, 36.0))
-            # Muro oblicuo real: pendiente acústica pronunciada hacia la derecha (us_der >> us_izq)
-            us_izq = noisy_us(rng, d_w + rng.uniform(-1.0, 3.5), (2.5, 32.0))
-            us_cen = noisy_us(rng, d_w + rng.uniform(6.0, 16.0), (3.0, 48.0))
-            us_der = noisy_us(rng, d_w + rng.uniform(16.0, 32.0), (5.0, 75.0))
+            d_w = rng.uniform(4.0, 28.0)
+            las_izq = noisy_laser(rng, d_w, (2.0, 30.0))
+            las_der = noisy_laser(rng, rng.uniform(d_w + 2.0, min(38.0, d_w + 14.0)), (d_w + 1.5, 40.0))
+            us_izq = noisy_us(rng, d_w + rng.uniform(-1.0, 5.0), (2.5, 35.5))
+            us_cen = noisy_us(rng, d_w + rng.uniform(6.0, 18.0), (3.0, 52.0))
+            us_der = noisy_us(rng, d_w + rng.uniform(16.0, 36.0), (5.0, 80.0))
         elif scenario == "muro_oblicuo_der":
-            d_w = rng.uniform(4.0, 25.0)
-            las_der = noisy_laser(rng, d_w, (2.5, 28.0))
-            las_izq = noisy_laser(rng, rng.uniform(d_w + 2.0, min(35.0, d_w + 12.0)), (d_w + 1.5, 36.0))
-            # Muro oblicuo real: pendiente acústica pronunciada hacia la izquierda (us_izq >> us_der)
-            us_der = noisy_us(rng, d_w + rng.uniform(-1.0, 3.5), (2.5, 32.0))
-            us_cen = noisy_us(rng, d_w + rng.uniform(6.0, 16.0), (3.0, 48.0))
-            us_izq = noisy_us(rng, d_w + rng.uniform(16.0, 32.0), (5.0, 75.0))
+            d_w = rng.uniform(4.0, 28.0)
+            las_der = noisy_laser(rng, d_w, (2.0, 30.0))
+            las_izq = noisy_laser(rng, rng.uniform(d_w + 2.0, min(38.0, d_w + 14.0)), (d_w + 1.5, 40.0))
+            us_der = noisy_us(rng, d_w + rng.uniform(-1.0, 5.0), (2.5, 35.5))
+            us_cen = noisy_us(rng, d_w + rng.uniform(6.0, 18.0), (3.0, 52.0))
+            us_izq = noisy_us(rng, d_w + rng.uniform(16.0, 36.0), (5.0, 80.0))
         elif scenario == "muro_oblicuo_inward_izq":
-            servo = round(rng.uniform(-40.0, 14.0), 1)
-            las_izq = noisy_laser(rng, rng.uniform(8.0, 22.0), (7.0, 24.0))
-            las_der = noisy_laser(rng, rng.uniform(26.0, 42.0), (24.0, 43.0))
-            us_izq = noisy_us(rng, rng.uniform(las_izq, 39.0), (12.0, 39.5))
-            us_cen = noisy_us(rng, rng.uniform(us_izq, 45.0), (16.0, 50.0))
-            us_der = noisy_us(rng, rng.uniform(us_cen, 75.0), (20.0, 90.0))
+            servo = round(rng.uniform(-45.0, 18.0), 1)
+            las_izq = noisy_laser(rng, rng.uniform(2.5, 21.0), (2.0, 22.0))
+            las_der = noisy_laser(rng, rng.uniform(24.0, 43.0), (22.5, 43.0))
+            us_izq = noisy_us(rng, rng.uniform(10.0, 35.5), (10.0, 36.0))
+            us_cen = noisy_us(rng, rng.uniform(us_izq + 1.0, 48.0), (12.0, 52.0))
+            us_der = noisy_us(rng, rng.uniform(us_cen + 1.0, 75.0), (16.0, 90.0))
         elif scenario == "muro_oblicuo_inward_der":
-            servo = round(rng.uniform(-40.0, 14.0), 1)
-            las_der = noisy_laser(rng, rng.uniform(8.0, 22.0), (7.0, 24.0))
-            las_izq = noisy_laser(rng, rng.uniform(26.0, 42.0), (24.0, 43.0))
-            us_der = noisy_us(rng, rng.uniform(las_der, 39.0), (12.0, 39.5))
-            us_cen = noisy_us(rng, rng.uniform(us_der, 45.0), (16.0, 50.0))
-            us_izq = noisy_us(rng, rng.uniform(us_cen, 75.0), (20.0, 90.0))
+            servo = round(rng.uniform(-45.0, 18.0), 1)
+            las_der = noisy_laser(rng, rng.uniform(2.5, 21.0), (2.0, 22.0))
+            las_izq = noisy_laser(rng, rng.uniform(24.0, 43.0), (22.5, 43.0))
+            us_der = noisy_us(rng, rng.uniform(10.0, 35.5), (10.0, 36.0))
+            us_cen = noisy_us(rng, rng.uniform(us_der + 1.0, 48.0), (12.0, 52.0))
+            us_izq = noisy_us(rng, rng.uniform(us_cen + 1.0, 75.0), (16.0, 90.0))
+        elif scenario == "muro_rasante_grad_izq":
+            servo = round(rng.uniform(-45.0, 20.0), 1)
+            las_izq = noisy_laser(rng, rng.uniform(2.0, 12.0), (2.0, 13.0))
+            las_der = noisy_laser(rng, rng.uniform(26.0, 43.0), (24.0, 43.0))
+            us_izq = noisy_us(rng, rng.uniform(16.0, 42.0), (15.0, 44.0))
+            us_cen = noisy_us(rng, us_izq + rng.uniform(18.0, 45.0), (34.0, 95.0))
+            us_der = noisy_us(rng, us_cen + rng.uniform(16.0, 45.0), (52.0, 140.0))
+        elif scenario == "muro_rasante_grad_der":
+            servo = round(rng.uniform(-45.0, 20.0), 1)
+            las_der = noisy_laser(rng, rng.uniform(2.0, 12.0), (2.0, 13.0))
+            las_izq = noisy_laser(rng, rng.uniform(26.0, 43.0), (24.0, 43.0))
+            us_der = noisy_us(rng, rng.uniform(16.0, 42.0), (15.0, 44.0))
+            us_cen = noisy_us(rng, us_der + rng.uniform(18.0, 45.0), (34.0, 95.0))
+            us_izq = noisy_us(rng, us_cen + rng.uniform(16.0, 45.0), (52.0, 140.0))
         elif scenario == "muro_lateral_izq":
-            servo = round(rng.uniform(-45.0, 14.0), 1)
-            las_izq = noisy_laser(rng, rng.uniform(3.5, 22.0), (3.0, 24.0))
-            las_der = noisy_laser(rng, rng.uniform(25.0, 42.0), (22.0, 43.0))
-            us_izq = noisy_us(rng, rng.uniform(las_izq - 1.0, 38.0), (2.5, 39.5))
-            us_cen = noisy_us(rng, rng.uniform(us_izq - 1.0, 50.0), (2.5, 55.0))
-            us_der = noisy_us(rng, rng.uniform(us_cen - 1.0, 90.0), (2.5, 120.0))
+            servo = round(rng.uniform(-45.0, 18.0), 1)
+            las_izq = noisy_laser(rng, rng.uniform(2.0, 21.0), (2.0, 22.0))
+            las_der = noisy_laser(rng, rng.uniform(24.0, 43.0), (22.5, 43.0))
+            us_izq = noisy_us(rng, rng.uniform(2.5, 35.0), (2.5, 36.0))
+            us_cen = noisy_us(rng, rng.uniform(us_izq, 52.0), (2.5, 56.0))
+            us_der = noisy_us(rng, rng.uniform(us_cen, 90.0), (2.5, 115.0))
         elif scenario == "muro_lateral_der":
-            servo = round(rng.uniform(-45.0, 14.0), 1)
-            las_der = noisy_laser(rng, rng.uniform(3.5, 22.0), (3.0, 24.0))
-            las_izq = noisy_laser(rng, rng.uniform(25.0, 42.0), (22.0, 43.0))
-            us_der = noisy_us(rng, rng.uniform(las_der - 1.0, 38.0), (2.5, 39.5))
-            us_cen = noisy_us(rng, rng.uniform(us_der - 1.0, 50.0), (2.5, 55.0))
-            us_izq = noisy_us(rng, rng.uniform(us_cen - 1.0, 90.0), (2.5, 120.0))
+            servo = round(rng.uniform(-45.0, 18.0), 1)
+            las_der = noisy_laser(rng, rng.uniform(2.0, 21.0), (2.0, 22.0))
+            las_izq = noisy_laser(rng, rng.uniform(24.0, 43.0), (22.5, 43.0))
+            us_der = noisy_us(rng, rng.uniform(2.5, 35.0), (2.5, 36.0))
+            us_cen = noisy_us(rng, rng.uniform(us_der, 52.0), (2.5, 56.0))
+            us_izq = noisy_us(rng, rng.uniform(us_cen, 90.0), (2.5, 115.0))
         elif scenario == "muro_exterior_izq":
-            servo = round(rng.uniform(15.0, 55.0), 1)
-            las_izq = noisy_laser(rng, rng.uniform(4.0, 22.0), (3.5, 24.0))
-            las_der = noisy_laser(rng, rng.uniform(30.0, 42.0), (28.0, 43.0))
-            us_izq = noisy_us(rng, rng.uniform(30.0, 250.0), (25.0, 250.0))
-            us_cen = noisy_us(rng, rng.uniform(30.0, 250.0), (25.0, 250.0))
-            us_der = noisy_us(rng, rng.uniform(30.0, 250.0), (25.0, 250.0))
+            # Barrido exterior [+20..+60]: pared lateral aunque US frontal este despejado
+            servo = round(rng.uniform(20.0, 60.0), 1)
+            las_izq = noisy_laser(rng, rng.uniform(2.0, 22.0), (2.0, 23.0))
+            las_der = noisy_laser(rng, rng.uniform(24.0, 43.0), (22.5, 43.0))
+            us_izq = noisy_us(rng, rng.uniform(15.0, 250.0), (12.0, 250.0))
+            us_cen = noisy_us(rng, rng.uniform(18.0, 250.0), (15.0, 250.0))
+            us_der = noisy_us(rng, rng.uniform(18.0, 250.0), (15.0, 250.0))
         elif scenario == "muro_exterior_der":
-            servo = round(rng.uniform(15.0, 55.0), 1)
-            las_der = noisy_laser(rng, rng.uniform(4.0, 22.0), (3.5, 24.0))
-            las_izq = noisy_laser(rng, rng.uniform(30.0, 42.0), (28.0, 43.0))
-            us_der = noisy_us(rng, rng.uniform(30.0, 250.0), (25.0, 250.0))
-            us_cen = noisy_us(rng, rng.uniform(30.0, 250.0), (25.0, 250.0))
-            us_izq = noisy_us(rng, rng.uniform(30.0, 250.0), (25.0, 250.0))
+            servo = round(rng.uniform(20.0, 60.0), 1)
+            las_der = noisy_laser(rng, rng.uniform(2.0, 22.0), (2.0, 23.0))
+            las_izq = noisy_laser(rng, rng.uniform(24.0, 43.0), (22.5, 43.0))
+            us_der = noisy_us(rng, rng.uniform(15.0, 250.0), (12.0, 250.0))
+            us_cen = noisy_us(rng, rng.uniform(18.0, 250.0), (15.0, 250.0))
+            us_izq = noisy_us(rng, rng.uniform(18.0, 250.0), (15.0, 250.0))
+        elif scenario == "muro_exterior_ambos":
+            servo = round(rng.uniform(20.0, 60.0), 1)
+            las_izq = noisy_laser(rng, rng.uniform(2.5, 22.0), (2.0, 23.0))
+            las_der = noisy_laser(rng, rng.uniform(2.5, 22.0), (2.0, 23.0))
+            us_izq = noisy_us(rng, rng.uniform(18.0, 120.0), (15.0, 120.0))
+            us_cen = noisy_us(rng, rng.uniform(20.0, 120.0), (18.0, 120.0))
+            us_der = noisy_us(rng, rng.uniform(18.0, 120.0), (15.0, 120.0))
         elif scenario == "obstaculo_izq":
-            d_obs = rng.uniform(3.0, 24.0)
-            las_izq = noisy_laser(rng, d_obs, (2.0, 26.0))
-            us_izq = noisy_us(rng, d_obs + rng.uniform(-1.0, 3.5), (2.0, 28.0))
+            d_obs = rng.uniform(3.0, 22.0)
+            las_izq = noisy_laser(rng, d_obs, (2.0, 24.0))
+            us_izq = noisy_us(rng, d_obs + rng.uniform(-1.0, 4.0), (2.0, 30.0))
             us_cen = noisy_us(rng, rng.uniform(d_obs, 35.0), (2.0, 38.0))
         elif scenario == "obstaculo_der":
-            d_obs = rng.uniform(3.0, 24.0)
-            las_der = noisy_laser(rng, d_obs, (2.0, 26.0))
-            us_der = noisy_us(rng, d_obs + rng.uniform(-1.0, 3.5), (2.0, 28.0))
+            d_obs = rng.uniform(3.0, 22.0)
+            las_der = noisy_laser(rng, d_obs, (2.0, 24.0))
+            us_der = noisy_us(rng, d_obs + rng.uniform(-1.0, 4.0), (2.0, 30.0))
             us_cen = noisy_us(rng, rng.uniform(d_obs, 35.0), (2.0, 38.0))
         elif scenario == "obstaculo_frontal":
-            d_obs = rng.uniform(3.0, 24.0)
-            las_izq = noisy_laser(rng, d_obs, (2.0, 26.0))
-            las_der = noisy_laser(rng, d_obs, (2.0, 26.0))
-            us_cen = noisy_us(rng, d_obs + rng.uniform(-1.0, 3.0), (2.0, 28.0))
+            d_obs = rng.uniform(3.0, 22.0)
+            las_izq = noisy_laser(rng, d_obs, (2.0, 24.0))
+            las_der = noisy_laser(rng, d_obs, (2.0, 24.0))
+            us_cen = noisy_us(rng, d_obs + rng.uniform(-1.0, 3.0), (2.0, 30.0))
         elif scenario == "esquina_curva_izq":
-            d_c = rng.uniform(4.0, 20.0)
-            las_izq = noisy_laser(rng, d_c, (3.5, 22.0))
-            las_der = noisy_laser(rng, rng.uniform(d_c, min(30.0, d_c + 8.0)), (3.5, 30.0))
-            us_izq = noisy_us(rng, rng.uniform(d_c, d_c + 14.0), (3.5, 36.0))
-            us_cen = noisy_us(rng, rng.uniform(us_izq, us_izq + 16.0), (3.5, 48.0))
-            us_der = noisy_us(rng, rng.uniform(us_cen, us_cen + 20.0), (3.5, 65.0))
+            d_c = rng.uniform(3.0, 20.0)
+            las_izq = noisy_laser(rng, d_c, (2.0, 21.5))
+            las_der = noisy_laser(rng, rng.uniform(d_c, min(32.0, d_c + 10.0)), (2.0, 33.0))
+            us_izq = noisy_us(rng, rng.uniform(d_c, min(33.0, d_c + 14.0)), (3.0, 34.0))
+            us_cen = noisy_us(rng, rng.uniform(us_izq, us_izq + 16.0), (3.0, 50.0))
+            us_der = noisy_us(rng, rng.uniform(us_cen, us_cen + 20.0), (3.0, 68.0))
         elif scenario == "esquina_curva_der":
-            d_c = rng.uniform(4.0, 20.0)
-            las_der = noisy_laser(rng, d_c, (3.5, 22.0))
-            las_izq = noisy_laser(rng, rng.uniform(d_c, min(30.0, d_c + 8.0)), (3.5, 30.0))
-            us_der = noisy_us(rng, rng.uniform(d_c, d_c + 14.0), (3.5, 36.0))
-            us_cen = noisy_us(rng, rng.uniform(us_der, us_der + 16.0), (3.5, 48.0))
-            us_izq = noisy_us(rng, rng.uniform(us_cen, us_cen + 20.0), (3.5, 65.0))
-        elif scenario == "pared_rasante_izq":
-            d_r = rng.uniform(4.0, 18.0)
-            las_izq = noisy_laser(rng, d_r, (3.5, 19.5))
-            las_der = noisy_laser(rng, rng.uniform(20.0, 42.0), (18.0, 43.0))
-            us_izq = noisy_us(rng, d_r + rng.uniform(-1.0, 4.0), (3.5, 24.0))
-            us_cen = noisy_us(rng, rng.uniform(d_r, 35.0), (3.5, 38.0))
-        elif scenario == "pared_rasante_der":
-            d_r = rng.uniform(4.0, 18.0)
-            las_der = noisy_laser(rng, d_r, (3.5, 19.5))
-            las_izq = noisy_laser(rng, rng.uniform(20.0, 42.0), (18.0, 43.0))
-            us_der = noisy_us(rng, d_r + rng.uniform(-1.0, 4.0), (3.5, 24.0))
-            us_cen = noisy_us(rng, rng.uniform(d_r, 35.0), (3.5, 38.0))
+            d_c = rng.uniform(3.0, 20.0)
+            las_der = noisy_laser(rng, d_c, (2.0, 21.5))
+            las_izq = noisy_laser(rng, rng.uniform(d_c, min(32.0, d_c + 10.0)), (2.0, 33.0))
+            us_der = noisy_us(rng, rng.uniform(d_c, min(33.0, d_c + 14.0)), (3.0, 34.0))
+            us_cen = noisy_us(rng, rng.uniform(us_der, us_der + 16.0), (3.0, 50.0))
+            us_izq = noisy_us(rng, rng.uniform(us_cen, us_cen + 20.0), (3.0, 68.0))
         elif scenario == "muro_especular_izq":
-            d_m = rng.uniform(8.0, 24.0)
-            las_izq = noisy_laser(rng, d_m, (7.0, 26.0))
-            las_der = noisy_laser(rng, rng.uniform(25.0, 42.0), (22.0, 43.0))
+            d_m = rng.uniform(8.0, 22.0)
+            las_izq = noisy_laser(rng, d_m, (7.0, 24.0))
+            las_der = noisy_laser(rng, rng.uniform(25.0, 42.0), (23.0, 43.0))
             us_izq = noisy_us(rng, rng.uniform(185.0, 250.0), (180.0, 250.0))
-            us_cen = noisy_us(rng, d_m + rng.uniform(0.0, 6.0), (7.0, 32.0))
+            us_cen = noisy_us(rng, d_m + rng.uniform(0.0, 6.0), (7.0, 30.0))
             us_der = noisy_us(rng, rng.uniform(25.0, 60.0), (20.0, 70.0))
         elif scenario == "muro_especular_der":
-            d_m = rng.uniform(8.0, 24.0)
-            las_der = noisy_laser(rng, d_m, (7.0, 26.0))
-            las_izq = noisy_laser(rng, rng.uniform(25.0, 42.0), (22.0, 43.0))
+            d_m = rng.uniform(8.0, 22.0)
+            las_der = noisy_laser(rng, d_m, (7.0, 24.0))
+            las_izq = noisy_laser(rng, rng.uniform(25.0, 42.0), (23.0, 43.0))
             us_der = noisy_us(rng, rng.uniform(185.0, 250.0), (180.0, 250.0))
-            us_cen = noisy_us(rng, d_m + rng.uniform(0.0, 6.0), (7.0, 32.0))
+            us_cen = noisy_us(rng, d_m + rng.uniform(0.0, 6.0), (7.0, 30.0))
             us_izq = noisy_us(rng, rng.uniform(25.0, 60.0), (20.0, 70.0))
-        elif scenario == "laser_medio_ninguna":
-            d_mid = rng.uniform(24.0, 35.0)
-            las_izq = noisy_laser(rng, d_mid, (23.0, 36.0))
-            las_der = noisy_laser(rng, rng.uniform(24.0, 42.0), (23.0, 43.0))
+        elif scenario == "laser_medio_izq":
+            # Banda intermedia >= 23.0 cm con US abierto (NO es canica)
+            las_izq = noisy_laser(rng, rng.uniform(23.5, 34.5), (23.0, 35.5))
+            las_der = noisy_laser(rng, rng.uniform(24.0, 42.5), (23.2, 43.0))
+            us_izq = sample_bay_us(rng, 25.0, 250.0)
+            us_cen = sample_bay_us(rng, 25.0, 250.0)
+            us_der = sample_bay_us(rng, 25.0, 250.0)
+        elif scenario == "laser_medio_der":
+            las_der = noisy_laser(rng, rng.uniform(23.5, 34.5), (23.0, 35.5))
+            las_izq = noisy_laser(rng, rng.uniform(24.0, 42.5), (23.2, 43.0))
+            us_izq = sample_bay_us(rng, 25.0, 250.0)
+            us_cen = sample_bay_us(rng, 25.0, 250.0)
+            us_der = sample_bay_us(rng, 25.0, 250.0)
+        elif scenario == "laser_medio_ambos":
+            d_mid = rng.uniform(23.5, 34.5)
+            las_izq = noisy_laser(rng, d_mid, (23.0, 35.5))
+            las_der = noisy_laser(rng, d_mid + rng.uniform(-3.0, 3.0), (23.0, 36.0))
+            us_izq = sample_bay_us(rng, 25.0, 250.0)
+            us_cen = sample_bay_us(rng, 25.0, 250.0)
+            us_der = sample_bay_us(rng, 25.0, 250.0)
         elif scenario == "contacto_inmediato":
-            d_c = rng.uniform(2.0, 5.0)
+            # Roce directo en pared (laser 2.0-3.2 cm) con US < 45 cm
+            d_c = rng.uniform(2.0, 3.0)
             side = rng.choice(("izq", "der"))
             if side == "izq":
-                las_izq = noisy_laser(rng, d_c, (2.0, 5.5))
-                us_izq = noisy_us(rng, d_c + rng.uniform(-0.5, 2.0), (2.0, 7.5))
+                las_izq = noisy_laser(rng, d_c, (2.0, 3.2))
+                us_izq = noisy_us(rng, rng.uniform(2.0, 42.0), (2.0, 44.0))
             else:
-                las_der = noisy_laser(rng, d_c, (2.0, 5.5))
-                us_der = noisy_us(rng, d_c + rng.uniform(-0.5, 2.0), (2.0, 7.5))
+                las_der = noisy_laser(rng, d_c, (2.0, 3.2))
+                us_der = noisy_us(rng, rng.uniform(2.0, 42.0), (2.0, 44.0))
 
         rows.append((us_izq, us_cen, us_der, las_izq, las_der, servo, "NINGUNA"))
 
     # 2. CANICAS (LOBITO_CENTRO, LOBITO_IZQ, LOBITO_DER)
-    for label in ("LOBITO_IZQ", "LOBITO_CENTRO", "LOBITO_DER"):
-        for _ in range(SAMPLES_PER_CLASS):
-            d_canica = rng.uniform(3.5, 22.0)
-            d_bg_min = d_canica + 15.0
-            d_bg = rng.uniform(d_bg_min, 250.0)
-            if label == "LOBITO_IZQ":
-                las_izq = noisy_laser(rng, d_canica, (3.5, 22.5))
-                las_der = noisy_laser(rng, rng.uniform(30.0, 42.0), (28.0, 43.0))
-                servo = round(rng.uniform(-35.0, 35.0), 1)
-                us_izq = noisy_us(rng, d_bg, (d_bg_min, 250.0))
-                us_cen = noisy_us(rng, rng.uniform(max(20.0, d_bg - 15.0), 250.0), (20.0, 250.0))
-                us_der = noisy_us(rng, rng.uniform(max(20.0, d_bg - 15.0), 250.0), (20.0, 250.0))
-            elif label == "LOBITO_DER":
-                las_der = noisy_laser(rng, d_canica, (3.5, 22.5))
-                las_izq = noisy_laser(rng, rng.uniform(30.0, 42.0), (28.0, 43.0))
-                servo = round(rng.uniform(-35.0, 35.0), 1)
-                us_der = noisy_us(rng, d_bg, (d_bg_min, 250.0))
-                us_cen = noisy_us(rng, rng.uniform(max(20.0, d_bg - 15.0), 250.0), (20.0, 250.0))
-                us_izq = noisy_us(rng, rng.uniform(max(20.0, d_bg - 15.0), 250.0), (20.0, 250.0))
-            else: # LOBITO_CENTRO
-                las_izq = noisy_laser(rng, d_canica, (3.5, 22.5))
-                target_der = max(3.5, min(22.5, d_canica + rng.uniform(-1.5, 1.5)))
-                las_der = noisy_laser(rng, target_der, (3.5, 22.5))
-                servo = round(rng.uniform(-40.0, 10.0), 1)
-                us_cen = noisy_us(rng, d_bg, (d_bg_min, 250.0))
-                us_izq = noisy_us(rng, rng.uniform(max(20.0, d_bg - 15.0), 250.0), (20.0, 250.0))
-                us_der = noisy_us(rng, rng.uniform(max(20.0, d_bg - 15.0), 250.0), (20.0, 250.0))
+    # Proyeccion optica cruzada real del brazo de 2.0 cm en [-45.0, +18.0] deg:
+    # Un laser izquierdo en angulo negativo apunta hacia el centro/derecha (y = +8.3 + d*sin(theta)).
+    for target_label in ("LOBITO_IZQ", "LOBITO_CENTRO", "LOBITO_DER"):
+        generated = 0
+        while generated < SAMPLES_PER_CLASS:
+            d_canica = rng.uniform(3.8, 20.2)
+            servo = round(rng.uniform(-45.0, 18.0), 1)
+            sin_s = math.sin(math.radians(servo))
 
-            rows.append((us_izq, us_cen, us_der, las_izq, las_der, servo, label))
+            if target_label == "LOBITO_CENTRO" and rng.random() < 0.65:
+                # Deteccion binocular centrada (ambos laseres en rango de canica)
+                if servo > 12.0:
+                    continue
+                las_izq = noisy_laser(rng, d_canica, (3.6, 20.6))
+                target_der = max(3.6, min(20.6, d_canica + rng.uniform(-4.0, 4.0)))
+                las_der = noisy_laser(rng, target_der, (3.6, 20.6))
+                us_cen = sample_bay_us(rng, max(40.0, max(las_izq, las_der) + 18.0), 250.0)
+                us_izq = noisy_us(rng, max(38.0, us_cen + rng.uniform(-8.0, 8.0)), (38.0, 250.0))
+                us_der = noisy_us(rng, max(38.0, us_cen + rng.uniform(-8.0, 8.0)), (38.0, 250.0))
+                rows.append((us_izq, us_cen, us_der, las_izq, las_der, servo, "LOBITO_CENTRO"))
+                generated += 1
+                continue
+
+            # Deteccion monocular con geometria cruzada real de y_hit
+            use_left = rng.random() < 0.5
+            if use_left:
+                y_hit = 8.3 + d_canica * sin_s
+                if y_hit > 2.8:
+                    true_lbl = "LOBITO_IZQ"
+                elif y_hit < -2.8:
+                    true_lbl = "LOBITO_DER"
+                else:
+                    true_lbl = "LOBITO_CENTRO"
+                if true_lbl != target_label:
+                    continue
+                las_izq = noisy_laser(rng, d_canica, (3.6, 20.6))
+                las_der = noisy_laser(rng, rng.uniform(27.0, 43.0), (25.5, 43.0))
+                us_ref = sample_bay_us(rng, max(40.0, d_canica + 18.0), 250.0)
+                us_izq = us_ref
+                us_cen = noisy_us(rng, max(38.0, us_ref + rng.uniform(-7.0, 9.0)), (38.0, 250.0))
+                us_der = noisy_us(rng, max(38.0, us_cen + rng.uniform(-7.0, 9.0)), (38.0, 250.0))
+            else:
+                y_hit = -8.3 - d_canica * sin_s
+                if y_hit < -2.8:
+                    true_lbl = "LOBITO_DER"
+                elif y_hit > 2.8:
+                    true_lbl = "LOBITO_IZQ"
+                else:
+                    true_lbl = "LOBITO_CENTRO"
+                if true_lbl != target_label:
+                    continue
+                las_der = noisy_laser(rng, d_canica, (3.6, 20.6))
+                las_izq = noisy_laser(rng, rng.uniform(27.0, 43.0), (25.5, 43.0))
+                us_ref = sample_bay_us(rng, max(40.0, d_canica + 18.0), 250.0)
+                us_der = us_ref
+                us_cen = noisy_us(rng, max(38.0, us_ref + rng.uniform(-7.0, 9.0)), (38.0, 250.0))
+                us_izq = noisy_us(rng, max(38.0, us_cen + rng.uniform(-7.0, 9.0)), (38.0, 250.0))
+
+            rows.append((us_izq, us_cen, us_der, las_izq, las_der, servo, target_label))
+            generated += 1
 
     rng.shuffle(rows)
     return rows
@@ -316,22 +389,14 @@ def self_check(us_rows, marble_rows):
     for us_izq, us_cen, us_der, las_izq, las_der, servo, label in marble_rows:
         counts[label] = counts.get(label, 0) + 1
         assert SERVO_MIN_DEG <= servo <= SERVO_MAX_DEG
-        if label == "LOBITO_IZQ":
-            assert us_izq >= las_izq + 12.0
-            assert 3.0 <= las_izq <= 23.5
-            assert las_der >= las_izq + 5.0
-            assert -36.0 <= servo <= 36.0
-        elif label == "LOBITO_DER":
-            assert us_der >= las_der + 12.0
-            assert 3.0 <= las_der <= 23.5
-            assert las_izq >= las_der + 5.0
-            assert -36.0 <= servo <= 36.0
-        elif label == "LOBITO_CENTRO":
-            assert us_cen >= min(las_izq, las_der) + 12.0
-            assert 3.0 <= las_izq <= 23.5
-            assert 3.0 <= las_der <= 23.5
-            assert abs(las_izq - las_der) <= 4.5
-            assert -41.0 <= servo <= 12.0
+        if label in ("LOBITO_IZQ", "LOBITO_DER", "LOBITO_CENTRO"):
+            d_min = min(las_izq, las_der)
+            assert 3.4 <= d_min <= 21.5
+            assert -45.0 <= servo <= 18.0
+            assert min(us_izq, us_cen, us_der) >= 36.0
+            assert max(us_izq, us_cen, us_der) >= d_min + 16.0
+        if label == "LOBITO_CENTRO" and las_izq <= 21.5 and las_der <= 21.5:
+            assert abs(las_izq - las_der) <= 5.5
 
     assert set(counts) == {"NINGUNA", "LOBITO_IZQ", "LOBITO_CENTRO", "LOBITO_DER"}
     assert all(n == SAMPLES_PER_CLASS for n in counts.values())
