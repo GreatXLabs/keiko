@@ -12,6 +12,7 @@ public class PlanificadorNavegacion {
 
     private static final int HORIZONTE_OLVIDO_OSCILACIONES = 150;
     private static final int TAM_HISTORIAL_LADOS = 6;
+    private static final int UMBRAL_EPISODIOS_MISMO_LADO = 4;
     private static final double VEL_ARCO_EXT = 4.8;
     private static final double VEL_ARCO_INT = 2.0;
 
@@ -27,6 +28,7 @@ public class PlanificadorNavegacion {
     private int ultimoLadoBloqueado = 0;
     private int ciclosDesdeUltimoBloqueo = HORIZONTE_OLVIDO_OSCILACIONES;
     private int contadorOscilaciones = 0;
+    private int episodiosMismoLado = 0;
     private int contadorReversosConsecutivos = 0;
     private int ciclosDesdeUltimoReverso = 200;
     private final int[] historialLados = new int[TAM_HISTORIAL_LADOS];
@@ -133,8 +135,22 @@ public class PlanificadorNavegacion {
             int dir = ((contadorCiclos / 80) % 2 == 0) ? 1 : -1;
             return iniciarRetrocesoYPivote(dir, 14, EstadoRobot.BUSQUEDA);
         }
-        if ("SALIDA".equals(izq)) return new ComandoRobot(3.8, 2.2, EstadoRobot.BUSQUEDA);
-        if ("SALIDA".equals(der)) return new ComandoRobot(2.2, 3.8, EstadoRobot.BUSQUEDA);
+        if ("SALIDA".equals(izq)) {
+            if (bCen) {
+                return iniciarRetrocesoYPivote(1, 14, EstadoRobot.BUSQUEDA);
+            }
+            if (!bDer) {
+                return new ComandoRobot(3.8, 2.2, EstadoRobot.BUSQUEDA);
+            }
+        }
+        if ("SALIDA".equals(der)) {
+            if (bCen) {
+                return iniciarRetrocesoYPivote(-1, 14, EstadoRobot.BUSQUEDA);
+            }
+            if (!bIzq) {
+                return new ComandoRobot(2.2, 3.8, EstadoRobot.BUSQUEDA);
+            }
+        }
 
         ComandoRobot evasion = evaluarBloqueo(bIzq, bCen, bDer, EstadoRobot.BUSQUEDA);
         if (evasion != null) {
@@ -263,11 +279,14 @@ public class PlanificadorNavegacion {
             contadorOscilaciones++;
         }
         if (ultimoLadoBloqueado != lado) {
+            episodiosMismoLado = 1;
             historialLados[indiceHistorialLados] = lado;
             indiceHistorialLados = (indiceHistorialLados + 1) % historialLados.length;
             if (entradasHistorialLados < historialLados.length) {
                 entradasHistorialLados++;
             }
+        } else if (ciclosDesdeUltimoBloqueo > 1) {
+            episodiosMismoLado++;
         }
         ultimoLadoBloqueado = lado;
         ciclosDesdeUltimoBloqueo = 0;
@@ -275,13 +294,16 @@ public class PlanificadorNavegacion {
 
     private void reiniciarMemoriaOscilaciones() {
         contadorOscilaciones = 0;
+        episodiosMismoLado = 0;
         ultimoLadoBloqueado = 0;
         indiceHistorialLados = 0;
         entradasHistorialLados = 0;
     }
 
     private boolean debeActivarAntiBucle() {
-        return contadorOscilaciones >= 2 || esPatronAlternante();
+        return contadorOscilaciones >= 2
+                || episodiosMismoLado >= UMBRAL_EPISODIOS_MISMO_LADO
+                || esPatronAlternante();
     }
 
     private boolean esPatronAlternante() {

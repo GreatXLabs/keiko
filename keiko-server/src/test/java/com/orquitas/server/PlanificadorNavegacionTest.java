@@ -210,7 +210,10 @@ public class PlanificadorNavegacionTest {
                 {"BLOQUEO", "BLOQUEO", "BLOQUEO"},
                 LIBRE,
                 LIBRE,
-                SALIDA_CEN
+                SALIDA_CEN,
+                {"SALIDA", "BLOQUEO", "ESPACIO_LIBRE"},
+                {"ESPACIO_LIBRE", "BLOQUEO", "SALIDA"},
+                {"SALIDA", "ESPACIO_LIBRE", "BLOQUEO"}
         };
 
         for (int i = 0; i < secuenciaBusqueda.length; i++) {
@@ -259,6 +262,110 @@ public class PlanificadorNavegacionTest {
         assertEquals(EstadoRobot.FINALIZACION, finCon.getEstado());
         assertEquals(0.0, finCon.getVLeft(), 1e-9);
         assertEquals(0.0, finCon.getVRight(), 1e-9);
+    }
+
+    @Test
+    public void testSameSidePerimeterLoopTriggersInwardBreakoutAfterFourEpisodes() {
+        assertSameSideBreakout(BLOQUEO_IZQ, 1);
+        assertSameSideBreakout(BLOQUEO_DER, -1);
+    }
+
+    @Test
+    public void testContinuousSameSideGrazeCountsAsSingleEpisode() {
+        PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
+        for (int ciclo = 0; ciclo < 15; ciclo++) {
+            ComandoRobot cmd = planner.evaluarPares(null, BLOQUEO_IZQ);
+            assertAll(
+                    () -> assertEquals(EstadoRobot.BUSQUEDA, cmd.getEstado()),
+                    () -> assertEquals(4.8, cmd.getVLeft(), 1e-9),
+                    () -> assertEquals(2.0, cmd.getVRight(), 1e-9)
+            );
+        }
+    }
+
+    @Test
+    public void testSameSideEpisodeMemoryIsForgottenAfterHorizon() {
+        PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
+        for (int ep = 0; ep < 3; ep++) {
+            assertForwardArc(planner.evaluarPares(null, BLOQUEO_IZQ), "episodio previo " + ep);
+            avanzarLibres(planner, 10);
+        }
+
+        // > 150 ciclos libres deben olvidar los episodios previos del mismo lado.
+        avanzarLibres(planner, 160);
+        ComandoRobot trasOlvido = planner.evaluarPares(null, BLOQUEO_IZQ);
+        assertAll(
+                () -> assertEquals(4.8, trasOlvido.getVLeft(), 1e-9),
+                () -> assertEquals(2.0, trasOlvido.getVRight(), 1e-9)
+        );
+    }
+
+    @Test
+    public void testSearchModeLateralSalidaWithCenterBloqueoBacksUpAndPivotsAway() {
+        assertDiezPasosRetrocesoYPivote(new String[]{"SALIDA", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
+        assertDiezPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "SALIDA"}, -1);
+
+        PlanificadorNavegacion libreDer = new PlanificadorNavegacion(null);
+        ComandoRobot arcIzq = libreDer.evaluarPares(null, SALIDA_IZQ);
+        assertAll(
+                () -> assertEquals(EstadoRobot.BUSQUEDA, arcIzq.getEstado()),
+                () -> assertEquals(3.8, arcIzq.getVLeft(), 1e-9),
+                () -> assertEquals(2.2, arcIzq.getVRight(), 1e-9)
+        );
+
+        PlanificadorNavegacion bloqueadoDer = new PlanificadorNavegacion(null);
+        ComandoRobot evadeDer = bloqueadoDer.evaluarPares(null, new String[]{"SALIDA", "ESPACIO_LIBRE", "BLOQUEO"});
+        assertAll(
+                () -> assertEquals(EstadoRobot.BUSQUEDA, evadeDer.getEstado()),
+                () -> assertEquals(2.0, evadeDer.getVLeft(), 1e-9),
+                () -> assertEquals(4.8, evadeDer.getVRight(), 1e-9)
+        );
+    }
+
+    private static void assertSameSideBreakout(String[] bloqueoLateral, int direccionPivoteInward) {
+        PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
+        PlanificadorNavegacion conSensores = new PlanificadorNavegacion(null);
+        VectorSensores dummyCerca = new VectorSensores(new double[]{2.5, 2.5, 2.5, 2.5, 2.5, 0.0}, 100L);
+
+        for (int ep = 0; ep < 3; ep++) {
+            ComandoRobot c1 = planner.evaluarPares(null, bloqueoLateral);
+            ComandoRobot c2 = conSensores.evaluarPares(dummyCerca, bloqueoLateral);
+            assertForwardArc(c1, "episodio " + (ep + 1));
+            assertComandoIgual("same-side ep " + (ep + 1), c1, c2);
+            avanzarLibres(planner, 10);
+            avanzarLibres(conSensores, 10);
+        }
+
+        // 4to episodio distinto del mismo lado dentro del horizonte debe activar breakout anti-bucle.
+        ComandoRobot breakout = planner.evaluarPares(null, bloqueoLateral);
+        ComandoRobot breakoutSens = conSensores.evaluarPares(dummyCerca, bloqueoLateral);
+        assertComandoIgual("same-side breakout", breakout, breakoutSens);
+        assertAll(
+                () -> assertEquals(EstadoRobot.BUSQUEDA, breakout.getEstado()),
+                () -> assertEquals(-4.2, breakout.getVLeft(), 1e-9),
+                () -> assertEquals(-4.2, breakout.getVRight(), 1e-9)
+        );
+
+        for (int ciclo = 0; ciclo < 11; ciclo++) {
+            ComandoRobot retroceso = planner.evaluarPares(null, LIBRE);
+            assertAll(
+                    () -> assertEquals(-4.2, retroceso.getVLeft(), 1e-9),
+                    () -> assertEquals(-4.2, retroceso.getVRight(), 1e-9)
+            );
+        }
+
+        double esperadoIzq = (direccionPivoteInward > 0) ? 4.2 : -2.4;
+        double esperadoDer = (direccionPivoteInward > 0) ? -2.4 : 4.2;
+        for (int ciclo = 0; ciclo < 16; ciclo++) {
+            ComandoRobot giro = planner.evaluarPares(null, LIBRE);
+            assertAll(
+                    () -> assertEquals(esperadoIzq, giro.getVLeft(), 1e-9),
+                    () -> assertEquals(esperadoDer, giro.getVRight(), 1e-9)
+            );
+        }
+
+        ComandoRobot posterior = planner.evaluarPares(null, LIBRE);
+        assertForwardArc(posterior, "reanudacion tras breakout");
     }
 
     private static void assertComandoIgual(String contexto, ComandoRobot esperado, ComandoRobot actual) {
