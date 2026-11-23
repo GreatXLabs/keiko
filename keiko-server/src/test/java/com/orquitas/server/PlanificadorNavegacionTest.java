@@ -190,6 +190,85 @@ public class PlanificadorNavegacionTest {
                 "El esquive lateral en ESCAPE tambien debe usar arco hacia adelante");
     }
 
+    @Test
+    public void testDecisionesDependenSoloDeTernaNeuronalYNoDeDistanciasCrudas() {
+        PlanificadorNavegacion sinSensores = new PlanificadorNavegacion(null);
+        PlanificadorNavegacion conSensoresExtremos = new PlanificadorNavegacion(null);
+        VectorSensores sensoresExtremosCerca = new VectorSensores(
+                new double[]{2.5, 2.5, 2.5, 2.5, 2.5, 30.0}, 1000L);
+        VectorSensores sensoresExtremosLejos = new VectorSensores(
+                new double[]{240.0, 240.0, 240.0, 240.0, 240.0, -30.0}, 2000L);
+
+        String[][] secuenciaBusqueda = {
+                LIBRE,
+                {"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"},
+                {"LOBITO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"},
+                {"ESPACIO_LIBRE", "ESPACIO_LIBRE", "LOBITO"},
+                LIBRE,
+                BLOQUEO_IZQ,
+                BLOQUEO_DER,
+                {"BLOQUEO", "BLOQUEO", "BLOQUEO"},
+                LIBRE,
+                LIBRE,
+                SALIDA_CEN
+        };
+
+        for (int i = 0; i < secuenciaBusqueda.length; i++) {
+            String[] terna = secuenciaBusqueda[i];
+            VectorSensores dummy = (i % 2 == 0) ? sensoresExtremosCerca : sensoresExtremosLejos;
+            ComandoRobot esperado = sinSensores.evaluarPares(null, terna);
+            ComandoRobot actual = conSensoresExtremos.evaluarPares(dummy, terna);
+            assertComandoIgual("BUSQUEDA/APROXIMACION/BLOQUEO paso " + i, esperado, actual);
+        }
+
+        sinSensores.notificarCaptura();
+        conSensoresExtremos.notificarCaptura();
+        for (int i = 0; i < 4; i++) {
+            VectorSensores dummy = (i % 2 == 0) ? sensoresExtremosCerca : sensoresExtremosLejos;
+            assertComandoIgual("post-captura paso " + i,
+                    sinSensores.evaluarPares(null, LIBRE),
+                    conSensoresExtremos.evaluarPares(dummy, LIBRE));
+        }
+
+        sinSensores.activarModoEscape();
+        conSensoresExtremos.activarModoEscape();
+
+        String[][] secuenciaEscape = {
+                LIBRE,
+                BLOQUEO_IZQ,
+                SALIDA_IZQ,
+                SALIDA_DER,
+                SALIDA_CEN,
+                {"BLOQUEO", "SALIDA", "BLOQUEO"},
+                LIBRE
+        };
+
+        for (int i = 0; i < secuenciaEscape.length; i++) {
+            String[] terna = secuenciaEscape[i];
+            VectorSensores dummy = (i % 2 == 0) ? sensoresExtremosCerca : sensoresExtremosLejos;
+            ComandoRobot esperado = sinSensores.evaluarPares(null, terna);
+            ComandoRobot actual = conSensoresExtremos.evaluarPares(dummy, terna);
+            assertComandoIgual("ESCAPE paso " + i, esperado, actual);
+        }
+
+        sinSensores.finalizar();
+        conSensoresExtremos.finalizar();
+        ComandoRobot finSin = sinSensores.evaluarPares(null, LIBRE);
+        ComandoRobot finCon = conSensoresExtremos.evaluarPares(sensoresExtremosCerca, LIBRE);
+        assertComandoIgual("FINALIZACION", finSin, finCon);
+        assertEquals(EstadoRobot.FINALIZACION, finCon.getEstado());
+        assertEquals(0.0, finCon.getVLeft(), 1e-9);
+        assertEquals(0.0, finCon.getVRight(), 1e-9);
+    }
+
+    private static void assertComandoIgual(String contexto, ComandoRobot esperado, ComandoRobot actual) {
+        assertAll(
+                () -> assertEquals(esperado.getEstado(), actual.getEstado(), contexto + " estado"),
+                () -> assertEquals(esperado.getVLeft(), actual.getVLeft(), 1e-9, contexto + " vLeft"),
+                () -> assertEquals(esperado.getVRight(), actual.getVRight(), 1e-9, contexto + " vRight")
+        );
+    }
+
     private static void assertForwardArc(ComandoRobot comando, String contexto) {
         assertTrue(comando.getVLeft() > 0.0 && comando.getVRight() > 0.0,
                 contexto + " debe resolverse con arco hacia adelante");
