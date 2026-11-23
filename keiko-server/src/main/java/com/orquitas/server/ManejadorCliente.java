@@ -27,6 +27,7 @@ public class ManejadorCliente implements Runnable {
     private final long cooldownCapturaMs;
     private final long intervaloHeartbeatMs;
     private final boolean autoStartEnHello;
+    private final EstadoMonitorTui monitorTui;
     private final AtomicBoolean conectado = new AtomicBoolean(true);
     private final AtomicBoolean autoStartEnviado = new AtomicBoolean(false);
 
@@ -60,6 +61,18 @@ public class ManejadorCliente implements Runnable {
                             long cooldownCapturaMs,
                             long intervaloHeartbeatMs,
                             boolean autoStartEnHello) {
+        this(socket, gestorEstomago, receptor, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null);
+    }
+
+    public ManejadorCliente(Socket socket, GestorEstomago gestorEstomago,
+                            ReceptorConexiones receptor,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs,
+                            boolean autoStartEnHello,
+                            EstadoMonitorTui monitorTui) {
         this.socket = socket;
         this.flujoEntrada = null;
         this.flujoSalida = null;
@@ -72,6 +85,7 @@ public class ManejadorCliente implements Runnable {
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
         this.autoStartEnHello = autoStartEnHello;
+        this.monitorTui = monitorTui;
     }
 
     public ManejadorCliente(InputStream flujoEntrada,
@@ -86,7 +100,7 @@ public class ManejadorCliente implements Runnable {
                             long intervaloHeartbeatMs) {
         this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
                 gestorEstomago, receptor, clasificador, planificador,
-                cooldownCapturaMs, intervaloHeartbeatMs, false);
+                cooldownCapturaMs, intervaloHeartbeatMs, false, null);
     }
 
     public ManejadorCliente(InputStream flujoEntrada,
@@ -100,6 +114,23 @@ public class ManejadorCliente implements Runnable {
                             long cooldownCapturaMs,
                             long intervaloHeartbeatMs,
                             boolean autoStartEnHello) {
+        this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
+                gestorEstomago, receptor, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null);
+    }
+
+    public ManejadorCliente(InputStream flujoEntrada,
+                            OutputStream flujoSalida,
+                            String descripcionOrigen,
+                            Closeable recursoCierre,
+                            GestorEstomago gestorEstomago,
+                            ReceptorConexiones receptor,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs,
+                            boolean autoStartEnHello,
+                            EstadoMonitorTui monitorTui) {
         this.socket = null;
         this.flujoEntrada = flujoEntrada;
         this.flujoSalida = flujoSalida;
@@ -112,6 +143,7 @@ public class ManejadorCliente implements Runnable {
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
         this.autoStartEnHello = autoStartEnHello;
+        this.monitorTui = monitorTui;
     }
 
     @Override
@@ -202,10 +234,19 @@ public class ManejadorCliente implements Runnable {
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_HELLO)) {
             procesarHello(linea);
         } else if (linea.equals(MensajeProtocolo.MSG_HEARTBEAT)) {
+            if (monitorTui != null) {
+                monitorTui.registrarHeartbeat(System.currentTimeMillis());
+            }
             enviarMensaje(MensajeProtocolo.crearHeartbeat());
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_DBG)) {
+            if (monitorTui != null) {
+                monitorTui.registrarDebugCliente(linea);
+            }
             LOGGER.fine("[DEBUG CLIENTE] " + linea);
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_ERROR)) {
+            if (monitorTui != null) {
+                monitorTui.registrarErrorCliente(linea);
+            }
             LOGGER.warning("[CLIENTE] " + linea);
         } else {
             LOGGER.warning("[PROTOCOLO] Mensaje no reconocido: " + linea);
@@ -227,8 +268,14 @@ public class ManejadorCliente implements Runnable {
                         descripcionOrigen, hs.version(), hs.rig(),
                         ConfiguracionServidor.VERSION_SISTEMA, ConfiguracionServidor.RIG_HARDWARE));
             }
+            if (monitorTui != null) {
+                monitorTui.registrarHandshake(descripcionOrigen, hs.version(), hs.rig(), versionOk && rigOk);
+            }
             if (autoStartEnHello && autoStartEnviado.compareAndSet(false, true)) {
                 LOGGER.info("[AUTO-START] Enviando CMD:START tras handshake a " + descripcionOrigen);
+                if (monitorTui != null) {
+                    monitorTui.registrarComandoControl("CMD:START (auto)");
+                }
                 enviarMensaje(MensajeProtocolo.crearCmdStart());
             }
         } catch (Exception e) {
@@ -245,6 +292,16 @@ public class ManejadorCliente implements Runnable {
             }
             String[] pares = clasificador.clasificarPares(sensores);
             ComandoRobot cmd = planificador.evaluarPares(sensores, pares);
+            if (monitorTui != null) {
+                monitorTui.registrarTelemetria(
+                        sensores, pares,
+                        clasificador.getUltimasConfianzasUs(),
+                        clasificador.getUltimaClaseCanica(),
+                        clasificador.getUltimaConfianzaCanica(),
+                        cmd,
+                        planificador.getContadorCiclos(),
+                        System.currentTimeMillis());
+            }
             LOGGER.info(String.format("[NAV] Terna=%s, Cmd=(%.1f, %.1f, %s), US=[%.1f, %.1f, %.1f], L=[%.1f, %.1f, %.1f°]",
                     java.util.Arrays.toString(pares), cmd.getVLeft(), cmd.getVRight(), cmd.getEstado(),
                     sensores.getUsLeft(), sensores.getUsCenter(), sensores.getUsRight(),
@@ -259,6 +316,9 @@ public class ManejadorCliente implements Runnable {
         try {
             String evento = linea.substring(MensajeProtocolo.PREFIX_EVENT.length()).trim();
             LOGGER.info("[EVENTO RECIBIDO] " + evento);
+            if (monitorTui != null) {
+                monitorTui.registrarEvento(evento);
+            }
 
             if (evento.contains("CAPTURA")) {
                 if (planificador != null && planificador.getEstado() == EstadoRobot.ESCAPE) {
@@ -276,8 +336,17 @@ public class ManejadorCliente implements Runnable {
                 }
                 ultimaCapturaMs = ahora;
                 int total = gestorEstomago.registrarCaptura(evento);
-                System.out.printf("[ESTOMAGO] Canica recolectada! Total persistido en estomago.txt: %d/%d (%s)%n",
-                        total, ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE, evento);
+                if (monitorTui != null) {
+                    monitorTui.actualizarEstomago(
+                            total,
+                            gestorEstomago.obtenerCapturasValidas(),
+                            total >= ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE);
+                    monitorTui.agregarLog("EVENT", String.format("Canica recolectada (%d/%d): %s",
+                            total, ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE, evento));
+                } else {
+                    System.out.printf("[ESTOMAGO] Canica recolectada! Total persistido en estomago.txt: %d/%d (%s)%n",
+                            total, ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE, evento);
+                }
                 if (planificador != null) {
                     planificador.notificarCaptura();
                 }
@@ -308,6 +377,9 @@ public class ManejadorCliente implements Runnable {
             } catch (IOException ignored) {}
             if (receptor != null) {
                 receptor.removerCliente(this);
+            }
+            if (monitorTui != null) {
+                monitorTui.registrarDesconexionCliente(descripcionOrigen);
             }
             LOGGER.info("[CLIENT HANDLER] Sesion cerrada: " + descripcionOrigen);
         }

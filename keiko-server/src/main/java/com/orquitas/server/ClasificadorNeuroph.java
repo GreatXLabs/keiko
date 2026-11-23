@@ -37,6 +37,8 @@ public class ClasificadorNeuroph {
 
     private final File archivoModelo;
     private double ultimaConfianza = 0.0;
+    private double[] ultimasConfianzasUs = new double[]{0.0, 0.0, 0.0};
+    private String ultimaClaseCanica = "NINGUNA";
 
     public ClasificadorNeuroph(File archivoModelo) {
         this.archivoModelo = archivoModelo;
@@ -181,7 +183,8 @@ public class ClasificadorNeuroph {
             }
         }
         this.ultimaConfianzaCanica = maxVal;
-        return CLASES_CANICAS_4[maxIdx];
+        this.ultimaClaseCanica = CLASES_CANICAS_4[maxIdx];
+        return this.ultimaClaseCanica;
     }
 
     // Evalúa un par coaxial individual (para compatibilidad con tests legacy y modelos de 2 entradas)
@@ -212,11 +215,20 @@ public class ClasificadorNeuroph {
         if (neuralNetLegacy != null) {
             if (neuralNetLegacy.getInputsCount() == 2) {
                 String cIzq = clasificarParLegacy(sensores.getDLowLeft(), sensores.getDHighLeft());
+                double confIzq = this.ultimaConfianza;
                 String cCen = clasificarParLegacy(sensores.getDLowCenter(), sensores.getDHighCenter());
+                double confCen = this.ultimaConfianza;
                 String cDer = clasificarParLegacy(sensores.getDLowRight(), sensores.getDHighRight());
+                double confDer = this.ultimaConfianza;
+                this.ultimasConfianzasUs = new double[]{confIzq, confCen, confDer};
+                this.ultimaClaseCanica = "NINGUNA";
+                this.ultimaConfianzaCanica = 0.0;
                 return new String[]{cIzq, cCen, cDer};
             } else {
                 String global = clasificarGlobalLegacy(sensores);
+                this.ultimasConfianzasUs = new double[]{this.ultimaConfianza, this.ultimaConfianza, this.ultimaConfianza};
+                this.ultimaClaseCanica = "NINGUNA";
+                this.ultimaConfianzaCanica = 0.0;
                 return traducirGlobalATerna(global);
             }
         }
@@ -229,7 +241,10 @@ public class ClasificadorNeuroph {
             double confCen = this.ultimaConfianza;
             String cDer = clasificarSectorUltrasonico(sensores.getUsRight());
             double confDer = this.ultimaConfianza;
+            this.ultimasConfianzasUs = new double[]{confIzq, confCen, confDer};
             this.ultimaConfianza = (confIzq + confCen + confDer) / 3.0;
+            this.ultimaClaseCanica = "NINGUNA";
+            this.ultimaConfianzaCanica = 0.0;
 
             String[] terna = new String[]{cIzq, cCen, cDer};
 
@@ -324,6 +339,26 @@ public class ClasificadorNeuroph {
 
     public double getUltimaConfianza() {
         return ultimaConfianza;
+    }
+
+    public synchronized double[] getUltimasConfianzasUs() {
+        return new double[]{ultimasConfianzasUs[0], ultimasConfianzasUs[1], ultimasConfianzasUs[2]};
+    }
+
+    public synchronized String getUltimaClaseCanica() {
+        return ultimaClaseCanica;
+    }
+
+    public boolean isRedUltrasonicoCargada() {
+        return neuralNetUltrasonico != null;
+    }
+
+    public boolean isRedCanicasCargada() {
+        return neuralNetCanicas != null;
+    }
+
+    public boolean isRedLegacyCargada() {
+        return neuralNetLegacy != null;
     }
 
     public NeuralNetwork<?> getNeuralNetUltrasonico() {
