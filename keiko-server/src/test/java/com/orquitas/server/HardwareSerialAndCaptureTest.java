@@ -51,7 +51,7 @@ public class HardwareSerialAndCaptureTest {
         // Cooldown de 180 ms y heartbeat cada 120 ms para test rápido y determinista
         ManejadorCliente sesionSerie = new ManejadorCliente(
                 serverRx, serverTx, "Serial:/dev/rfcomm0", () -> {},
-                gestorEstomago, null, clasificador, planificador, 180L, 120L);
+                gestorEstomago, clasificador, planificador, 180L, 120L);
 
         CountDownLatch escapeLatch = new CountDownLatch(1);
         AuditorEstomago auditor = new AuditorEstomago(gestorEstomago, 25, 3);
@@ -130,10 +130,13 @@ public class HardwareSerialAndCaptureTest {
     @Test
     public void testCliSerialConfigurationParsing() {
         ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(
-                new String[]{"--serial", "/dev/rfcomm0", "--baud", "9600", "--port", "5555"});
+                new String[]{"--serial", "/dev/rfcomm0", "--baud", "9600"});
         assertEquals("/dev/rfcomm0", cfg.getPuertoSerie());
         assertEquals(9600, cfg.getBaudiosSerie());
-        assertEquals(5555, cfg.getPuerto());
+
+        ConfiguracionServidor defaultCfg = ConfiguracionServidor.desdeArgumentos(new String[]{});
+        assertNotNull(defaultCfg.getPuertoSerie());
+        assertFalse(defaultCfg.getPuertoSerie().isBlank());
     }
 
     @Test
@@ -148,7 +151,7 @@ public class HardwareSerialAndCaptureTest {
 
         ManejadorCliente sesion = new ManejadorCliente(
                 serverRx, serverTx, "Test-Hello", () -> {},
-                gestorEstomago, null, clasificador, planificador, 180L, 5000L);
+                gestorEstomago, clasificador, planificador, 180L, 5000L);
 
         java.util.List<String> logs = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
         java.util.logging.Logger handlerLogger = java.util.logging.Logger.getLogger(ManejadorCliente.class.getName());
@@ -199,7 +202,7 @@ public class HardwareSerialAndCaptureTest {
 
         ManejadorCliente sesion = new ManejadorCliente(
                 serverRx, serverTx, "Test-Mega-AutoStart", () -> {},
-                gestorEstomago, null, clasificador, planificador, 180L, 5000L, true);
+                gestorEstomago, clasificador, planificador, 180L, 5000L, true);
 
         java.util.List<String> logs = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
         java.util.logging.Logger handlerLogger = java.util.logging.Logger.getLogger(ManejadorCliente.class.getName());
@@ -246,7 +249,7 @@ public class HardwareSerialAndCaptureTest {
 
         ManejadorCliente sesion = new ManejadorCliente(
                 serverRx, serverTx, "Test-SimEvents", () -> {},
-                gestorEstomago, null, clasificador, planificador, 180L, 5000L);
+                gestorEstomago, clasificador, planificador, 180L, 5000L);
 
         java.util.List<String> logs = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
         java.util.logging.Logger handlerLogger = java.util.logging.Logger.getLogger(ManejadorCliente.class.getName());

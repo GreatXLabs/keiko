@@ -2,15 +2,13 @@ package com.orquitas.server;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.logging.Logger;
 
 /**
  * Punto de entrada oficial del Servidor Central (Cerebro de la Orquita).
+ * Opera exclusivamente sobre enlace serie Bluetooth RFCOMM/SPP (sin servidor TCP).
  */
 public class ServidorCentral implements OyenteAuditor {
     private static final Logger LOGGER = Logger.getLogger(ServidorCentral.class.getName());
@@ -19,29 +17,29 @@ public class ServidorCentral implements OyenteAuditor {
     private final GestorEstomago gestorEstomago;
     private final ClasificadorNeuroph clasificador;
     private final PlanificadorNavegacion planificador;
-    private final ReceptorConexiones receptorConexiones;
     private final ReceptorSerie receptorSerie;
     private final AuditorEstomago auditor;
+    private final EstadoMonitorTui monitorTui;
+    private final ConsolaTui consolaTui;
 
     public ServidorCentral(ConfiguracionServidor configuracion) {
         this.configuracion = configuracion;
         this.gestorEstomago = new GestorEstomago(configuracion.getArchivoEstomago());
         this.clasificador = new ClasificadorNeuroph(configuracion.resolverArchivoModelo());
         this.planificador = new PlanificadorNavegacion(gestorEstomago);
-        this.receptorConexiones = new ReceptorConexiones(
-                configuracion.getPuerto(), gestorEstomago, clasificador, planificador,
-                configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs(),
-                configuracion.isAutoStartSolicitado());
+        this.monitorTui = new EstadoMonitorTui(
+                configuracion,
+                clasificador,
+                gestorEstomago.contarCapturasValidas(),
+                gestorEstomago.obtenerCapturasValidas());
+        boolean tuiActiva = configuracion.resolverModoTui(System.console() != null);
+        this.consolaTui = tuiActiva ? new ConsolaTui(monitorTui) : null;
 
-        if (configuracion.getPuertoSerie() != null && !configuracion.getPuertoSerie().isBlank()) {
-            this.receptorSerie = new ReceptorSerie(
-                    configuracion.getPuertoSerie(), configuracion.getBaudiosSerie(),
-                    gestorEstomago, clasificador, planificador,
-                    configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs(),
-                    configuracion.isAutoStartSolicitado());
-        } else {
-            this.receptorSerie = null;
-        }
+        this.receptorSerie = new ReceptorSerie(
+                configuracion.getPuertoSerie(), configuracion.getBaudiosSerie(),
+                gestorEstomago, clasificador, planificador,
+                configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs(),
+                configuracion.isAutoStartSolicitado(), monitorTui);
 
         this.auditor = new AuditorEstomago(
                 gestorEstomago, configuracion.getAuditorSondeoMs(), configuracion.getCapturasRequeridasEscape());
@@ -49,38 +47,47 @@ public class ServidorCentral implements OyenteAuditor {
     }
 
     public void iniciar() {
-        imprimirBanner();
-        imprimirDireccionesRed();
-        imprimirPuertosSerie();
+        List<String> puertos = ReceptorSerie.listarPuertosDisponibles();
+        monitorTui.actualizarPuertosSerie(puertos);
 
         int iniciales = gestorEstomago.contarCapturasValidas();
-        System.out.printf("[PERSISTENCIA] Archivo: %s | Capturas fisicas recuperadas: %d/%d%n",
-                configuracion.getArchivoEstomago().getAbsolutePath(), iniciales, configuracion.getCapturasRequeridasEscape());
-
         if (iniciales >= configuracion.getCapturasRequeridasEscape()) {
-            System.out.println("[ESTADO RESTAURADO] El estomago persistente ya tiene "
-                    + configuracion.getCapturasRequeridasEscape() + " capturas. Iniciando en MODO_ESCAPE.");
             planificador.activarModoEscape();
         }
 
-        auditor.iniciar();
-        receptorConexiones.iniciar();
-        if (receptorSerie != null) {
-            receptorSerie.iniciar();
+        if (consolaTui != null) {
+            consolaTui.iniciar();
+            monitorTui.agregarLog("INFO", String.format("Persistencia: %s (%d/%d capturas)",
+                    configuracion.getArchivoEstomago().getName(), iniciales, configuracion.getCapturasRequeridasEscape()));
+            monitorTui.agregarLog("INFO", String.format("Bluetooth SPP: %s @ %d bps",
+                    configuracion.getPuertoSerie(), configuracion.getBaudiosSerie()));
+            monitorTui.agregarLog("OK", "Servidor listo esperando telemetria de la Orquita por Bluetooth.");
+        } else {
+            imprimirBanner();
+            imprimirPuertosSerie(puertos);
+            System.out.printf("[PERSISTENCIA] Archivo: %s | Capturas fisicas recuperadas: %d/%d%n",
+                    configuracion.getArchivoEstomago().getAbsolutePath(), iniciales, configuracion.getCapturasRequeridasEscape());
+            if (iniciales >= configuracion.getCapturasRequeridasEscape()) {
+                System.out.println("[ESTADO RESTAURADO] El estomago persistente ya tiene "
+                        + configuracion.getCapturasRequeridasEscape() + " capturas. Iniciando en MODO_ESCAPE.");
+            }
+            System.out.println("[SISTEMA LISTO] Servidor operativo por Bluetooth y a la espera de telemetria de la Orquita...");
+            System.out.println("[CONTROL] Escribi 'start' (CMD:START), 'stop' (CMD:STOP) o 'reset' en consola, o usa --auto-start.\n");
         }
 
+        auditor.iniciar();
+        receptorSerie.iniciar();
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (consolaTui != null) {
+                consolaTui.detener();
+            }
             System.out.println("\n[SHUTDOWN] Deteniendo componentes concurrentes...");
             auditor.detener();
-            if (receptorSerie != null) {
-                receptorSerie.detener();
-            }
-            receptorConexiones.detener();
+            receptorSerie.detener();
             System.out.println("[SHUTDOWN] Servidor Central detenido limpiamente.");
         }));
 
-        System.out.println("[SISTEMA LISTO] Servidor operativo y a la espera de telemetria de la Orquita...");
-        System.out.println("[CONTROL] Escribi 'start' (CMD:START) o 'stop' (CMD:STOP) en consola, o usa --auto-start.\n");
         iniciarConsolaControl();
     }
 
@@ -90,12 +97,9 @@ public class ServidorCentral implements OyenteAuditor {
                 String linea;
                 while ((linea = br.readLine()) != null) {
                     String cmd = linea.trim().toLowerCase();
-                    if ("start".equals(cmd) || "k".equals(cmd)) {
-                        enviarComandoControl(MensajeProtocolo.crearCmdStart());
-                        System.out.println("[CONTROL] Enviado CMD:START a clientes conectados.");
-                    } else if ("stop".equals(cmd) || "x".equals(cmd)) {
-                        enviarComandoControl(MensajeProtocolo.crearCmdStop());
-                        System.out.println("[CONTROL] Enviado CMD:STOP a clientes conectados.");
+                    procesarComandoConsola(cmd);
+                    if (consolaTui != null) {
+                        consolaTui.solicitarLimpiezaCompleta();
                     }
                 }
             } catch (Exception ignored) {
@@ -106,50 +110,46 @@ public class ServidorCentral implements OyenteAuditor {
         consola.start();
     }
 
-    public void enviarComandoControl(String mensaje) {
-        receptorConexiones.transmitirATodos(mensaje);
-        if (receptorSerie != null) {
-            receptorSerie.transmitirATodos(mensaje);
+    void procesarComandoConsola(String cmd) {
+        if ("start".equals(cmd) || "k".equals(cmd)) {
+            enviarComandoControl(MensajeProtocolo.crearCmdStart());
+            monitorTui.registrarComandoControl("CMD:START");
+            if (consolaTui == null) {
+                System.out.println("[CONTROL] Enviado CMD:START a clientes conectados.");
+            }
+        } else if ("stop".equals(cmd) || "x".equals(cmd)) {
+            enviarComandoControl(MensajeProtocolo.crearCmdStop());
+            monitorTui.registrarComandoControl("CMD:STOP");
+            if (consolaTui == null) {
+                System.out.println("[CONTROL] Enviado CMD:STOP a clientes conectados.");
+            }
+        } else if ("reset".equals(cmd)) {
+            gestorEstomago.vaciarEstomago();
+            planificador.reiniciarParaPrueba();
+            monitorTui.registrarResetPrueba();
+            if (consolaTui == null) {
+                System.out.println("[CONTROL] Estomago vaciado y planificador reiniciado a BUSQUEDA.");
+            }
+        } else if ("view".equals(cmd) || "v".equals(cmd)) {
+            if (consolaTui != null) {
+                boolean compacto = consolaTui.alternarModoCompacto();
+                monitorTui.agregarLog("CTRL", "Vista cambiada a modo " + (compacto ? "COMPACTO" : "DETALLADO"));
+            }
+        } else if ("clear".equals(cmd) || "c".equals(cmd)) {
+            monitorTui.limpiarLogs();
         }
     }
 
+    public void enviarComandoControl(String mensaje) {
+        receptorSerie.transmitirATodos(mensaje);
+    }
+
     private void imprimirBanner() {
-        System.out.println("______ __    ___________        ");
-        System.out.println("___  //_/_______(_)__  /_______ ");
-        System.out.println("__  ,<  _  _ \\_  /__  //_/  __ \\");
-        System.out.println("_  /| | /  __/  / _  ,<  / /_/ /");
-        System.out.println("/_/ |_| \\___//_/  /_/|_| \\____/ ");
-        System.out.println();
-        System.out.println("==================================================================");
-        System.out.println("  PROYECTO ORQUITAS (KEIKO) - SERVIDOR CENTRAL (CEREBRO)");
-        System.out.printf("  Version: %s | Rig: %s%n",
-                ConfiguracionServidor.VERSION_SISTEMA, ConfiguracionServidor.RIG_HARDWARE);
-        System.out.println("  Programacion Sobre Redes & Desarrollo de Sistemas - Ciclo 2026");
-        System.out.println("  Neuroph 2.98 (2 Redes: 3US + 2Laser) + Bluetooth SPP / TCP");
-        System.out.println("==================================================================\n");
+        ConsolaTui.imprimirBannerPlano(
+                System.out, ConfiguracionServidor.VERSION_SISTEMA, ConfiguracionServidor.RIG_HARDWARE);
     }
 
-    private void imprimirDireccionesRed() {
-        try {
-            System.out.println("[INTERFACES TCP DISPONIBLES]:");
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            while (interfaces.hasMoreElements()) {
-                NetworkInterface iface = interfaces.nextElement();
-                if (iface.isLoopback() || !iface.isUp()) continue;
-                Enumeration<InetAddress> addresses = iface.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress addr = addresses.nextElement();
-                    if (addr instanceof java.net.Inet4Address) {
-                        System.out.printf("   - %s: %s (Puerto TCP: %d)%n",
-                                iface.getName(), addr.getHostAddress(), configuracion.getPuerto());
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-    }
-
-    private void imprimirPuertosSerie() {
-        List<String> puertos = ReceptorSerie.listarPuertosDisponibles();
+    private void imprimirPuertosSerie(List<String> puertos) {
         System.out.println("[PUERTOS SERIE / BLUETOOTH SPP DETECTADOS]:");
         if (puertos.isEmpty()) {
             System.out.println("   (ninguno detectado actualmente; podes usar --serial COMx o /dev/rfcomm0)");
@@ -158,21 +158,33 @@ public class ServidorCentral implements OyenteAuditor {
                 System.out.println("   - " + p);
             }
         }
-        if (configuracion.getPuertoSerie() != null) {
-            System.out.printf("[MODO HARDWARE ACTIVO] Escuchando puerto serie %s @ %d bps%n",
-                    configuracion.getPuertoSerie(), configuracion.getBaudiosSerie());
-        }
+        System.out.printf("[MODO BLUETOOTH ACTIVO] Escuchando puerto serie %s @ %d bps%n",
+                configuracion.getPuertoSerie(), configuracion.getBaudiosSerie());
     }
 
     @Override
     public void onCapturaAuditada(int total) {
-        System.out.printf("[AUDITOR] Capturas confirmadas en estomago.txt: %d/%d%n",
-                total, configuracion.getCapturasRequeridasEscape());
+        monitorTui.actualizarEstomago(
+                total,
+                gestorEstomago.obtenerCapturasValidas(),
+                total >= configuracion.getCapturasRequeridasEscape());
+        if (consolaTui != null) {
+            monitorTui.agregarLog("INFO", String.format("[AUDITOR] Capturas en estomago.txt: %d/%d",
+                    total, configuracion.getCapturasRequeridasEscape()));
+        } else {
+            System.out.printf("[AUDITOR] Capturas confirmadas en estomago.txt: %d/%d%n",
+                    total, configuracion.getCapturasRequeridasEscape());
+        }
     }
 
     @Override
     public void onModoEscapeActivado(List<RegistroCaptura> caps) {
         planificador.activarModoEscape();
+        monitorTui.actualizarEstomago(
+                caps != null ? caps.size() : gestorEstomago.contarCapturasValidas(),
+                caps,
+                true);
+        monitorTui.agregarLog("EVENT", "AUDITOR ACTIVO MODO ESCAPE (3/3 capturas confirmadas)");
         enviarComandoControl(MensajeProtocolo.crearModoEscape());
     }
 

@@ -362,4 +362,26 @@ public class PlanificadorNavegacion {
     }
 
     public synchronized int getCiclosSinSalidaEscape() { return ciclosSinSalidaEscape; }
+
+    public synchronized int getContadorCiclos() { return contadorCiclos; }
+
+    /** Reinicia el estado conductual de navegacion a BUSQUEDA para pruebas tras resetear el estomago. */
+    public synchronized void reiniciarParaPrueba() {
+        this.estado = EstadoRobot.BUSQUEDA;
+        this.pasosRetrocesoRestantes = 0;
+        this.velRetrocesoIzq = 0.0;
+        this.velRetrocesoDer = 0.0;
+        this.pasosGiroComprometido = 0;
+        this.velGiroIzq = 0.0;
+        this.velGiroDer = 0.0;
+        this.contadorCiclos = 0;
+        this.contadorReversosConsecutivos = 0;
+        this.ciclosDesdeUltimoReverso = 200;
+        this.ciclosDesdeUltimoBloqueo = HORIZONTE_OLVIDO_OSCILACIONES;
+        this.ciclosPersistenciaLobito = 0;
+        this.ultimoLobito = null;
+        this.ciclosSinSalidaEscape = 0;
+        reiniciarMemoriaOscilaciones();
+        LOGGER.info("[PRUEBA] Planificador reiniciado a modo BUSQUEDA.");
+    }
 }

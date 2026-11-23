@@ -25,6 +25,7 @@ public class ReceptorSerie implements Runnable {
     private final long cooldownCapturaMs;
     private final long intervaloHeartbeatMs;
     private final boolean autoStartEnHello;
+    private final EstadoMonitorTui monitorTui;
 
     private volatile boolean corriendo = false;
     private volatile ManejadorCliente sesionActiva;
@@ -50,6 +51,19 @@ public class ReceptorSerie implements Runnable {
                          long cooldownCapturaMs,
                          long intervaloHeartbeatMs,
                          boolean autoStartEnHello) {
+        this(nombrePuerto, baudios, gestorEstomago, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null);
+    }
+
+    public ReceptorSerie(String nombrePuerto,
+                         int baudios,
+                         GestorEstomago gestorEstomago,
+                         ClasificadorNeuroph clasificador,
+                         PlanificadorNavegacion planificador,
+                         long cooldownCapturaMs,
+                         long intervaloHeartbeatMs,
+                         boolean autoStartEnHello,
+                         EstadoMonitorTui monitorTui) {
         this.nombrePuerto = nombrePuerto;
         this.baudios = baudios;
         this.gestorEstomago = gestorEstomago;
@@ -58,6 +72,7 @@ public class ReceptorSerie implements Runnable {
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
         this.autoStartEnHello = autoStartEnHello;
+        this.monitorTui = monitorTui;
     }
 
     public static List<String> listarPuertosDisponibles() {
@@ -97,14 +112,20 @@ public class ReceptorSerie implements Runnable {
             }
 
             puertoActivo = port;
-            System.out.printf("[BLUETOOTH/SERIE CONECTADO] Enlace abierto en %s @ %d bps%n", nombrePuerto, baudios);
+            String origenSerie = "Serie:" + nombrePuerto + "@" + baudios;
+            if (monitorTui != null) {
+                monitorTui.registrarConexionCliente(origenSerie, 1);
+                monitorTui.agregarLog("OK", String.format("Enlace serie abierto en %s @ %d bps", nombrePuerto, baudios));
+            } else {
+                System.out.printf("[BLUETOOTH/SERIE CONECTADO] Enlace abierto en %s @ %d bps%n", nombrePuerto, baudios);
+            }
 
             try (InputStream in = port.getInputStream();
                  OutputStream out = port.getOutputStream()) {
                 ManejadorCliente manejador = new ManejadorCliente(
-                        in, out, "Serie:" + nombrePuerto + "@" + baudios,
-                        port::closePort, gestorEstomago, null, clasificador, planificador,
-                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello);
+                        in, out, origenSerie,
+                        port::closePort, gestorEstomago, clasificador, planificador,
+                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui);
                 sesionActiva = manejador;
                 manejador.run();
             } catch (Exception e) {
