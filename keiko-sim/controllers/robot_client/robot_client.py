@@ -10,6 +10,7 @@ Nueva configuración de hardware:
 
 import sys
 import os
+import json
 import time
 import math
 import socket
@@ -34,6 +35,58 @@ except Exception:
 
 KEIKO_VERSION = "2.0.0-audit.2"
 KEIKO_RIG = "mega-3us-2laser"
+
+DEFAULT_SWEEP_CONFIG = (-45.0, 60.0, 5.0)
+SIMULATION_PARAMS_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "config", "simulation_params.json")
+)
+
+
+def load_sweep_config(params_path=None):
+    """Carga (min_deg, max_deg, step_deg) desde simulation_params.json con fallback al rig Mega."""
+    path = params_path or SIMULATION_PARAMS_PATH
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        sweep = data.get("servo_sweep")
+        if not isinstance(sweep, dict):
+            return DEFAULT_SWEEP_CONFIG
+        min_deg = float(sweep.get("min_deg", DEFAULT_SWEEP_CONFIG[0]))
+        max_deg = float(sweep.get("max_deg", DEFAULT_SWEEP_CONFIG[1]))
+        step_deg = float(sweep.get("step_deg", DEFAULT_SWEEP_CONFIG[2]))
+        if step_deg <= 0.0 or min_deg > max_deg:
+            return DEFAULT_SWEEP_CONFIG
+        return (min_deg, max_deg, step_deg)
+    except Exception:
+        return DEFAULT_SWEEP_CONFIG
+
+
+def build_sweep_angles(min_deg, max_deg, step_deg):
+    """Construye la secuencia discreta de ángulos de barrido espejo [min_deg..max_deg]."""
+    step = float(step_deg)
+    low = float(min_deg)
+    high = float(max_deg)
+    if step <= 0.0:
+        raise ValueError("step_deg must be positive")
+    if low > high:
+        raise ValueError("min_deg must not exceed max_deg")
+    angles = []
+    a = low
+    while a <= high + 1e-5:
+        angles.append(round(a, 1))
+        a += step
+    if angles[-1] < high - 1e-5:
+        angles.append(round(high, 1))
+    return angles
+
+
+def format_telemetry_line(us_izq, us_cen, us_der, laser_izq, laser_der, servo_deg, ts_ms):
+    """Formatea la trama TELEMETRY de 7 campos idéntica al firmware Mega (sin pose)."""
+    return (
+        f"TELEMETRY:{float(us_izq):.2f},{float(us_cen):.2f},{float(us_der):.2f},"
+        f"{float(laser_izq):.2f},{float(laser_der):.2f},{float(servo_deg):.1f},"
+        f"{int(ts_ms)}\n"
+    )
 
 LOG_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs", "simulation_client.log"))
 os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)
@@ -203,25 +256,14 @@ def main():
 
     mapper = ArenaMapper(x_min=-1.15, x_max=1.15, y_min=-0.80, y_max=max(0.70, exit_pos[1] + 0.20), res=0.10, exit_pos=exit_pos)
 
-    # 6. Máquina de Barrido de Radar por Tics en Espejo
-    # Barrido fino tic a tic (5.0° por unidad) desde -20° (boca central despejada) hasta +35° (flancos laterales)
+    # 6. Máquina de Barrido Continuo en Espejo (-45.0°..+60.0°, paso 5.0°, idéntico a Mega)
     sweep_step_ticks = int(os.environ.get("ORQUITAS_RADAR_TICKS", os.environ.get("ORQUITAS_SWEEP_TICKS", "1")))
-    sweep_deg_step = float(os.environ.get("ORQUITAS_RADAR_STEP_DEG", os.environ.get("ORQUITAS_SWEEP_STEP_DEG", "5.0")))
-    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", os.environ.get("ORQUITAS_SWEEP_MIN_DEG", "-15.0")))
-    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", os.environ.get("ORQUITAS_SWEEP_MAX_DEG", "35.0")))
+    default_min_deg, default_max_deg, default_step_deg = load_sweep_config()
+    sweep_deg_step = float(os.environ.get("ORQUITAS_RADAR_STEP_DEG", os.environ.get("ORQUITAS_SWEEP_STEP_DEG", str(default_step_deg))))
+    sweep_min_deg = float(os.environ.get("ORQUITAS_RADAR_MIN_DEG", os.environ.get("ORQUITAS_SWEEP_MIN_DEG", str(default_min_deg))))
+    sweep_max_deg = float(os.environ.get("ORQUITAS_RADAR_MAX_DEG", os.environ.get("ORQUITAS_SWEEP_MAX_DEG", str(default_max_deg))))
 
-    radar_full_angles = []
-    a = sweep_min_deg
-    while a <= sweep_max_deg + 1e-5:
-        radar_full_angles.append(round(a, 1))
-        a += sweep_deg_step
-    if radar_full_angles[-1] < sweep_max_deg - 1e-5:
-        radar_full_angles.append(round(sweep_max_deg, 1))
-
-    approach_binocular_angles = [-12.0, -6.0, 0.0, 6.0, 12.0]
-    escape_guard_angles = [-10.0, 0.0, 10.0, 20.0]
-
-    sweep_angles = list(radar_full_angles)
+    sweep_angles = build_sweep_angles(sweep_min_deg, sweep_max_deg, sweep_deg_step)
     sweep_idx = 0
     sweep_dir = 1  # +1 aumentando, -1 disminuyendo
     current_servo_deg = sweep_angles[0]
@@ -257,11 +299,6 @@ def main():
             last_command_wall_time = time.monotonic()
             in_failsafe = False
             log_msg(f"[CONEXIÓN] Enlace establecido con Servidor Central en {server_host}:{server_port}")
-            try:
-                init_event = f"EVENT:SALIDA_META:{exit_pos[0]:.2f},{exit_pos[1]:.2f}\n"
-                s.sendall(init_event.encode("utf-8"))
-            except Exception:
-                pass
             return True
         except Exception:
             set_drive_velocities(0.0, 0.0)
@@ -284,32 +321,20 @@ def main():
             continue
 
         # -----------------------------------------------------------------
-        # 1. CONTROL DE BARRIDO DE SERVOS POR TICS (RADAR + BINOCULAR + LATERAL)
+        # 1. CONTROL DE BARRIDO CONTINUO DE SERVOS EN ESPEJO (-45°..+60°)
         # -----------------------------------------------------------------
         ticks_in_current_step += 1
         if ticks_in_current_step >= sweep_step_ticks:
             ticks_in_current_step = 0
-            if current_server_state == "APROXIMACION":
-                target_table = approach_binocular_angles
-            elif current_server_state == "ESCAPE":
-                target_table = escape_guard_angles
-            else:
-                target_table = radar_full_angles
-
-            if sweep_angles != target_table:
-                # Reenganchar en el tic más cercano al ángulo actual para no saltar brusco
-                closest_i = min(range(len(target_table)), key=lambda i: abs(target_table[i] - current_servo_deg))
-                sweep_angles = list(target_table)
-                sweep_idx = closest_i
-
             max_idx = len(sweep_angles) - 1
-            sweep_idx += sweep_dir
-            if sweep_idx >= max_idx:
-                sweep_idx = max_idx
-                sweep_dir = -1
-            elif sweep_idx <= 0:
-                sweep_idx = 0
-                sweep_dir = 1
+            if max_idx > 0:
+                sweep_idx += sweep_dir
+                if sweep_idx >= max_idx:
+                    sweep_idx = max_idx
+                    sweep_dir = -1
+                elif sweep_idx <= 0:
+                    sweep_idx = 0
+                    sweep_dir = 1
             current_servo_deg = sweep_angles[sweep_idx]
 
             # Comandar servos en espejo
@@ -487,16 +512,20 @@ def main():
                 break
 
         # -----------------------------------------------------------------
-        # 5. TRANSMISIÓN DE TELEMETRÍA (6 SENSORES + TS + 3 POSE = 10 CAMPOS)
+        # 5. TRANSMISIÓN DE TELEMETRÍA (6 SENSORES + TS = 7 CAMPOS, SIN POSE)
         # -----------------------------------------------------------------
         if sim_time < 0.15:
             robot.step(time_step)
             continue
 
-        telemetry_msg = (
-            f"TELEMETRY:{d_us_izq:.2f},{d_us_cen:.2f},{d_us_der:.2f},"
-            f"{d_laser_izq:.2f},{d_laser_der:.2f},{current_servo_deg:.1f},"
-            f"{int(sim_time*1000)},{rx:.3f},{ry:.3f},{yaw:.3f}\n"
+        telemetry_msg = format_telemetry_line(
+            d_us_izq,
+            d_us_cen,
+            d_us_der,
+            d_laser_izq,
+            d_laser_der,
+            current_servo_deg,
+            int(sim_time * 1000),
         )
         try:
             sock.sendall(telemetry_msg.encode("utf-8"))
@@ -594,11 +623,6 @@ def main():
                    "rear_left" if (local_fwd < 0 and local_lat >= 0) else "rear_right"
             ))
             log_msg(f"[{elapsed_sec:05.1f}s | COLISIÓN -5 pts] Impacto #{collisions_count} ({lado}) en pos=({collision_point[0]:.2f}, {collision_point[1]:.2f}, {collision_point[2]:.2f})")
-            if sock:
-                try:
-                    sock.sendall(f"EVENT:COLISION,impacto={collisions_count},lado={lado}\n".encode("utf-8"))
-                except Exception:
-                    pass
         was_colliding = collision_now
 
     if dataset_recorder is not None:
