@@ -1,6 +1,8 @@
-# Auditoría Técnica de Consolidación y Cumplimiento Anti-Hardcoding (`v2.0.0-audit.1`)
+# Auditoría Técnica de Consolidación y Cumplimiento Anti-Hardcoding (`v2.0.0-audit.1` → Resuelta en `v2.0.0`)
 
-**Estado del repositorio:** Fase A (`2.0.0-audit.1`) sobre rama `chore/repo-reorg-and-audit` (HEAD `f86830c`)  
+> **Resolución Fase B (`2026-11-23`):** Todos los hallazgos inventariados en esta auditoría (`SIM-01..13`, `HRD-01..14` y `COMP-01..05`) fueron **erradicados y verificados** en la versión **`2.0.0`**. Las secciones §§1–6 se preservan como registro histórico de la línea base `2.0.0-audit.1`; el cierre técnico, hashes `.nnet` y evidencia de pruebas de `v2.0.0` se documentan en **[§7. Fase B (`v2.0.0`) — Resolución Final](#7-fase-b-v200--resolución-final)**.
+
+**Estado del repositorio (línea base histórica Fase A):** Fase A (`2.0.0-audit.1`) sobre rama `chore/repo-reorg-and-audit` (HEAD `f86830c`)  
 **Configuración de hardware objetivo (`rig`):** `mega-3us-2laser` (3× HC-SR04 fijos a 5.5 cm + 2× VL53L0X sobre servos SG90 + 1× VL53L0X estómago + tracción 4WD L293D)  
 **Regla rectora evaluada:**  
 > *Sensores directo a la red neuronal (`Neuroph 2.98`); prohibido hardcodear decisiones de navegación con umbrales crudos o usar atajos de simulación (`hasPose`, `SALIDA_META`, `posX`/`posY`/`theta`).*
@@ -177,3 +179,69 @@ Todas las pruebas se ejecutaron el **2026-11-21** sobre el estado exacto de `HEA
    - Corregir `live_visualizer.py:231` (`marble_positions` -> `active_obstacles_xy` o retiro del controlador coaxial si queda archivado).
    - Actualizar `test_meshes_and_arena.py` y `test_ultrasonic_physics.py` a la geometría y API actual de `build_worlds.py` / `ultrasonic_physics.py`, y ajustar el gap de salida en `build_worlds.py` para cumplir exactamente `0.30 ± 0.005 m`.
    - Etiquetar release final **`v2.0.0`** una vez que pruebas Java, pruebas Python y pruebas de hardware real en pista pasen sin atajos de simulación ni hardcoding sensorial.
+
+---
+
+## 7. Fase B (`v2.0.0`) — Resolución Final
+
+**Fecha de cierre:** `2026-11-23` | **Rama:** `feat/phase-b-pure-nn-v2` | **Versión / Rig:** `2.0.0` | `mega-3us-2laser`
+
+En Fase B se ejecutó la erradicación integral de todos los atajos de simulación (`SIM-01..13`), reglas sensoriales hardcodeadas (`HRD-01..14`) y desalineaciones complementarias (`COMP-01..05`), validando el sistema 100% bajo inferencia pura de **Neuroph 2.98** y FSM simbólica.
+
+### 7.1 Trazabilidad de Commits de Resolución (Fase B)
+
+| Commit | Alcance | Hallazgos Resueltos |
+| :--- | :--- | :--- |
+| `5643e43` | Eliminación de parseo de pose en `MensajeProtocolo.java` y de rama `EVENT:SALIDA_META` en `ManejadorCliente.java` | `SIM-03`, `SIM-04` |
+| `c4db3fd` | Eliminación de filtros post-inferencia (`servoDeg >= 18`, reasignaciones por `dl`/`dr`) en `ClasificadorNeuroph.java` | `HRD-01`, `HRD-02`, `COMP-05` |
+| `0d72038` | Reescritura de `PlanificadorNavegacion.java` como FSM puramente simbólica sobre etiquetas neuronales y retiro de campos de pose en `VectorSensores.java` | `SIM-03`, `SIM-05..13`, `HRD-03..14`, `COMP-01`, `COMP-02` |
+| `5a76c63` | Alineación de `robot_client.py` a tramas `TELEMETRY:` de 7 campos (sin pose ni `EVENT:SALIDA_META`) y barrido continuo `[-45°, +60°]` | `SIM-01`, `SIM-02`, `COMP-01` |
+| `18fa9dd` | Reparación de `live_visualizer.py`, ajuste de salida a `0.300 m` exactos en `build_worlds.py` y alineación completa de la suite `unittest` | Bug `live_visualizer.py:231`, gap `0.300 m`, `keiko-sim/tests` |
+| `964d654` | Remediación física/geométrica de `generate_datasets.py` y reentrenamiento Neuroph 2.98 (`modelo_canicas.nnet` + `modelo_ultrasonico.nnet`) | Validación pura Red 1 + Red 2 (`HRD-01..14`, `COMP-05`) |
+| `4e51a59` | Breakout simbólico ante episodios repetidos de bloqueo en un mismo lado, guarda `SALIDA`+`BLOQUEO` en `BUSQUEDA` y alineación de `benchmark_hil.py` | Pulido simbólico FSM + HIL `[-45°, +60°]` |
+| Cierre `2.0.0` | Endurecimiento de firmware (`#define PERMITIR_MANUAL 0`) y sincronización de versión `2.0.0` en los 9 puntos verificados | `COMP-03` (`COMP-04` cerrado en `2.0.0-audit.2`) |
+
+### 7.2 Estado Final de Hallazgos (`SIM-01..13`, `HRD-01..14`, `COMP-01..05`)
+
+| Grupo | Rango | Estado en `v2.0.0` | Verificación Técnica |
+| :--- | :--- | :---: | :--- |
+| **Atajos de Simulación** | `SIM-01` .. `SIM-13` | **RESUELTO** | `VectorSensores` sin `hasPose`/`posX`/`posY`/`theta`; `TELEMETRY:` estricto de 7 campos; `test_robot_client_protocol.py` (3/3 OK) y `HardwareSerialAndCaptureTest` (5/5 OK) verifican rechazo/ausencia de `EVENT:SALIDA_META`. |
+| **Hardcoding Sensorial** | `HRD-01` .. `HRD-14` | **RESUELTO** | `ClasificadorNeuroph` ejecuta `NeuralNetwork.calculate()` + argmax sin filtros por cm/ángulo; `PlanificadorNavegacionTest` (14/14 OK) verifica que decisiones dependen exclusivamente de la terna neuronal `[IZQ, CEN, DER]` sin leer distancias crudas. |
+| **Complementarios** | `COMP-01` .. `COMP-05` | **RESUELTO** | `COMP-01`: barrido unificado `[-45°, +60°]` en firmware, `simulation_params.json` y `robot_client.py`. `COMP-02`: navegación desacoplada de `EVENT:COLISION`. `COMP-03`: `#define PERMITIR_MANUAL 0` en `orquita_firmware.ino` (requiere `1` explícito para pruebas de banco `wasdkx`). `COMP-04`: rearmado de estómago ligado a `STATE_CHANGE` del servidor. `COMP-05`: calibración conjunta Red 1 + Red 2 validada sin reglas crudas. |
+
+### 7.3 Artefactos `.nnet` Finales y Métricas Neuroph 2.98 (`v2.0.0`)
+
+Los archivos binarios `.nnet` son idénticos byte a byte en `keiko-sim/data/models/`, `keiko-server/models/` y `keiko-server/src/main/resources/models/`:
+
+| Modelo | Arquitectura | Dataset / Épocas | Métricas de Test (Neuroph 2.98) | Tamaño | SHA-256 |
+| :--- | :---: | :---: | :--- | :---: | :--- |
+| `modelo_ultrasonico.nnet` | `1 → 8 → 3` | `6 000` filas (`4 200` train / `1 800` test), `41` iter (`85 ms`) | Accuracy **`99.17%`**, F1 **`0.9917`**, RMSE **`0.05593`** | `5 373 B` | `9e932230e84a2a0ef79bcc17d2f510df87d1936e87ef27828ab79fe4285c7877` |
+| `modelo_canicas.nnet` | `6 → 32 → 16 → 4` | `8 000` filas (`5 600` train / `2 400` test), `1 200` iter (`48 171 ms`) | Accuracy **`97.29%`**, F1 **`0.9730`**, RMSE **`0.09970`** | `35 745 B` | `7fb3ed7d2c461b19fa2cb36d2dd97108b874c20928bea41aeaa82df56f66236d` |
+
+### 7.4 Resultados HIL Webots Headless (`scen_1..8`, `100%` Neuroph 2.98 puro)
+
+- **Benchmark post-reentrenamiento (`964d654`, `CAPTURE_COOLDOWN_MS=0`, barrido `[-45°, +60°]`):** reducción de colisiones del **~52%** frente a los pesos pre-Fase B (`165 → 79` colisiones en `180 s`; `123 → 44` en `90 s`), con `3/24` capturas en la corrida final (`7/24` en corrida intermedia `v3-cb`, incluyendo `scen_4` `3/3` + `ESCAPE` verificado en `169.2 s`).
+- **Benchmark tras breakout simbólico de perímetro (`4e51a59`, `python3 keiko-sim/scripts/benchmark_hil.py --scenarios 1-8 --port 8888`):** **`7/24` capturas (`+133%`)** y **`58` colisiones (`-26.6%`)** en `scen_1..8`, con `5/8` escenarios en `PARTIAL` (`SCEN-1` `2/3`, `SCEN-4` `1/3`, `SCEN-5` `2/3`, `SCEN-7` `1/3`, `SCEN-8` `1/3`).
+
+### 7.5 Evidencia Exacta de Verificación Final (`v2.0.0`)
+
+1. **Sincronización de versiones (`./scripts/check_versions.sh`):**
+   - `exit 0` — **9/9 `[OK]`** (`2.0.0 | mega-3us-2laser`).
+2. **Servidor Java (`cd keiko-server && mvn clean test && mvn package -DskipTests=true`):**
+   - `exit 0` — **47/47 tests PASS** (`0` Failures, `0` Errors, `0` Skipped, `2.501 s`):
+     - `ProtocolParserTest`: `10/10`
+     - `PlanificadorNavegacionTest`: `14/14`
+     - `ConfiguracionServidorTest`: `4/4`
+     - `HardwareSerialAndCaptureTest`: `5/5`
+     - `TwoNetworksInferenceTest`: `5/5`
+     - `ConcurrencyEstomagoTest`: `2/2`
+     - `Hito2IntegrationTest`: `2/2`
+     - `NeurophInferenceTest`: `5/5`
+   - Empaquetado shaded JAR (`mvn package -DskipTests=true`): `BUILD SUCCESS` (`0.637 s`, `keiko-server/target/keiko-server.jar`).
+3. **Simulador Python (`python3 -m unittest discover -s keiko-sim/tests -v`):**
+   - `exit 0` — **33/33 tests OK** (`8.006 s`):
+     - `test_coaxial_neural_planner.py`: `15/15`
+     - `test_collision_audit.py`: `5/5`
+     - `test_meshes_and_arena.py`: `6/6` (incluye `TestWebotsHeadlessLoad.test_webots_loads_new_world_without_vrml_errors` y verificación de gap de salida `0.300 m`)
+     - `test_robot_client_protocol.py`: `3/3`
+     - `test_ultrasonic_physics.py`: `4/4`

@@ -1,6 +1,6 @@
 # Keiko-Sim: Entorno de Simulación Robótica 3D
 
-Módulo de simulación 3D en **Webots (R2025a)** para el ecosistema **Proyecto Orquitas (Keiko)** (`2.0.0-audit.2` | `mega-3us-2laser`).
+Módulo de simulación 3D en **Webots (R2025a)** para el ecosistema **Proyecto Orquitas (Keiko)** (`2.0.0` | `mega-3us-2laser`).
 
 Permite validar la arquitectura distribuida Hardware-in-the-Loop (`keiko-server` en Java 21 + `robot_client.py` en Webots), generar datasets V2 de entrenamiento para **Neuroph 2.98** y ejecutar baterías multi-escenario en la **Bahía de Caza**.
 
@@ -27,7 +27,7 @@ Permite validar la arquitectura distribuida Hardware-in-the-Loop (`keiko-server`
 ```text
 keiko-sim/
 ├── config/
-│   └── simulation_params.json        <- Geometría, física, versión (2.0.0-audit.2) y rig (mega-3us-2laser)
+│   └── simulation_params.json        <- Geometría, física, versión (2.0.0) y rig (mega-3us-2laser)
 ├── worlds/
 │   ├── bahia_de_caza_scen_1..14.wbt  <- Escenarios reglamentarios de prueba
 │   ├── bahia_de_caza_circular*.wbt   <- Variante circular (standalone y cliente)
@@ -96,7 +96,7 @@ python3 keiko-sim/scripts/consolidar_dataset_v2.py --deploy
 ```bash
 python3 -m unittest discover -s keiko-sim/tests -v
 ```
-> **Estado conocido en `2.0.0-audit.1`:** `23/30 OK`, `3 FAIL`, `4 ERROR` (los suites `test_coaxial_neural_planner.py` 15/15 y `test_collision_audit.py` 5/5 pasan completos; las fallas restantes se deben a pruebas coaxiales legacy desactualizadas, `actual_exit_gap_m = 0.3100 m` en `build_worlds.py` y un `TypeError` en `live_visualizer.py:231`, documentados en [`docs/AUDITORIA_CONSOLIDACION.md`](../docs/AUDITORIA_CONSOLIDACION.md)).
+> **Estado verificado en `2.0.0`:** **33/33 tests OK** (`test_coaxial_neural_planner.py` 15/15, `test_collision_audit.py` 5/5, `test_meshes_and_arena.py` 6/6 incluyendo `TestWebotsHeadlessLoad` y salida exacta `0.300 m`, `test_robot_client_protocol.py` 3/3, `test_ultrasonic_physics.py` 4/4).
 
 ---
 

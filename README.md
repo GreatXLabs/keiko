@@ -2,7 +2,7 @@
 
 Ecosistema robótico autónomo distribuido para la competencia **"Inteligencia y Supervivencia en la Bahía de Caza"** (Programación Sobre Redes & Desarrollo de Sistemas, Ciclo Lectivo 2026).
 
-Versión activa: **`2.0.0-audit.2`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
+Versión activa: **`2.0.0`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
 
 ---
 
@@ -19,7 +19,7 @@ Versión activa: **`2.0.0-audit.2`** | Hardware objetivo (`rig`): **`mega-3us-2l
 
 ```text
 keiko/
-├── VERSION                   <- Fuente única de verdad de versión (2.0.0-audit.2)
+├── VERSION                   <- Fuente única de verdad de versión (2.0.0)
 ├── CHANGELOG.md              <- Historial de cambios, matriz de compatibilidad y evidencia de tests
 ├── AGENTS.md                 <- Especificación técnica, reglas de arquitectura y enrutador
 ├── scripts/
@@ -30,7 +30,7 @@ keiko/
 │   ├── models/               <- Redes activas (.nnet): modelo_ultrasonico.nnet y modelo_canicas.nnet
 │   ├── scripts/              <- bt_rfcomm_bridge.py (puente Bluetooth RFCOMM <-> TCP)
 │   ├── src/main/java/        <- Servidor, protocolo, Neuroph dual, GestorEstomago, Auditor y FSM
-│   ├── src/test/java/        <- Suite JUnit 5 (39 tests)
+│   ├── src/test/java/        <- Suite JUnit 5 (47 tests)
 │   └── README.md             <- Manual de CLI, puertos, protocolo y Maven
 │
 ├── keiko-sim/                <- Simulación Robótica 3D en Webots (3US + 2Laser)
@@ -96,5 +96,5 @@ java -jar target/keiko-server.jar --serial /dev/rfcomm0 --baud 9600 --reset
 - **Firmware oficial (Arduino Mega 2560):** [`firmware/orquita_firmware/orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino)
 - **Pinout verificado, alimentación XL4015, picker y estómago:** [`pruebas/PICKER-ESTOMAGO-Y-ALIMENTACION.md`](pruebas/PICKER-ESTOMAGO-Y-ALIMENTACION.md)
 - **Índice de pruebas de banco y simulaciones físicas:** [`pruebas/README.md`](pruebas/README.md)
-- **Auditoría de consolidación y hoja de ruta `2.0.0`:** [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md)
+- **Auditoría de consolidación y resolución `v2.0.0`:** [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md)
 - **Reglamento y especificaciones de arquitectura:** [`AGENTS.md`](AGENTS.md)

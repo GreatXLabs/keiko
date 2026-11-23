@@ -10,6 +10,7 @@ import sys
 import os
 import time
 import zlib
+import shutil
 import socket
 import argparse
 import subprocess
@@ -176,6 +177,17 @@ def calculate_score(captures: int, escaped: bool, elapsed_sec: float, collisions
     return score
 
 
+def resolve_webots_executable() -> str:
+    """Resuelve el binario de Webots en PATH o en ~/.local/bin/webots."""
+    found = shutil.which("webots")
+    if found:
+        return found
+    fallback = os.path.join(os.path.expanduser("~/.local/bin"), "webots")
+    if os.path.isfile(fallback) and os.access(fallback, os.X_OK):
+        return fallback
+    return "webots"
+
+
 def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
     print(f"\n{'='*78}")
     print(f"  🧪 EVALUANDO ESCENARIO: [{s_info['id']}] {s_info['name']}")
@@ -205,8 +217,10 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
         "--estomago", ESTOMAGO_FILE,
         "--reset"
     ]
+    srv_env = os.environ.copy()
+    srv_env["CAPTURE_COOLDOWN_MS"] = "0"
     srv_proc = subprocess.Popen(srv_cmd, cwd=os.path.join(ROOT_DIR, "keiko-server"),
-                                stdout=srv_log_file, stderr=subprocess.STDOUT)
+                                env=srv_env, stdout=srv_log_file, stderr=subprocess.STDOUT)
     # Esperar activamente a que el servidor Java esté escuchando en el puerto
     t_start = time.time()
     server_ready = False
@@ -233,12 +247,11 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
         env["WAYLAND_DISPLAY"] = os.environ["WAYLAND_DISPLAY"]
     env["KEIKO_SERVER_PORT"] = str(port)
     env["ORQUITAS_SIM_TIMEOUT"] = str(s_info["timeout"])
-    env["ORQUITAS_SWEEP_MAX_DEG"] = "35.0"
-    env["ORQUITAS_SWEEP_TICKS"] = "2"
     env["ORQUITAS_AUTO_QUIT"] = "1"
 
+    webots_bin = resolve_webots_executable()
     webots_cmd = [
-        "webots", "--batch", "--mode=fast", "--no-rendering",
+        webots_bin, "--batch", "--mode=fast", "--no-rendering",
         "--stdout", "--stderr", world_path
     ]
     webots_proc = subprocess.Popen(webots_cmd, env=env, stdout=webots_log_file, stderr=subprocess.STDOUT, close_fds=True)
@@ -300,6 +313,10 @@ def run_scenario_test(s_info: dict, port: int = 8888) -> dict:
         pass
     try:
         srv_log_file.close()
+    except Exception:
+        pass
+    try:
+        webots_log_file.close()
     except Exception:
         pass
     subprocess.run(["pkill", "-9", "webots-bin"], stderr=subprocess.DEVNULL)

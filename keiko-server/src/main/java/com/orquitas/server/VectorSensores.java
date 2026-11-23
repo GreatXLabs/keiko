@@ -18,35 +18,23 @@ public class VectorSensores {
 
     private final double[] canales;
     private final long timestamp;
-    private final boolean hasPose;
-    private final double posX;
-    private final double posY;
-    private final double theta;
 
     public VectorSensores(double dLowLeft, double dLowRight, double dHighLeft, double dHighRight, long timestamp) {
-        this(new double[]{dLowLeft, dLowRight, dHighLeft, dHighRight}, timestamp, false, 0.0, 0.0, 0.0);
+        this(new double[]{dLowLeft, dLowRight, dHighLeft, dHighRight}, timestamp);
     }
 
     public VectorSensores(double dLowLeft, double dLowCenter, double dLowRight,
                           double dHighLeft, double dHighCenter, double dHighRight) {
         this(new double[]{dLowLeft, dLowCenter, dLowRight, dHighLeft, dHighCenter, dHighRight},
-                System.currentTimeMillis(), false, 0.0, 0.0, 0.0);
+                System.currentTimeMillis());
     }
 
     public VectorSensores(double[] canales, long timestamp) {
-        this(canales, timestamp, false, 0.0, 0.0, 0.0);
-    }
-
-    public VectorSensores(double[] canales, long timestamp, boolean hasPose, double posX, double posY, double theta) {
         if (canales == null || canales.length < 4) {
             throw new IllegalArgumentException("Se requieren al menos 4 canales sensoriales");
         }
         this.canales = Arrays.copyOf(canales, canales.length);
         this.timestamp = timestamp;
-        this.hasPose = hasPose;
-        this.posX = posX;
-        this.posY = posY;
-        this.theta = theta;
     }
 
     public int getCantidadSensores() {
@@ -137,10 +125,6 @@ public class VectorSensores {
         return canales[3];
     }
 
-    public boolean hasPose() { return hasPose; }
-    public double getPosX() { return posX; }
-    public double getPosY() { return posY; }
-    public double getTheta() { return theta; }
     public long getTimestamp() { return timestamp; }
 
     // Valida distancias en [0, 1000] cm (incluye 999.0 cm de timeout VL53L0X) y angulo en [-180, 180] sin NaN ni Infinitos

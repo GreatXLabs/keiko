@@ -148,6 +148,45 @@ public class TwoNetworksInferenceTest {
     }
 
     @Test
+    public void testRed2MatchesRawNeurophArgmax() {
+        org.neuroph.core.NeuralNetwork<?> net = classifier.getNeuralNetCanicas();
+        VectorSensores[] vectors = new VectorSensores[]{
+                // Vector that previously triggered HRD-01 (servoDeg >= 18.0 with US < 38.0)
+                new VectorSensores(new double[]{21.8, 30.3, 27.8, 10.9, 26.6, 35.0}, System.currentTimeMillis()),
+                // Vector with servoDeg >= 18.0 and centered lasers
+                new VectorSensores(new double[]{80.0, 90.0, 85.0, 12.0, 12.0, 25.0}, System.currentTimeMillis()),
+                // Vector that previously triggered HRD-02 binocular override (servoDeg <= -10.0)
+                new VectorSensores(new double[]{80.0, 90.0, 85.0, 15.0, 18.0, -15.0}, System.currentTimeMillis()),
+                // Vector with asymmetric lasers at 0 deg
+                new VectorSensores(new double[]{80.0, 90.0, 85.0, 11.0, 16.0, 0.0}, System.currentTimeMillis()),
+                // Standard open-floor vector
+                new VectorSensores(new double[]{90.0, 95.0, 85.0, 39.5, 39.8, 0.0}, System.currentTimeMillis())
+        };
+
+        for (VectorSensores v : vectors) {
+            double nUsIzq = Math.min(1.0, Math.max(0.0, (v.getUsLeft() - 2.0) / 248.0));
+            double nUsCen = Math.min(1.0, Math.max(0.0, (v.getUsCenter() - 2.0) / 248.0));
+            double nUsDer = Math.min(1.0, Math.max(0.0, (v.getUsRight() - 2.0) / 248.0));
+            double nLaserIzq = Math.min(1.0, Math.max(0.0, (v.getLaserLeft() - 2.0) / 41.0));
+            double nLaserDer = Math.min(1.0, Math.max(0.0, (v.getLaserRight() - 2.0) / 41.0));
+            double nServo = Math.min(1.0, Math.max(0.0, (v.getAnguloServo() - (-45.0)) / 105.0));
+
+            net.setInput(nUsIzq, nUsCen, nUsDer, nLaserIzq, nLaserDer, nServo);
+            net.calculate();
+            double[] out = net.getOutput();
+            int maxIdx = 0;
+            for (int i = 1; i < out.length; i++) {
+                if (out[i] > out[maxIdx]) {
+                    maxIdx = i;
+                }
+            }
+            String expectedRaw = ClasificadorNeuroph.CLASES_CANICAS_4[maxIdx];
+            assertEquals(expectedRaw, classifier.clasificarCanicas(v),
+                    "clasificarCanicas debe devolver el argmax crudo de Neuroph sin filtros post-inferencia");
+        }
+    }
+
+    @Test
     public void testDualFusionInBusquedaVsEscape() {
         // Canica centrada detectada en BÚSQUEDA
         VectorSensores vCen = new VectorSensores(

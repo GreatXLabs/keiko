@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0-audit.2",
+  "version": "2.0.0",
   "rig": "mega-3us-2laser",
   "chassis_model": "Rover 4WD Doble Bandeja Acrilico + Capote CAD (GreatXLabs/Keiko-Modelos-3D)",
   "arena": {
@@ -93,6 +93,11 @@
     "marble_mass_kg": 0.0055,
     "target_captures": 3,
     "min_clearance_to_walls_m": 0.22
+  },
+  "servo_sweep": {
+    "min_deg": -45.0,
+    "max_deg": 60.0,
+    "step_deg": 5.0
   },
   "sensors": {
     "ultrasonic": {

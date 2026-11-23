@@ -234,6 +234,66 @@ public class HardwareSerialAndCaptureTest {
         }
     }
 
+    @Test
+    public void testStreamSessionIgnoresDeprecatedSimulationEvents() throws Exception {
+        PipedOutputStream clientTx = new PipedOutputStream();
+        PipedInputStream serverRx = new PipedInputStream(clientTx);
+        PipedOutputStream serverTx = new PipedOutputStream();
+        PipedInputStream clientRx = new PipedInputStream(serverTx);
+
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(new ConfiguracionServidor().resolverArchivoModelo());
+        PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
+
+        ManejadorCliente sesion = new ManejadorCliente(
+                serverRx, serverTx, "Test-SimEvents", () -> {},
+                gestorEstomago, null, clasificador, planificador, 180L, 5000L);
+
+        java.util.List<String> logs = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        java.util.logging.Logger handlerLogger = java.util.logging.Logger.getLogger(ManejadorCliente.class.getName());
+        java.util.logging.Handler captureHandler = new java.util.logging.Handler() {
+            @Override public void publish(java.util.logging.LogRecord record) { logs.add(record.getMessage()); }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        handlerLogger.addHandler(captureHandler);
+
+        Thread serverThread = new Thread(sesion, "Test-DeprecatedSimEvents");
+        serverThread.start();
+
+        BufferedWriter toServer = new BufferedWriter(new OutputStreamWriter(clientTx, StandardCharsets.UTF_8));
+        BufferedReader fromServer = new BufferedReader(new InputStreamReader(clientRx, StandardCharsets.UTF_8));
+
+        try {
+            toServer.write("TELEMETRY:90.0,95.0,85.0,150.0,150.0,0.0,1000\n");
+            toServer.flush();
+            String firstCmd = leerHastaPrefijo(fromServer, "COMMAND:");
+            assertTrue(firstCmd.startsWith("COMMAND:"));
+
+            toServer.write("EVENT:SALIDA_META:0.00,0.60\n");
+            toServer.write("EVENT:COLISION,impacto=1,lado=front_left\n");
+            toServer.write("TELEMETRY:90.0,95.0,85.0,150.0,150.0,0.0,1001\n");
+            toServer.flush();
+
+            String cmdAfterEvents = leerHastaPrefijo(fromServer, "COMMAND:");
+            assertTrue(sesion.isConectado(), "La sesion debe seguir conectada");
+            assertEquals(EstadoRobot.BUSQUEDA, planificador.getEstado(), "El estado debe permanecer en BUSQUEDA");
+            assertFalse(logs.stream().anyMatch(m -> m.contains("[META SALIDA]")),
+                    "EVENT:SALIDA_META no debe registrarse ni alterar el planificador");
+
+            String[] campos = cmdAfterEvents.substring("COMMAND:".length()).split(",");
+            double vLeft = Double.parseDouble(campos[0]);
+            double vRight = Double.parseDouble(campos[1]);
+            assertTrue(vLeft > 0.0 && vRight > 0.0,
+                    "EVENT:COLISION no debe activar retroceso ni giro evasivo; comando recibido: " + cmdAfterEvents);
+        } finally {
+            handlerLogger.removeHandler(captureHandler);
+            sesion.cerrar();
+            toServer.close();
+            fromServer.close();
+            serverThread.join(1000);
+        }
+    }
+
     private static String leerHastaPrefijo(BufferedReader reader, String prefijo) throws IOException {
         for (int i = 0; i < 15; i++) {
             String line = reader.readLine();

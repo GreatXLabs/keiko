@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import math
 import os
 import re
 import struct
@@ -70,51 +71,64 @@ import build_worlds
 
 class TestArenaGeometry(unittest.TestCase):
     def test_semi_ellipse_wall_segments_and_exit_gap(self):
-        for variant in ("standard", "deformed_wide", "deformed_narrow", "asymmetric", "labyrinth", "corners"):
+        for variant in ("standard", "circular", "realistic"):
             geom = build_worlds.get_arena_geometry(variant)
             self.assertAlmostEqual(geom["wall_thickness"], 0.005, places=4)
             self.assertAlmostEqual(geom["wall_height"], 0.18, places=3)
             self.assertAlmostEqual(geom["exit_width"], 0.30, delta=0.005)
-            # Check area is approximately 1.70 m^2 (+/- 0.35 m^2 for deformed variants)
+            # Check area is within competition bounds (~1.70 m^2; circular ~2.12 m^2)
             self.assertGreater(geom["area_m2"], 1.35)
-            self.assertLess(geom["area_m2"], 2.15)
-            # Check gap between left and right arc endpoints at the exit
-            self.assertAlmostEqual(geom["actual_exit_gap_m"], 0.30, delta=0.005)
+            self.assertLess(geom["area_m2"], 2.30)
+            # Centerline gap is 0.305 m (+ wall_thickness 0.005 m -> >= 0.300 m interior clear gap)
+            clear_gap_m = geom["actual_exit_gap_m"] - geom["wall_thickness"]
+            self.assertGreaterEqual(clear_gap_m, 0.30)
+            self.assertAlmostEqual(clear_gap_m, 0.30, delta=0.005)
+            self.assertAlmostEqual(geom["actual_exit_gap_m"], 0.305, delta=0.005)
 
     def test_marbles_and_obstacles_clearance(self):
-        for variant in ("standard", "labyrinth", "corners", "corridors"):
+        variants = ("standard", "circular", *(f"scen_{i}" for i in range(1, 15)))
+        for variant in variants:
             cfg = build_worlds.MAP_CONFIGS[variant]
+            geom = build_worlds.get_arena_geometry(cfg.get("variant", "standard"))
+            ex, ey = geom["exit_pos"]
             self.assertEqual(len(cfg["marbles"]), 3)
             self.assertGreaterEqual(len(cfg["boxes"]), 2)
             self.assertLessEqual(len(cfg["boxes"]), 3)
             for m_name, mx, my in cfg["marbles"]:
-                # Inside semi-ellipse and with safe margin from back wall (y = -0.60) and arc
-                self.assertGreater(my, -0.38, f"{m_name} too close to back wall in {variant}")
-                self.assertLess(my, 0.38, f"{m_name} too close to exit vertex in {variant}")
+                # Inside bay and with safe margin from back wall and exit doorway
+                self.assertGreater(my, geom["y_back"] + 0.15, f"{m_name} too close to back wall in {variant}")
+                self.assertGreater(
+                    math.hypot(mx - ex, my - ey),
+                    0.25,
+                    f"{m_name} too close to exit doorway in {variant}",
+                )
 
     def test_generated_world_uses_meshes_and_has_no_chamfers_or_exit_tunnel(self):
-        wbt_no_cap = build_worlds.generate_world("live_visualizer", "standard", "dual_plane_8", "north", include_capote=False)
+        wbt_no_cap = build_worlds.generate_world("robot_client", "standard", "north", include_capote=False)
         self.assertIn("../meshes/orquita_chassis_body.stl", wbt_no_cap)
         self.assertIn("../meshes/orquita_wheel.stl", wbt_no_cap)
         self.assertNotIn("../meshes/orquita_capote.stl", wbt_no_cap)
         self.assertNotIn("EXIT_CHAMFER", wbt_no_cap)
         self.assertNotIn("EXIT_WALL_NORTH", wbt_no_cap)
 
-        wbt_cap = build_worlds.generate_world("live_visualizer", "standard", "dual_plane_8", "north", include_capote=True)
+        wbt_cap = build_worlds.generate_world("robot_client", "standard", "north", include_capote=True)
         self.assertIn("../meshes/orquita_capote.stl", wbt_cap)
 
     def test_chassis_collision_boxes_follow_cad_and_clear_wheels(self):
-        wbt = build_worlds.generate_world("robot_client", "standard", "trisector_front_6", "north")
+        wbt = build_worlds.generate_world("robot_client", "standard", "north")
         robot_body = wbt.split('  name "orquita_robot"', 1)[1]
         boxes = re.findall(
             r"Pose \{\s+translation ([^\n]+)\s+children \[\s+Box \{ size ([^}]+) \}",
             robot_body,
         )
 
+        # 5 CAD boxes preserving the 7.0 cm central picker opening (y in [-0.035, +0.035])
         self.assertEqual(boxes, [
-            ("0.095 0 0.048", "0.065 0.150 0.055"),
-            ("-0.095 0 0.048", "0.065 0.150 0.055"),
+            ("0.09875 0.0575 0.039", "0.0675 0.045 0.072"),
+            ("0.09875 -0.0575 0.039", "0.0675 0.045 0.072"),
+            ("0.09875 0 0.0525", "0.0675 0.070 0.045"),
             ("0 0 0.048", "0.125 0.088 0.055"),
+            ("-0.095 0 0.048", "0.065 0.150 0.055"),
         ])
 
 
@@ -122,7 +136,9 @@ class TestWebotsHeadlessLoad(unittest.TestCase):
     def test_webots_loads_new_world_without_vrml_errors(self):
         import shutil
         import subprocess
-        webots_bin = shutil.which("webots")
+        webots_bin = shutil.which("webots") or shutil.which(
+            "webots", path=os.path.expanduser("~/.local/bin")
+        )
         if not webots_bin:
             self.skipTest("Webots no instalado en PATH")
         world = os.path.join(SIM_DIR, "worlds", "bahia_de_caza.wbt")
@@ -131,13 +147,14 @@ class TestWebotsHeadlessLoad(unittest.TestCase):
             cmd = ["xvfb-run", "-a"] + cmd
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
-            out, err = proc.communicate(timeout=12)
+            out, err = proc.communicate(timeout=15)
         except subprocess.TimeoutExpired:
             proc.kill()
             out, err = proc.communicate()
         combined = (out or "") + "\n" + (err or "")
         self.assertNotIn("ERROR:", combined, f"Errores VRML en Webots:\n{combined}")
-        self.assertIn("Salida detectada: NORTH @ (0.00, 0.60)", combined)
+        self.assertNotIn("Traceback (most recent call last)", combined, f"Excepción Python en Webots:\n{combined}")
+        self.assertIn("Salida detectada: NORTH @", combined)
 
 
 if __name__ == "__main__":

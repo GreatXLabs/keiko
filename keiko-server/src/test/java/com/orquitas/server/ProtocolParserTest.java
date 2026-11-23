@@ -24,8 +24,8 @@ public class ProtocolParserTest {
 
     @Test
     public void testParseValid6SensorTelemetry() {
-        // Orden trisector_front_6: LL, LC, LR, HL, HC, HR + ts + x, y, theta
-        String msg = "TELEMETRY:23.45,18.10,12.80,150.20,148.00,145.10,1725984000,0.15,0.25,1.57\n";
+        // 6 sensores + ts (sin pose)
+        String msg = "TELEMETRY:23.45,18.10,12.80,150.20,148.00,145.10,1725984000\n";
         VectorSensores sv = MensajeProtocolo.parsearTelemetria(msg);
 
         assertEquals(6, sv.getCantidadSensores());
@@ -35,19 +35,30 @@ public class ProtocolParserTest {
         assertEquals(150.20, sv.getDHighLeft(), 1e-4);
         assertEquals(148.00, sv.getDHighCenter(), 1e-4);
         assertEquals(145.10, sv.getDHighRight(), 1e-4);
-        assertTrue(sv.hasPose());
-        assertEquals(0.15, sv.getPosX(), 1e-4);
-        assertEquals(0.25, sv.getPosY(), 1e-4);
+        assertEquals(1725984000L, sv.getTimestamp());
         assertTrue(sv.isValido());
     }
 
     @Test
     public void testParseValid8SensorTelemetry() {
-        String msg = "TELEMETRY:23.45,12.80,150.20,145.10,80.50,75.30,95.0,92.0,1725984000,0.15,0.25,1.57\n";
+        // 8 sensores + ts (sin pose)
+        String msg = "TELEMETRY:23.45,12.80,150.20,145.10,80.50,75.30,95.0,92.0,1725984000\n";
         VectorSensores sv = MensajeProtocolo.parsearTelemetria(msg);
 
         assertEquals(8, sv.getCantidadSensores());
+        assertEquals(1725984000L, sv.getTimestamp());
         assertTrue(sv.isValido());
+    }
+
+    @Test
+    public void testRejectsTelemetryWithLegacyPosePayload() {
+        // 12 campos: 8 sensores + ts + pose (x, y, theta)
+        String msg12 = "TELEMETRY:23.45,12.80,150.20,145.10,80.50,75.30,95.0,92.0,1725984000,0.15,0.25,1.57\n";
+        // 14 campos: 10 sensores + ts + pose (x, y, theta)
+        String msg14 = "TELEMETRY:23.45,12.80,150.20,145.10,80.50,75.30,95.0,92.0,60.0,65.0,1725984000,0.15,0.25,1.57\n";
+
+        assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearTelemetria(msg12));
+        assertThrows(IllegalArgumentException.class, () -> MensajeProtocolo.parsearTelemetria(msg14));
     }
 
     @Test

@@ -1,6 +1,6 @@
 # Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad serie/Bluetooth SPP y TCP, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.0-audit.2` | `mega-3us-2laser`)**.
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad serie/Bluetooth SPP y TCP, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.0` | `mega-3us-2laser`)**.
 
 ---
 
@@ -59,12 +59,12 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **8 clases de prueba (39 tests JUnit 5)**:
-- `ProtocolParserTest` (9 tests): parseo de `TELEMETRY`, `HELLO`, `CMD:START`/`CMD:STOP`, `DBG:`, `esCompatibleMajorMinor` y rechazo de tramas corruptas.
-- `PlanificadorNavegacionTest` (9 tests): transiciones FSM, evasión de bloqueos, anti-bucle y modo `ESCAPE`.
+Ejecuta las **8 clases de prueba (47 tests JUnit 5)**:
+- `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `DBG:`, `esCompatibleMajorMinor` y rechazo de tramas corruptas.
+- `PlanificadorNavegacionTest` (14 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, breakout de perímetro, anti-bucle y modo `ESCAPE`.
 - `ConfiguracionServidorTest` (4 tests): carga de `.env`, argumentos CLI (`--auto-start`) y resolución de rutas.
-- `HardwareSerialAndCaptureTest` (4 tests): cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:` y `--auto-start`.
-- `TwoNetworksInferenceTest` (4 tests): inferencia dual con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
+- `HardwareSerialAndCaptureTest` (5 tests): cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados (`SALIDA_META`).
+- `TwoNetworksInferenceTest` (5 tests): inferencia dual pura con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
 - `ConcurrencyEstomagoTest` (2 tests): estrés concurrente entre múltiples hilos escritores y `AuditorEstomago`.
 - `Hito2IntegrationTest` (2 tests): integración cliente-servidor con `SimuladorOrquitaCliente`.
 - `NeurophInferenceTest` (5 tests): compatibilidad y carga de modelos `.nnet`.
@@ -127,7 +127,7 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 
 | Mensaje | Dirección | Formato / Significado |
 | :--- | :---: | :--- |
-| `HELLO` | Cliente → Servidor | `HELLO:<version>,<rig>\n` (ej. `HELLO:2.0.0-audit.2,mega-3us-2laser`) |
+| `HELLO` | Cliente → Servidor | `HELLO:<version>,<rig>\n` (ej. `HELLO:2.0.0,mega-3us-2laser`) |
 | `TELEMETRY` | Cliente → Servidor | `TELEMETRY:<us_izq>,<us_cen>,<us_der>,<laser_izq>,<laser_der>,<ang_servo>,<ts_ms>\n` |
 | `COMMAND` | Servidor → Cliente | `COMMAND:<v_left>,<v_right>,<estado>\n` |
 | `EVENT` | Cliente → Servidor | `EVENT:CAPTURA` o `EVENT:CAPTURA_LOBITO_<n>` |
@@ -135,4 +135,4 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 | `CMD:START` / `CMD:STOP` | Servidor → Cliente | Arranque / detención de la corrida en firmware Mega (`--auto-start` o consola `start`/`stop`) |
 | `HEARTBEAT` | Bidireccional | `HEARTBEAT\n` (mantiene vivo el enlace por debajo del watchdog de `500 ms`) |
 
-> **Nota de auditoría (`2.0.0-audit.2`):** `ClasificadorNeuroph` y `PlanificadorNavegacion` conservan todavía filtros/umbrales heredados y soporte de pose de simulación inventariados en [`docs/AUDITORIA_CONSOLIDACION.md`](../docs/AUDITORIA_CONSOLIDACION.md) (`SIM-03..13`, `HRD-01..14`) para su retiro en Fase B (`2.0.0`).
+> **Arquitectura pura (`2.0.0`):** `ClasificadorNeuroph` y `PlanificadorNavegacion` operan exclusivamente sobre inferencia **Neuroph 2.98** y FSM simbólica, sin umbrales sensoriales crudos ni soporte de pose de simulación (`SIM-01..13` y `HRD-01..14` resueltos en [`docs/AUDITORIA_CONSOLIDACION.md`](../docs/AUDITORIA_CONSOLIDACION.md)).
