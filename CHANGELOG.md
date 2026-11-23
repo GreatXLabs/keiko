@@ -6,6 +6,19 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
+## [Unreleased] — TUI de Terminal en `keiko-server`
+
+### Added (Agregado)
+- **TUI ANSI en vivo en `keiko-server` ([`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java)):** panel visual en terminal sin dependencias externas con banner ASCII fusionado (`KEIKO` sobre la orca braille), métricas de enlace en vivo (Hz, latencia `dt`, semáforo Fail-Safe `< 500 ms`), visualización de los 3 ultrasonidos `HC-SR04` + Red 1 (`modelo_ultrasonico.nnet`), los 2 láseres `VL53L0X` + indicador de barrido del servo `-45°..+60°` + Red 2 (`modelo_canicas.nnet`), terna fusionada, estado FSM, barras motrices diferenciales, progreso de `estomago.txt`, `DBG:estomago`, buffer de logs recientes (capturando `java.util.logging`) y barra de comandos (`start`/`k`, `stop`/`x`, `reset`, `view`/`v`, `clear`/`c`).
+- **Control de modo TUI y pruebas:** flags `--no-tui` (`NO_TUI` en `.env`) y `--tui` en [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) con fallback automático a salida plana cuando no hay consola interactiva, método `reiniciarParaPrueba()` en [`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java) y suite de pruebas [`ConsolaTuiTest.java`](keiko-server/src/test/java/com/orquitas/server/ConsolaTuiTest.java).
+
+### Tests Run (Evidencia de Pruebas)
+- `mvn -f keiko-server/pom.xml test`: **48/48 OK** (0 Failures, 0 Errors, 0 Skipped).
+- `mvn -f keiko-server/pom.xml package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`**.
+
+---
+
 ## [2.0.0-audit.2] — 2026-11-21
 
 Integración de la rama `feat/integracion-robot-real` (`5f22632`, archivada bajo tag `archive/feat-integracion-robot-real`) con calibraciones físicas y firmware no bloqueante validado sobre el robot real (pruebas del 2026-11-19), manteniendo sincronizado todo el ecosistema antes de iniciar la Fase B (`2.0.0`).

@@ -91,6 +91,10 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
 | `--reset` | — | `false` | Vacía `estomago.txt` al iniciar una nueva pasada oficial |
 | `--list-ports` | — | `false` | Lista puertos serie/Bluetooth detectados por `jSerialComm` y finaliza |
 | `--auto-start` | `AUTO_START` | `false` | Envía `CMD:START` automáticamente al recibir `HELLO:` (también disponible `start`/`stop` por consola) |
+| `--no-tui` | `NO_TUI` | `false` | Desactiva la TUI ANSI en vivo y usa salida lineal clásica en consola |
+| `--tui` | — | `false` | Fuerza la TUI ANSI en vivo incluso si `System.console()` no detecta TTY interactivo |
+
+Comandos interactivos disponibles en la consola del servidor: `start` (`k`), `stop` (`x`), `reset` (vacía `estomago.txt` y reinicia el planificador para pruebas), `view` (`v`, alterna vista detallada/compacta) y `clear` (`c`, limpia el panel de eventos recientes).
 
 ### Ejemplos de ejecución
 ```bash
