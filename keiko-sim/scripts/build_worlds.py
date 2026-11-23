@@ -520,7 +520,7 @@ def get_arena_geometry(variant="standard"):
     wall_height = 0.18      # 18 cm
     exit_width = prof.get("exit_width", 0.30)
     exit_x = prof.get("exit_x", 0.0)
-    half_gap = exit_width / 2.0
+    half_gap = exit_width / 2.0 + wall_thickness / 2.0
 
     if prof.get("type") == "circle" or var_name == "circular":
         R = prof.get("R", 0.90)
@@ -620,11 +620,11 @@ def get_arena_geometry(variant="standard"):
     jitter = prof.get("jitter", 0.03)
 
     # Ancho reglamentario de la puerta (30 cm libres netos)
-    # Usamos half_gap = 0.155 m (31.0 cm de eje a eje de pared) para que con el grosor
-    # de 5 mm de cartón la luz libre interior sea exactamente >= 30.0 cm en cualquier ángulo.
+    # Usamos half_gap = exit_width / 2.0 + wall_thickness / 2.0 (0.1525 m, 0.305 m de eje a eje)
+    # para que con el grosor de 5 mm de cartón la luz libre interior sea exactamente 30.0 cm.
     exit_width = prof.get("exit_width", 0.30)
     exit_x = prof.get("exit_x", 0.0)
-    half_gap = max(0.155, exit_width / 2.0)
+    half_gap = exit_width / 2.0 + wall_thickness / 2.0
 
     rng_local = random.Random(int(abs(b_left * 1000 + b_right * 100 + a * 10)) % 100000)
 

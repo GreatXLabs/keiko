@@ -186,6 +186,12 @@ def main():
                 "captured": False
             }
 
+    obstacle_nodes = []
+    for i in (1, 2):
+        node = robot.getFromDef(f"OBSTACLE_BOX_{i}") or robot.getFromDef(f"OBSTACLE_CYLINDER_{i}")
+        if node:
+            obstacle_nodes.append(node)
+
     # Detección dinámica de la salida (Norte / Este / Sur / Oeste) y director de egreso
     exit_wall, exit_pos, exit_yaw = detect_exit(robot)
     exit_dir = (math.cos(exit_yaw), math.sin(exit_yaw))
@@ -227,8 +233,16 @@ def main():
                 except Exception:
                     pass
 
+        active_obstacles_xy = []
+        for onode in obstacle_nodes:
+            try:
+                op = onode.getPosition()
+                active_obstacles_xy.append((op[0], op[1]))
+            except Exception:
+                pass
+
         raw_readings = {s_name: dev.getValue() for s_name, dev in sensors.items()}
-        realistic_raw = us_physics.apply(raw_readings, robot_pose=(rx, ry, yaw), marble_positions=active_marbles_xy)
+        realistic_raw = us_physics.apply(raw_readings, robot_pose=(rx, ry, yaw), active_obstacles_xy=active_obstacles_xy)
         readings = border_filter.update(realistic_raw)
 
         d_ll = readings.get("us_low_left", 250.0)
