@@ -22,6 +22,7 @@ public class ReceptorConexiones implements Runnable {
     private final long cooldownCapturaMs;
     private final long intervaloHeartbeatMs;
     private final boolean autoStartEnHello;
+    private final EstadoMonitorTui monitorTui;
     private final List<ManejadorCliente> clientesConectados = Collections.synchronizedList(new ArrayList<>());
 
     private ServerSocket serverSocket;
@@ -49,6 +50,17 @@ public class ReceptorConexiones implements Runnable {
                               long cooldownCapturaMs,
                               long intervaloHeartbeatMs,
                               boolean autoStartEnHello) {
+        this(puerto, gestorEstomago, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null);
+    }
+
+    public ReceptorConexiones(int puerto, GestorEstomago gestorEstomago,
+                              ClasificadorNeuroph clasificador,
+                              PlanificadorNavegacion planificador,
+                              long cooldownCapturaMs,
+                              long intervaloHeartbeatMs,
+                              boolean autoStartEnHello,
+                              EstadoMonitorTui monitorTui) {
         this.puerto = puerto;
         this.gestorEstomago = gestorEstomago;
         this.clasificador = clasificador;
@@ -56,6 +68,7 @@ public class ReceptorConexiones implements Runnable {
         this.cooldownCapturaMs = cooldownCapturaMs;
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
         this.autoStartEnHello = autoStartEnHello;
+        this.monitorTui = monitorTui;
     }
 
     public void iniciar() {
@@ -74,8 +87,12 @@ public class ReceptorConexiones implements Runnable {
                 Socket clientSocket = serverSocket.accept();
                 ManejadorCliente manejador = new ManejadorCliente(
                         clientSocket, gestorEstomago, this, clasificador, planificador,
-                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello);
+                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui);
                 clientesConectados.add(manejador);
+                if (monitorTui != null) {
+                    monitorTui.registrarConexionCliente(
+                            String.valueOf(clientSocket.getRemoteSocketAddress()), clientesConectados.size());
+                }
                 Thread clientThread = new Thread(manejador, "SesionCliente-" + clientSocket.getPort());
                 clientThread.start();
             }
@@ -100,6 +117,9 @@ public class ReceptorConexiones implements Runnable {
 
     public void removerCliente(ManejadorCliente handler) {
         clientesConectados.remove(handler);
+        if (monitorTui != null) {
+            monitorTui.actualizarCantidadClientes(clientesConectados.size());
+        }
     }
 
     public void detener() {

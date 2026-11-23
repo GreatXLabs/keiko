@@ -39,6 +39,8 @@ public final class ConfiguracionServidor {
     private boolean resetSolicitado;
     private boolean listarPuertosSolicitado;
     private boolean autoStartSolicitado;
+    private boolean noTuiSolicitado;
+    private boolean forzarTuiSolicitado;
     private String directorioBaseEnv;
 
     public ConfiguracionServidor() {
@@ -55,6 +57,7 @@ public final class ConfiguracionServidor {
         this.cooldownCapturaMs = obtenerLong(envMap, "CAPTURE_COOLDOWN_MS", COOLDOWN_CAPTURA_MS);
         this.intervaloHeartbeatMs = obtenerLong(envMap, "HEARTBEAT_INTERVAL_MS", INTERVALO_HEARTBEAT_MS);
         this.autoStartSolicitado = Boolean.parseBoolean(obtenerString(envMap, "AUTO_START", "false"));
+        this.noTuiSolicitado = Boolean.parseBoolean(obtenerString(envMap, "NO_TUI", "false"));
     }
 
     public static ConfiguracionServidor desdeArgumentos(String[] args) {
@@ -79,6 +82,10 @@ public final class ConfiguracionServidor {
                 cfg.setListarPuertosSolicitado(true);
             } else if ("--auto-start".equalsIgnoreCase(arg)) {
                 cfg.setAutoStartSolicitado(true);
+            } else if ("--no-tui".equalsIgnoreCase(arg)) {
+                cfg.setNoTuiSolicitado(true);
+            } else if ("--tui".equalsIgnoreCase(arg)) {
+                cfg.setForzarTuiSolicitado(true);
             }
         }
         return cfg;
@@ -218,6 +225,23 @@ public final class ConfiguracionServidor {
 
     public boolean isAutoStartSolicitado() { return autoStartSolicitado; }
     public void setAutoStartSolicitado(boolean autoStartSolicitado) { this.autoStartSolicitado = autoStartSolicitado; }
+
+    public boolean isNoTuiSolicitado() { return noTuiSolicitado; }
+    public void setNoTuiSolicitado(boolean noTuiSolicitado) { this.noTuiSolicitado = noTuiSolicitado; }
+
+    public boolean isForzarTuiSolicitado() { return forzarTuiSolicitado; }
+    public void setForzarTuiSolicitado(boolean forzarTuiSolicitado) { this.forzarTuiSolicitado = forzarTuiSolicitado; }
+
+    /** Determina si la TUI ANSI debe activarse segun flags CLI/env y disponibilidad de consola interactiva. */
+    public boolean resolverModoTui(boolean tieneConsolaInteractiva) {
+        if (noTuiSolicitado) {
+            return false;
+        }
+        if (forzarTuiSolicitado) {
+            return true;
+        }
+        return tieneConsolaInteractiva;
+    }
 
     public File getArchivoEstomago() {
         File ruta = new File(rutaArchivoEstomago);
