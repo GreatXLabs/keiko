@@ -25,6 +25,7 @@ public class ManejadorCliente implements Runnable {
     private final boolean autoStartEnHello;
     private final EstadoMonitorTui monitorTui;
     private final boolean monitoreoPasivoEnReposo;
+    private final GrabadorDatasetReal grabadorDataset;
     private final AtomicBoolean conectado = new AtomicBoolean(true);
     private final AtomicBoolean autoStartEnviado = new AtomicBoolean(false);
 
@@ -90,6 +91,24 @@ public class ManejadorCliente implements Runnable {
                             boolean autoStartEnHello,
                             EstadoMonitorTui monitorTui,
                             boolean monitoreoPasivoEnReposo) {
+        this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
+                gestorEstomago, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, monitoreoPasivoEnReposo, null);
+    }
+
+    public ManejadorCliente(InputStream flujoEntrada,
+                            OutputStream flujoSalida,
+                            String descripcionOrigen,
+                            Closeable recursoCierre,
+                            GestorEstomago gestorEstomago,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs,
+                            boolean autoStartEnHello,
+                            EstadoMonitorTui monitorTui,
+                            boolean monitoreoPasivoEnReposo,
+                            GrabadorDatasetReal grabadorDataset) {
         this.flujoEntrada = flujoEntrada;
         this.flujoSalida = flujoSalida;
         this.descripcionOrigen = descripcionOrigen;
@@ -102,6 +121,7 @@ public class ManejadorCliente implements Runnable {
         this.autoStartEnHello = autoStartEnHello;
         this.monitorTui = monitorTui;
         this.monitoreoPasivoEnReposo = monitoreoPasivoEnReposo;
+        this.grabadorDataset = grabadorDataset;
     }
 
     @Override
@@ -251,6 +271,16 @@ public class ManejadorCliente implements Runnable {
             if (!sensores.isValido()) {
                 LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico: " + linea);
                 return;
+            }
+            if (grabadorDataset != null && grabadorDataset.isGrabando()) {
+                // [SOLO PRUEBAS / ENTRENAMIENTO] Captura muestra real en marcha o en reposo
+                if (grabadorDataset.registrarTelemetria(sensores) && monitorTui != null) {
+                    monitorTui.actualizarGrabacionDataset(
+                            true,
+                            grabadorDataset.getRedObjetivo().name(),
+                            grabadorDataset.getEtiquetaActiva(),
+                            grabadorDataset.obtenerConteosPorClase());
+                }
             }
             String[] pares = clasificador.clasificarPares(sensores);
             boolean corridaActiva = !monitoreoPasivoEnReposo || (monitorTui != null && monitorTui.isCorridaActiva());

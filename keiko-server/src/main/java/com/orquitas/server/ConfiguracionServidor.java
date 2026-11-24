@@ -50,6 +50,12 @@ public final class ConfiguracionServidor {
     private int pwmMin;
     private int pwmMax;
     private String directorioBaseEnv;
+    // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion y reentrenamiento en vivo]
+    private String rutaDatosReales = "data/real";
+    private boolean retrainRealSolicitado;
+    private boolean listarModelosSolicitado;
+    private String versionModeloSolicitada;
+    private String notaModelo;
 
     public ConfiguracionServidor() {
         Map<String, String> envMap = cargarArchivoEnv();
@@ -102,6 +108,16 @@ public final class ConfiguracionServidor {
                 cfg.setRangoPwm(Integer.parseInt(args[++i]), cfg.getPwmMax());
             } else if ("--pwm-max".equalsIgnoreCase(arg) && i + 1 < args.length) {
                 cfg.setRangoPwm(cfg.getPwmMin(), Integer.parseInt(args[++i]));
+            } else if ("--real-dir".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setRutaDatosReales(args[++i]);
+            } else if ("--retrain-real".equalsIgnoreCase(arg)) {
+                cfg.setRetrainRealSolicitado(true);
+            } else if ("--list-models".equalsIgnoreCase(arg)) {
+                cfg.setListarModelosSolicitado(true);
+            } else if ("--use-model".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setVersionModeloSolicitada(args[++i]);
+            } else if ("--note".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setNotaModelo(args[++i]);
             }
         }
         return cfg;
@@ -317,4 +333,33 @@ public final class ConfiguracionServidor {
         }
         return file;
     }
+
+    public String getRutaDatosReales() { return rutaDatosReales; }
+    public void setRutaDatosReales(String rutaDatosReales) {
+        if (rutaDatosReales != null && !rutaDatosReales.isBlank()) this.rutaDatosReales = rutaDatosReales;
+    }
+
+    public File getDirectorioDatosReales() {
+        File ruta = new File(rutaDatosReales);
+        if (ruta.isAbsolute() || directorioBaseEnv == null) return ruta;
+        return new File(directorioBaseEnv, rutaDatosReales);
+    }
+
+    public File getDirectorioModelos() {
+        File padre = resolverArchivoModelo().getParentFile();
+        if (padre != null) return padre;
+        return (directorioBaseEnv != null) ? new File(directorioBaseEnv, "models") : new File("models");
+    }
+
+    public boolean isRetrainRealSolicitado() { return retrainRealSolicitado; }
+    public void setRetrainRealSolicitado(boolean retrainRealSolicitado) { this.retrainRealSolicitado = retrainRealSolicitado; }
+
+    public boolean isListarModelosSolicitado() { return listarModelosSolicitado; }
+    public void setListarModelosSolicitado(boolean listarModelosSolicitado) { this.listarModelosSolicitado = listarModelosSolicitado; }
+
+    public String getVersionModeloSolicitada() { return versionModeloSolicitada; }
+    public void setVersionModeloSolicitada(String versionModeloSolicitada) { this.versionModeloSolicitada = versionModeloSolicitada; }
+
+    public String getNotaModelo() { return notaModelo; }
+    public void setNotaModelo(String notaModelo) { this.notaModelo = notaModelo; }
 }

@@ -367,19 +367,18 @@ public class ConsolaTui {
         agregarPanelSensoresDetallado(lineas, estado, ancho);
         agregarPanelLogs(lineas, estado, ancho, filasLogs);
         lineas.add(DIM + " Teclas: " + RESET
-                + BOLD + "[k]" + RESET + "Start "
+                + BOLD + "[k]" + RESET + "Run "
                 + BOLD + "[x]" + RESET + "Stop "
-                + BOLD + "[1]" + RESET + "Busq "
-                + BOLD + "[2]" + RESET + "Esc "
-                + BOLD + "[3]" + RESET + "Cap "
+                + BOLD + "[1/2/3]" + RESET + "Modos "
                 + BOLD + "[p]" + RESET + "Pick "
-                + BOLD + "[b]" + RESET + "Barrido "
+                + BOLD + "[b]" + RESET + "Sweep "
                 + BOLD + "[+/-]" + RESET + "Vel "
                 + BOLD + "[[/]]" + RESET + "PWM "
+                + BOLD + "[u/m]" + RESET + "Etiq "
+                + BOLD + "[g]" + RESET + "Rec "
+                + BOLD + "[t]" + RESET + "Train "
                 + BOLD + "[r]" + RESET + "Rst "
-                + BOLD + "[v]" + RESET + "Vis "
-                + BOLD + "[c]" + RESET + "Clr "
-                + BOLD + "[q]" + RESET + "Quit");
+                + BOLD + "[v/c/q]" + RESET);
         return String.join("\n", lineas);
     }
 
@@ -436,10 +435,11 @@ public class ConsolaTui {
                     estado.getPwmMin(), estado.getPwmMax(),
                     estado.isCorridaActiva() ? "RUN" : "REPOSO"), ancho));
         }
+        lineas.add(filaCaja(formatearLineaDataset(estado, ancho - 4), ancho));
         lineas.add(cajaInferior(ancho));
 
         agregarPanelLogs(lineas, estado, ancho, filasLogs);
-        lineas.add(DIM + " [k]Run [x]Stop [1/2/3]Modos [p]Pick [b]Sweep [+/-]Vel [[/]]PWM [r]Rst [v]Vis [c]Clr [q]Quit" + RESET);
+        lineas.add(DIM + " [k/x]Run/Stop [1/2/3]Modos [p]Pick [b]Sweep [+/-]Vel [[/]]PWM [u/m]Etiq [g]Rec [t]Train [r/v/c/q]" + RESET);
         return String.join("\n", lineas);
     }
 
@@ -539,6 +539,7 @@ public class ConsolaTui {
                     + " Conecte Arduino Mega por Bluetooth HC-05 (TELEMETRY:usL,usC,usR,lsrL,lsrR,servo,ts).", w));
             lineas.add(filaCaja("  Fila Superior : 3x HC-SR04 (IZQ, CEN, DER) -> Red 1 (BLOQUEO / ESPACIO_LIBRE / SALIDA)", w));
             lineas.add(filaCaja("  Fila Inferior : 2x VL53L0X + Servo SG90 (-45°..+60°) -> Red 2 (LOBITO_IZQ/CEN/DER/NINGUNA)", w));
+            lineas.add(filaCaja(formatearLineaDataset(estado, w - 4), w));
             lineas.add(cajaInferior(w));
             return;
         }
@@ -585,7 +586,39 @@ public class ConsolaTui {
         lineas.add(filaCaja(String.format(Locale.US,
                 " SERVO  : %+5.1f°  [-45° %s +60°]   Barrido espejo L/R",
                 s.getAnguloServo(), barraServo), w));
+        lineas.add(cajaSeparador("CAPTURA REAL & REENTRENAMIENTO NEUROPH (data/real)", w));
+        lineas.add(filaCaja(formatearLineaDataset(estado, w - 4), w));
         lineas.add(cajaInferior(w));
+    }
+
+    private static String formatearLineaDataset(EstadoMonitorTui estado, int maxAncho) {
+        String badgeRec = estado.isGrabacionActiva()
+                ? ROJO + BOLD + "[● REC]" + RESET
+                : GRIS + "[PAUSA]" + RESET;
+        java.util.Map<String, Integer> c = estado.getGrabacionConteos();
+        String resumenConteos = String.format(Locale.US,
+                "BLQ:%d LIB:%d SAL:%d | I:%d C:%d D:%d N:%d",
+                c.getOrDefault("BLOQUEO", 0),
+                c.getOrDefault("ESPACIO_LIBRE", 0),
+                c.getOrDefault("SALIDA", 0),
+                c.getOrDefault("LOBITO_IZQ", 0),
+                c.getOrDefault("LOBITO_CENTRO", 0),
+                c.getOrDefault("LOBITO_DER", 0),
+                c.getOrDefault("NINGUNA", 0));
+        String trainTxt = estado.isReentrenando()
+                ? AMARILLO + "ENTRENANDO..." + RESET
+                : ("---".equals(estado.getUltimoResumenEntrenamiento()) ? "" : " | Train:" + estado.getUltimoResumenEntrenamiento());
+        String linea = String.format(Locale.US, "%s %s:%s%s | %s%s",
+                badgeRec,
+                CIAN + estado.getGrabacionRed(),
+                AMARILLO + estado.getGrabacionEtiqueta() + RESET,
+                "",
+                resumenConteos,
+                trainTxt);
+        return (longitudVisual(linea) <= maxAncho) ? linea
+                : String.format(Locale.US, "%s %s:%s | %s",
+                        badgeRec, estado.getGrabacionRed(), estado.getGrabacionEtiqueta(),
+                        recortar(resumenConteos, Math.max(12, maxAncho - 30)));
     }
 
     private static void agregarPanelLogs(List<String> lineas, EstadoMonitorTui estado, int ancho, int maxFilas) {

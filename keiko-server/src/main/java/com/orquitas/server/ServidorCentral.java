@@ -21,6 +21,9 @@ public class ServidorCentral implements OyenteAuditor {
     private final AuditorEstomago auditor;
     private final EstadoMonitorTui monitorTui;
     private final ConsolaTui consolaTui;
+    // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion real y reentrenamiento integrado]
+    private final GrabadorDatasetReal grabadorDataset;
+    private final GestorModelosYEntrenamiento gestorModelos;
 
     public ServidorCentral(ConfiguracionServidor configuracion) {
         this.configuracion = configuracion;
@@ -40,6 +43,19 @@ public class ServidorCentral implements OyenteAuditor {
                 gestorEstomago, clasificador, planificador,
                 configuracion.getCooldownCapturaMs(), configuracion.getIntervaloHeartbeatMs(),
                 configuracion.isAutoStartSolicitado(), monitorTui);
+        this.grabadorDataset = new GrabadorDatasetReal(configuracion.getDirectorioDatosReales());
+        this.gestorModelos = new GestorModelosYEntrenamiento(
+                configuracion.getDirectorioModelos(),
+                GestorModelosYEntrenamiento.resolverDatasetBasePorDefecto("dataset_ultrasonico.csv"),
+                GestorModelosYEntrenamiento.resolverDatasetBasePorDefecto("dataset_canicas.csv"),
+                grabadorDataset.getArchivoUltrasonico(),
+                grabadorDataset.getArchivoCanicas());
+        this.monitorTui.actualizarGrabacionDataset(
+                false,
+                grabadorDataset.getRedObjetivo().name(),
+                grabadorDataset.getEtiquetaActiva(),
+                grabadorDataset.obtenerConteosPorClase());
+        this.receptorSerie.setGrabadorDataset(grabadorDataset);
 
         this.auditor = new AuditorEstomago(
                 gestorEstomago, configuracion.getAuditorSondeoMs(), configuracion.getCapturasRequeridasEscape());
@@ -291,6 +307,61 @@ public class ServidorCentral implements OyenteAuditor {
             if (consolaTui == null) {
                 System.out.println("[CONTROL] Enviado " + msg);
             }
+        } else if ("u".equals(cmd)) {
+            // [SOLO PRUEBAS / ENTRENAMIENTO] Seleccionar modo US y ciclar etiqueta objetivo
+            String etiqueta = grabadorDataset.ciclarModoUs();
+            sincronizarEstadoGrabacionTui();
+            monitorTui.registrarComandoControl("Etiq US=" + etiqueta);
+        } else if ("m".equals(cmd)) {
+            // [SOLO PRUEBAS / ENTRENAMIENTO] Seleccionar modo CANICAS y ciclar etiqueta objetivo
+            String etiqueta = grabadorDataset.ciclarModoCanicas();
+            sincronizarEstadoGrabacionTui();
+            monitorTui.registrarComandoControl("Etiq CAN=" + etiqueta);
+        } else if ("g".equals(cmd) || "rec on".equals(cmd) || "rec off".equals(cmd)) {
+            // [SOLO PRUEBAS / ENTRENAMIENTO] Iniciar/pausar grabacion de rafagas CSV reales
+            boolean activar = "g".equals(cmd) ? grabadorDataset.alternarGrabacion() : "rec on".equals(cmd);
+            if (!"g".equals(cmd)) {
+                grabadorDataset.setGrabando(activar);
+            }
+            sincronizarEstadoGrabacionTui();
+            monitorTui.registrarComandoControl(activar
+                    ? "REC:ON (" + grabadorDataset.getEtiquetaActiva() + ")"
+                    : "REC:PAUSA");
+        } else if (cmd.startsWith("label ")) {
+            // [SOLO PRUEBAS / ENTRENAMIENTO] Fijar etiqueta explicita por nombre
+            if (grabadorDataset.seleccionarEtiqueta(cmd.substring(6))) {
+                sincronizarEstadoGrabacionTui();
+                monitorTui.registrarComandoControl("Etiq=" + grabadorDataset.getEtiquetaActiva());
+            }
+        } else if ("t".equals(cmd) || "retrain".equals(cmd) || cmd.startsWith("retrain ")) {
+            // [SOLO PRUEBAS / ENTRENAMIENTO] Reentrenar redes Neuroph 2.98 en segundo plano + hot-reload
+            if (monitorTui.isReentrenando()) {
+                monitorTui.agregarLog("WARN", "Ya hay un reentrenamiento en curso.");
+                return;
+            }
+            String nota = cmd.startsWith("retrain ") ? cmd.substring(8).trim() : "TUI";
+            Thread hiloTrain = new Thread(() -> ejecutarRetrainSincrono(nota), "RetrainNeuroph-Keiko");
+            hiloTrain.setDaemon(true);
+            hiloTrain.start();
+        } else if ("models".equals(cmd)) {
+            List<GestorModelosYEntrenamiento.EntradaHistorialModelo> hist = gestorModelos.listarHistorial();
+            if (hist.isEmpty()) {
+                monitorTui.agregarLog("INFO", "Historial vacio (sin versiones guardadas aun).");
+            } else {
+                for (int i = 0; i < Math.min(5, hist.size()); i++) {
+                    GestorModelosYEntrenamiento.EntradaHistorialModelo e = hist.get(i);
+                    monitorTui.agregarLog("INFO", String.format(java.util.Locale.US,
+                            "Model %s | US:%.1f%% CAN:%.1f%% | %s",
+                            e.id(), e.accuracyRed1(), e.accuracyRed2(), e.nota()));
+                }
+            }
+        } else if (cmd.startsWith("use-model ")) {
+            String id = cmd.substring(10).trim();
+            if (gestorModelos.activarVersion(id, clasificador)) {
+                monitorTui.registrarComandoControl("USE-MODEL:" + id);
+            } else {
+                monitorTui.agregarLog("WARN", "No se encontro la version de modelo: " + id);
+            }
         } else if ("r".equals(cmd) || "reset".equals(cmd)) {
             gestorEstomago.vaciarEstomago();
             planificador.reiniciarParaPrueba();
@@ -307,6 +378,46 @@ public class ServidorCentral implements OyenteAuditor {
         } else if ("clear".equals(cmd) || "c".equals(cmd)) {
             monitorTui.limpiarLogs();
         }
+    }
+
+    private void sincronizarEstadoGrabacionTui() {
+        monitorTui.actualizarGrabacionDataset(
+                grabadorDataset.isGrabando(),
+                grabadorDataset.getRedObjetivo().name(),
+                grabadorDataset.getEtiquetaActiva(),
+                grabadorDataset.obtenerConteosPorClase());
+    }
+
+    GestorModelosYEntrenamiento.ResultadoReentrenamiento ejecutarRetrainSincrono(String nota) {
+        monitorTui.registrarEstadoEntrenamiento(true, "Entrenando...");
+        monitorTui.agregarLog("INFO", "Iniciando reentrenamiento Neuroph 2.98 (backup + real + base)...");
+        try {
+            GestorModelosYEntrenamiento.ResultadoReentrenamiento res =
+                    gestorModelos.reentrenarYActivar(nota, clasificador);
+            StringBuilder resumen = new StringBuilder();
+            if (res.redUltrasonico().entrenada()) {
+                resumen.append(String.format(java.util.Locale.US, "US:%.1f%% ", res.redUltrasonico().accuracyPct()));
+            }
+            if (res.redCanicas().entrenada()) {
+                resumen.append(String.format(java.util.Locale.US, "CAN:%.1f%% ", res.redCanicas().accuracyPct()));
+            }
+            String txt = resumen.toString().trim() + " [" + res.versionId() + "]";
+            monitorTui.registrarEstadoEntrenamiento(false, txt);
+            monitorTui.agregarLog("OK", "Redes actualizadas y recargadas en vivo: " + txt);
+            return res;
+        } catch (Exception e) {
+            monitorTui.registrarEstadoEntrenamiento(false, "ERROR");
+            monitorTui.agregarLog("WARN", "Reentrenamiento omitido: " + e.getMessage());
+            return null;
+        }
+    }
+
+    GrabadorDatasetReal getGrabadorDataset() {
+        return grabadorDataset;
+    }
+
+    GestorModelosYEntrenamiento getGestorModelos() {
+        return gestorModelos;
     }
 
     EstadoMonitorTui getMonitorTui() {
@@ -377,11 +488,79 @@ public class ServidorCentral implements OyenteAuditor {
             return;
         }
 
+        if (cfg.isListarModelosSolicitado()) {
+            GestorModelosYEntrenamiento gestor = crearGestorModelosCli(cfg);
+            List<GestorModelosYEntrenamiento.EntradaHistorialModelo> hist = gestor.listarHistorial();
+            System.out.println("Historial de modelos (.nnet) (" + hist.size() + "):");
+            for (GestorModelosYEntrenamiento.EntradaHistorialModelo e : hist) {
+                System.out.printf(java.util.Locale.US,
+                        "  %-22s | US:%5.1f%% (%d) | CAN:%5.1f%% (%d) | sha=(%s,%s) | %s%n",
+                        e.id(), e.accuracyRed1(), e.muestrasUsReal(),
+                        e.accuracyRed2(), e.muestrasCanReal(), e.shaUs(), e.shaCan(), e.nota());
+            }
+            return;
+        }
+
+        if (cfg.getVersionModeloSolicitada() != null && !cfg.getVersionModeloSolicitada().isBlank()) {
+            GestorModelosYEntrenamiento gestor = crearGestorModelosCli(cfg);
+            boolean ok = gestor.activarVersion(cfg.getVersionModeloSolicitada(), null);
+            System.out.println(ok
+                    ? "[OK] Version activada: " + cfg.getVersionModeloSolicitada()
+                    : "[ERROR] Version no encontrada en historial: " + cfg.getVersionModeloSolicitada());
+            return;
+        }
+
+        if (cfg.isRetrainRealSolicitado()) {
+            GestorModelosYEntrenamiento gestor = crearGestorModelosCli(cfg);
+            GestorModelosYEntrenamiento.ResultadoReentrenamiento res =
+                    gestor.reentrenarYActivar(cfg.getNotaModelo(), null);
+            imprimirResumenEntrenamiento(res);
+            return;
+        }
+
         if (cfg.isResetSolicitado()) {
             new GestorEstomago(cfg.getArchivoEstomago()).vaciarEstomago();
         }
 
         ServidorCentral server = new ServidorCentral(cfg);
         server.iniciar();
+    }
+
+    private static GestorModelosYEntrenamiento crearGestorModelosCli(ConfiguracionServidor cfg) {
+        GrabadorDatasetReal grab = new GrabadorDatasetReal(cfg.getDirectorioDatosReales());
+        return new GestorModelosYEntrenamiento(
+                cfg.getDirectorioModelos(),
+                GestorModelosYEntrenamiento.resolverDatasetBasePorDefecto("dataset_ultrasonico.csv"),
+                GestorModelosYEntrenamiento.resolverDatasetBasePorDefecto("dataset_canicas.csv"),
+                grab.getArchivoUltrasonico(),
+                grab.getArchivoCanicas());
+    }
+
+    private static void imprimirResumenEntrenamiento(GestorModelosYEntrenamiento.ResultadoReentrenamiento res) {
+        System.out.println("=== REENTRENAMIENTO NEUROPH 2.98 COMPLETADO ===");
+        System.out.println("Version ID : " + res.versionId());
+        System.out.println("SHA-256    : US=" + res.shaUs() + " | CAN=" + res.shaCan());
+        if (res.redUltrasonico().entrenada()) {
+            System.out.printf(java.util.Locale.US,
+                    "Red 1 (US) : Acc=%.2f%% (train=%d, test=%d, reales=%d)%n",
+                    res.redUltrasonico().accuracyPct(), res.redUltrasonico().muestrasTrain(),
+                    res.redUltrasonico().muestrasTest(), res.muestrasUsReal());
+            imprimirMatrizConfusion(res.redUltrasonico());
+        }
+        if (res.redCanicas().entrenada()) {
+            System.out.printf(java.util.Locale.US,
+                    "Red 2 (CAN): Acc=%.2f%% (train=%d, test=%d, reales=%d)%n",
+                    res.redCanicas().accuracyPct(), res.redCanicas().muestrasTrain(),
+                    res.redCanicas().muestrasTest(), res.muestrasCanReal());
+            imprimirMatrizConfusion(res.redCanicas());
+        }
+    }
+
+    private static void imprimirMatrizConfusion(GestorModelosYEntrenamiento.ResultadoRed red) {
+        int[][] m = red.matrizConfusion();
+        if (m == null) return;
+        for (int i = 0; i < m.length; i++) {
+            System.out.printf("  %-14s: %s%n", red.etiquetas()[i], java.util.Arrays.toString(m[i]));
+        }
     }
 }

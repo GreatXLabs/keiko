@@ -26,6 +26,7 @@ public class ReceptorSerie implements Runnable {
     private final long intervaloHeartbeatMs;
     private final boolean autoStartEnHello;
     private final EstadoMonitorTui monitorTui;
+    private volatile GrabadorDatasetReal grabadorDataset;
 
     private volatile boolean corriendo = false;
     private volatile ManejadorCliente sesionActiva;
@@ -73,6 +74,10 @@ public class ReceptorSerie implements Runnable {
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
         this.autoStartEnHello = autoStartEnHello;
         this.monitorTui = monitorTui;
+    }
+
+    public void setGrabadorDataset(GrabadorDatasetReal grabadorDataset) {
+        this.grabadorDataset = grabadorDataset;
     }
 
     public static List<String> listarPuertosDisponibles() {
@@ -125,7 +130,7 @@ public class ReceptorSerie implements Runnable {
                 ManejadorCliente manejador = new ManejadorCliente(
                         in, out, origenSerie,
                         port::closePort, gestorEstomago, clasificador, planificador,
-                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, true);
+                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, true, grabadorDataset);
                 sesionActiva = manejador;
                 manejador.run();
             } catch (Exception e) {

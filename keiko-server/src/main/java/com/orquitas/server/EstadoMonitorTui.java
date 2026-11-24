@@ -8,7 +8,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -98,6 +100,13 @@ public class EstadoMonitorTui {
     private volatile int estomagoBaseMm = -1;
     private volatile int estomagoDetector = -1;
     private volatile int estomagoCambios = 0;
+    // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion de datasets reales y reentrenamiento en caliente]
+    private volatile boolean grabacionActiva = false;
+    private volatile String grabacionRed = "CANICAS";
+    private volatile String grabacionEtiqueta = "LOBITO_IZQ";
+    private volatile Map<String, Integer> grabacionConteos = Collections.emptyMap();
+    private volatile boolean reentrenando = false;
+    private volatile String ultimoResumenEntrenamiento = "---";
 
     public EstadoMonitorTui(ConfiguracionServidor cfg,
                             ClasificadorNeuroph clasificador,
@@ -347,6 +356,31 @@ public class EstadoMonitorTui {
         marcarCambio();
     }
 
+    public synchronized void actualizarGrabacionDataset(boolean activa,
+                                                        String redObjetivo,
+                                                        String etiquetaActiva,
+                                                        Map<String, Integer> conteos) {
+        this.grabacionActiva = activa;
+        if (redObjetivo != null) {
+            this.grabacionRed = redObjetivo;
+        }
+        if (etiquetaActiva != null) {
+            this.grabacionEtiqueta = etiquetaActiva;
+        }
+        this.grabacionConteos = conteos != null
+                ? Collections.unmodifiableMap(new LinkedHashMap<>(conteos))
+                : Collections.emptyMap();
+        marcarCambio();
+    }
+
+    public synchronized void registrarEstadoEntrenamiento(boolean enCurso, String resumen) {
+        this.reentrenando = enCurso;
+        if (resumen != null && !resumen.isBlank()) {
+            this.ultimoResumenEntrenamiento = resumen;
+        }
+        marcarCambio();
+    }
+
     public synchronized void agregarLog(String nivel, String mensaje) {
         if (mensaje == null || mensaje.isBlank()) {
             return;
@@ -414,6 +448,12 @@ public class EstadoMonitorTui {
     public int getEstomagoBaseMm() { return estomagoBaseMm; }
     public int getEstomagoDetector() { return estomagoDetector; }
     public int getEstomagoCambios() { return estomagoCambios; }
+    public boolean isGrabacionActiva() { return grabacionActiva; }
+    public String getGrabacionRed() { return grabacionRed; }
+    public String getGrabacionEtiqueta() { return grabacionEtiqueta; }
+    public Map<String, Integer> getGrabacionConteos() { return grabacionConteos; }
+    public boolean isReentrenando() { return reentrenando; }
+    public String getUltimoResumenEntrenamiento() { return ultimoResumenEntrenamiento; }
     public String getUltimaClaseCanica() {
         SnapshotTelemetria snap = ultimaTelemetria;
         return (snap != null && snap.claseCanica() != null) ? snap.claseCanica() : "NINGUNA";
