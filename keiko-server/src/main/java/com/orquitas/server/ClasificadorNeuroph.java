@@ -223,6 +223,11 @@ public class ClasificadorNeuroph {
 
     // Clasificación de los 3 sectores [IZQ, CEN, DER] combinando las 2 redes
     public synchronized String[] clasificarPares(VectorSensores sensores) {
+        return clasificarPares(sensores, true);
+    }
+
+    /** Clasifica [IZQ, CEN, DER]; cuando evaluarCanicas es false (ej. ESCAPE), omite Red 2 y no inyecta LOBITO. */
+    public synchronized String[] clasificarPares(VectorSensores sensores, boolean evaluarCanicas) {
         if (sensores == null || !sensores.isValido()) {
             this.ultimaConfianza = 0.0;
             return new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
@@ -265,9 +270,9 @@ public class ClasificadorNeuroph {
 
             String[] terna = new String[]{cIzq, cCen, cDer};
 
-            // Fusión con Red 2 (modelo_canicas.nnet): una canica solo se confirma si Red 1
-            // no clasificó BLOQUEO ni SALIDA en ese sector
-            if (neuralNetCanicas != null && sensores.getCantidadSensores() >= 6) {
+            // Fusión con Red 2 (modelo_canicas.nnet): omitida en ESCAPE; en BUSQUEDA una canica
+            // solo se confirma si Red 1 no clasificó BLOQUEO ni SALIDA en ese sector
+            if (evaluarCanicas && neuralNetCanicas != null && sensores.getCantidadSensores() >= 6) {
                 String marbleResult = clasificarCanicas(sensores);
                 if ("LOBITO_CENTRO".equals(marbleResult)) {
                     if (!"BLOQUEO".equals(terna[1]) && !"SALIDA".equals(terna[1])) {

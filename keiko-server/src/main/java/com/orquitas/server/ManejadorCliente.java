@@ -289,7 +289,9 @@ public class ManejadorCliente implements Runnable {
                             grabadorDataset.obtenerConteosPorClase());
                 }
             }
-            String[] pares = clasificador.clasificarPares(sensores);
+            EstadoRobot estadoActual = planificador.getEstado();
+            boolean evaluarCanicas = (estadoActual != EstadoRobot.ESCAPE && estadoActual != EstadoRobot.FINALIZACION);
+            String[] pares = clasificador.clasificarPares(sensores, evaluarCanicas);
             boolean corridaActiva = !monitoreoPasivoEnReposo || (monitorTui != null && monitorTui.isCorridaActiva());
             if (!corridaActiva) {
                 if (monitorTui != null) {
