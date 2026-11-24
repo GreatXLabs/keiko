@@ -283,7 +283,7 @@ public class ManejadorCliente implements Runnable {
                 // [SOLO PRUEBAS / ENTRENAMIENTO] Captura muestra real en marcha o en reposo
                 if (grabadorDataset.registrarTelemetria(sensores) && monitorTui != null) {
                     monitorTui.actualizarGrabacionDataset(
-                            true,
+                            grabadorDataset.isGrabando(),
                             grabadorDataset.getRedObjetivo().name(),
                             grabadorDataset.getEtiquetaActiva(),
                             grabadorDataset.obtenerConteosPorClase());

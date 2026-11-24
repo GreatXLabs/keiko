@@ -96,4 +96,75 @@ public class ServidorCentralControlTest {
         servidor.procesarComandoConsola("r");
         assertEquals(EstadoRobot.BUSQUEDA, monitor.getEstadoFsmActual());
     }
+
+    @Test
+    public void testModoEntrenamientoGuiadoWizardPasoAPaso(@TempDir Path tempDir) {
+        ConfiguracionServidor cfg = new ConfiguracionServidor();
+        cfg.setNoTuiSolicitado(true);
+        cfg.setRutaArchivoEstomago(tempDir.resolve("estomago_wizard.txt").toString());
+        cfg.setRutaDatosReales(tempDir.resolve("real_wizard").toString());
+
+        ServidorCentral servidor = new ServidorCentral(cfg);
+        EstadoMonitorTui monitor = servidor.getMonitorTui();
+        GrabadorDatasetReal grabador = servidor.getGrabadorDataset();
+        AsistenteEntrenamientoGuiado wizard = servidor.getAsistenteGuiado();
+
+        // Si el robot estaba en marcha, abrir wizard con [w] lo detiene por seguridad
+        servidor.procesarComandoConsola("k");
+        assertTrue(monitor.isCorridaActiva());
+
+        servidor.procesarComandoConsola("w");
+        assertFalse(monitor.isCorridaActiva(), "El wizard debe pasar el robot a REPOSO");
+        assertTrue(wizard.isActivo());
+        assertEquals(21, wizard.getTotalPasos());
+        assertEquals(1, monitor.getEstadoWizard().pasoActual());
+        assertEquals("BLOQUEO", grabador.getEtiquetaActiva());
+        assertFalse(monitor.isBarridoEnReposo(), "Los pasos HC-SR04 deben centrar servos en 0 deg");
+
+        // Apretar ESPACIO inicia la captura del paso 1 (meta 25 muestras)
+        servidor.procesarComandoConsola("space");
+        assertTrue(grabador.isGrabando());
+        assertTrue(monitor.getEstadoWizard().capturando());
+
+        VectorSensores sWall = new VectorSensores(new double[]{5.5, 5.2, 5.8, 40.0, 41.0, 0.0}, 1000L);
+        for (int i = 0; i < 25; i++) {
+            assertTrue(grabador.registrarTelemetria(sWall));
+        }
+
+        // Al completar 25 muestras: detiene grabacion automaticamente y avanza al Paso 2
+        assertFalse(grabador.isGrabando(), "Al llegar a la meta debe pausar la grabacion");
+        assertFalse(monitor.isGrabacionActiva(), "EstadoMonitorTui debe reflejar pausa automatica");
+        assertEquals(2, monitor.getEstadoWizard().pasoActual());
+        assertEquals(1, monitor.getEstadoWizard().pasosHechos());
+        assertFalse(monitor.getEstadoWizard().capturando());
+        assertEquals(25, grabador.obtenerConteosPorClase().get("BLOQUEO"));
+
+        // Navegar adelante (n) hasta Paso 9 (Red 2 -> activa barrido completo de 65 muestras) y volver al 8
+        for (int i = 0; i < 7; i++) {
+            servidor.procesarComandoConsola("n");
+        }
+        assertEquals(9, monitor.getEstadoWizard().pasoActual());
+        assertEquals(65, monitor.getEstadoWizard().metaPaso());
+        assertEquals("CANICAS", monitor.getEstadoWizard().red());
+        assertEquals("NINGUNA", grabador.getEtiquetaActiva());
+        assertTrue(monitor.isBarridoEnReposo(), "Los pasos de canicas deben activar barrido espejo");
+
+        servidor.procesarComandoConsola("a");
+        assertEquals(8, monitor.getEstadoWizard().pasoActual());
+        assertEquals("SALIDA", grabador.getEtiquetaActiva());
+        assertFalse(monitor.isBarridoEnReposo());
+
+        // Avanzar hasta finalizar los 21 pasos -> entra en estado completado
+        for (int i = 0; i < 14; i++) {
+            servidor.procesarComandoConsola("n");
+        }
+        assertTrue(wizard.isCompletado());
+        assertTrue(monitor.getEstadoWizard().completado());
+
+        // Salir del wizard con [w]
+        servidor.procesarComandoConsola("w");
+        assertFalse(wizard.isActivo());
+        assertFalse(grabador.isGrabando());
+        assertEquals(null, monitor.getEstadoWizard());
+    }
 }

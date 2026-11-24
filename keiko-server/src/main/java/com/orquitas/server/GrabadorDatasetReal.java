@@ -47,6 +47,7 @@ public class GrabadorDatasetReal {
     private int idxEtiquetaCanica = 0;
     private volatile boolean grabando = false;
     private volatile int muestrasEnRafaga = 0;
+    private volatile Runnable onMuestraRegistrada = null;
 
     public GrabadorDatasetReal(File directorioSalida) {
         this.directorioSalida = directorioSalida;
@@ -173,6 +174,10 @@ public class GrabadorDatasetReal {
                 : ETIQUETAS_CANICAS.get(idxEtiquetaCanica);
     }
 
+    public void setOnMuestraRegistrada(Runnable callback) {
+        this.onMuestraRegistrada = callback;
+    }
+
     /**
      * Registra la lectura actual si la grabación está activa (llamado desde el receptor Bluetooth).
      * Mantiene intacto el valor 999.0 cuando el sensor real reporta sin eco.
@@ -181,6 +186,7 @@ public class GrabadorDatasetReal {
         if (!grabando || sensores == null || !sensores.isValido()) {
             return false;
         }
+        boolean escrita = false;
         synchronized (bloqueo) {
             RedObjetivo modo;
             String etiqueta;
@@ -219,12 +225,17 @@ public class GrabadorDatasetReal {
                     conteos.merge(etiqueta, 1, Integer::sum);
                     muestrasEnRafaga++;
                 }
-                return true;
+                escrita = true;
             } catch (Exception e) {
                 LOGGER.warning("[GRABADOR] Error escribiendo muestra real: " + e.getMessage());
                 return false;
             }
         }
+        Runnable cb = onMuestraRegistrada;
+        if (escrita && cb != null) {
+            cb.run();
+        }
+        return escrita;
     }
 
     public synchronized Map<String, Integer> obtenerConteosPorClase() {

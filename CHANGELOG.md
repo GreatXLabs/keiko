@@ -6,7 +6,30 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [2.0.3] — 2026-11-24
+## [2.0.4] — 2026-11-24
+
+### Added (Agregado)
+- **Asistente de Entrenamiento Guiado paso a paso en la TUI ([`AsistenteEntrenamientoGuiado.java`](keiko-server/src/main/java/com/orquitas/server/AsistenteEntrenamientoGuiado.java), [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):**
+  - Tecla **`[w]`** (`wizard`): detiene el robot por seguridad (`CMD:STOP`) y guía en **21 poses reales** (`1045` muestras totales):
+    - Red 1 (`ULTRASONICO`, `LASER:0`, `25` muestras/paso): paredes a `~5`, `12`, `~20 cm`, cubo `6×6 cm`, libre corto `~35`, medio `~75`, largo `~115 cm` (frontera previa a salida) y salida `> 135 cm`.
+    - Red 2 (`CANICAS`, `LASER:SWEEP`, **`65` muestras/paso = ~6.5 s** para garantizar 1 barrido completo `-45°..+60°` ida y vuelta): pista vacía, pared recta `~12 cm`, diagonales izquierda y derecha (`~35°`, `12–20 cm`), esquina y cubo `6×6 cm` como `NINGUNA`; más canicas de vidrio `CENTRO` (`~6`, `~13`, `~21 cm`), `IZQ` (`8–12`, `16–20 cm`) y `DER` (`8–12`, `16–20 cm`).
+  - Auto-selecciona la etiqueta objetivo (`ULTRASONICO` / `CANICAS`), configura servos (`LASER:0` / `LASER:SWEEP`), graba al pulsar **`[ESPACIO]`** (o `[g]`) con barra de progreso en vivo, detiene la captura y avanza solo al llegar a la meta.
+  - Soporta navegación manual (`[n]` siguiente, `[a]` anterior) y pantalla final `21/21 COMPLETADO` invitando a reentrenar con `[t]`.
+- **Wiki visual actualizada en [`keiko-server/README.md`](keiko-server/README.md):** captura ASCII `v2.0.4`, vista del Asistente Guiado `[w]` y tabla completa de los 21 pasos en pista.
+- **Pruebas unitarias (`65` total):** `ConsolaTuiTest#testRenderizadoAsistenteEntrenamientoGuiadoAlineado` y `ServidorCentralControlTest#testModoEntrenamientoGuiadoWizardPasoAPaso`.
+
+### Fixed (Corregido)
+- **Sincronización visual de pausa automática ([`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java), [`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java)):** `ManejadorCliente` consulta `grabadorDataset.isGrabando()` tras ejecutar el callback `onMuestraRegistrada` para reflejar la pausa automática apenas se alcanza la meta del paso.
+
+### Tests Run (Evidencia `2.0.4` — 2026-11-24)
+- `cd keiko-server && mvn clean test`: **65/65 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `python3 -m unittest discover -s keiko-sim/tests -v`: **33/33 OK** (incluyendo carga headless Webots).
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.4 | mega-3us-2laser`).
+
+---
+
+## [2.0.3] — 2026-11-24 (`#26`, Mergeado en `main`)
 
 ### Added (Agregado)
 - **Manual Visual de la TUI y Guía de Entrenamiento en Pista ([`keiko-server/README.md`](keiko-server/README.md), [`AGENTS.md`](AGENTS.md)):** captura visual de referencia `v2.0.3`, glosario completo de paneles/métricas (`LSR-EST`, `DBG Mega`, `TERNA`, `Rev`, `REC`) e instructivo paso a paso para verificación de servos, captura de datos reales (`999.0` sin eco / canica vidrio), reentrenamiento y rollback.

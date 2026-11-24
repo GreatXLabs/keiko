@@ -51,6 +51,22 @@ public class EstadoMonitorTui {
         }
     }
 
+    public record EstadoWizardSnapshot(
+            boolean activo,
+            boolean completado,
+            int pasoActual,
+            int totalPasos,
+            String red,
+            String etiqueta,
+            boolean barridoLaser,
+            boolean capturando,
+            int muestrasPaso,
+            int metaPaso,
+            int pasosHechos,
+            String titulo,
+            String instruccion
+    ) {}
+
     private final String version;
     private final String rig;
     private final String puertoSerie;
@@ -108,6 +124,7 @@ public class EstadoMonitorTui {
     private volatile Map<String, Integer> grabacionConteos = Collections.emptyMap();
     private volatile boolean reentrenando = false;
     private volatile String ultimoResumenEntrenamiento = "---";
+    private volatile EstadoWizardSnapshot estadoWizard = null;
 
     public EstadoMonitorTui(ConfiguracionServidor cfg,
                             ClasificadorNeuroph clasificador,
@@ -389,6 +406,11 @@ public class EstadoMonitorTui {
         marcarCambio();
     }
 
+    public synchronized void actualizarWizard(EstadoWizardSnapshot wizard) {
+        this.estadoWizard = wizard;
+        marcarCambio();
+    }
+
     public synchronized void agregarLog(String nivel, String mensaje) {
         if (mensaje == null || mensaje.isBlank()) {
             return;
@@ -463,6 +485,7 @@ public class EstadoMonitorTui {
     public Map<String, Integer> getGrabacionConteos() { return grabacionConteos; }
     public boolean isReentrenando() { return reentrenando; }
     public String getUltimoResumenEntrenamiento() { return ultimoResumenEntrenamiento; }
+    public EstadoWizardSnapshot getEstadoWizard() { return estadoWizard; }
     public String getUltimaClaseCanica() {
         SnapshotTelemetria snap = ultimaTelemetria;
         return (snap != null && snap.claseCanica() != null) ? snap.claseCanica() : "NINGUNA";
