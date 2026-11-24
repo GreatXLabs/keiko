@@ -6,7 +6,27 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [2.0.2] — 2026-11-24
+## [2.0.3] — 2026-11-24
+
+### Added (Agregado)
+- **Manual Visual de la TUI y Guía de Entrenamiento en Pista ([`keiko-server/README.md`](keiko-server/README.md), [`AGENTS.md`](AGENTS.md)):** captura visual de referencia `v2.0.3`, glosario completo de paneles/métricas (`LSR-EST`, `DBG Mega`, `TERNA`, `Rev`, `REC`) e instructivo paso a paso para verificación de servos, captura de datos reales (`999.0` sin eco / canica vidrio), reentrenamiento y rollback.
+- **Ergonomía de grabación real ([`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):** al pausar `[g]` informa cantidad exacta de muestras añadidas y archivo CSV objetivo; al pulsar `[t]` sin muestras reales avisa claramente sin fallar.
+- **Prueba de aprendizaje real en banda `~25 cm` ([`RealDatasetAndRetrainTest.java`](keiko-server/src/test/java/com/orquitas/server/RealDatasetAndRetrainTest.java)).**
+
+### Changed (Modificado)
+- **Umbral `SALIDA` ajustado a `> 130 cm` en Red 1 ([`generate_datasets.py`](keiko-sim/scripts/generate_datasets.py), [`modelo_ultrasonico.nnet`](keiko-server/models/modelo_ultrasonico.nnet)):** actualizadas bandas `ESPACIO_LIBRE` (`19.5–122.0 cm`) y `SALIDA` (`132.0–250.0 cm`) con reentrenamiento en `neuroph-train` (**`99.28%` accuracy**, F1 `0.9928`, sincronizado en las 3 rutas del repo, SHA-256 `44b112eaa1a7...`) y actualización de [`TwoNetworksInferenceTest.java`](keiko-server/src/test/java/com/orquitas/server/TwoNetworksInferenceTest.java).
+- **Reentrenamiento fiel de canicas reales (`~22–28 cm`) ([`GestorModelosYEntrenamiento.java`](keiko-server/src/main/java/com/orquitas/server/GestorModelosYEntrenamiento.java)):** al combinar datos reales con base sintética de Red 2, excluye la banda negativa sintética `laser_medio` (`22.0–35.5 cm = NINGUNA` con `US >= 30 cm`) para que las canicas reales de vidrio aprendan su patrón sin contradicción, conservando piso limpio, muros cercanos y `999.0`.
+- **Pulido visual en [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java):** ajuste de ancho en barra láser (`12 + extraLas`) para evitar truncamiento `...` a `112–116` cols y compactación de la barra `Teclas:` para que entren todos los atajos incluyendo `[v/c/q]`.
+
+### Tests Run (Evidencia `2.0.3` — 2026-11-24)
+- `cd keiko-server && mvn clean test`: **63/63 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `python3 -m unittest discover -s keiko-sim/tests -v`: **33/33 OK** (incluyendo carga headless Webots).
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.3 | mega-3us-2laser`).
+
+---
+
+## [2.0.2] — 2026-11-24 (`#25`, Mergeado en `main`)
 
 ### Added (Agregado)
 - **Pasos de reversa ajustables en vivo desde TUI (`// [SOLO PRUEBAS / DEBUG]`):** [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) (`--reverse-steps`, env `REVERSE_STEPS`, default `4` = `0.4 s` a `10 Hz`), [`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java) (`setPasosReversa(0..15)`), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java), [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java) (`Rev:Np`) y [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java) (teclas `>`/`.`, `<`/`,` y `rev <n>`). Con `0` pasos salta el retroceso y pivota directamente.

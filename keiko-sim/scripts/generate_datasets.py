@@ -41,8 +41,8 @@ US_QUANTUM_CM = 0.25
 # Bandas oficiales de clasificacion (cm).
 US_CLASSES = (
     ("BLOQUEO", (2.0, 17.5)),
-    ("ESPACIO_LIBRE", (19.5, 175.0)),
-    ("SALIDA", (186.0, 250.0)),
+    ("ESPACIO_LIBRE", (19.5, 122.0)),
+    ("SALIDA", (132.0, 250.0)),
 )
 LASER_FLOOR = (35.0, 43.0)       # reposo sobre piso limpio (media 38.5 cm, con ruido 35-43 cm)
 SERVO_MIN_DEG = -45.0
@@ -90,9 +90,9 @@ def build_ultrasonic_rows(rng):
             for _ in range(n_low):
                 rows.append((noisy_us(rng, rng.uniform(19.5, 35.0), band), label))
             for _ in range(n_mid):
-                rows.append((noisy_us(rng, rng.uniform(35.0, 155.0), band), label))
+                rows.append((noisy_us(rng, rng.uniform(35.0, 105.0), band), label))
             for _ in range(n_high):
-                rows.append((noisy_us(rng, rng.uniform(155.0, 175.0), band), label))
+                rows.append((noisy_us(rng, rng.uniform(105.0, 122.0), band), label))
         elif label == "BLOQUEO":
             n_edge = SAMPLES_PER_CLASS // 3
             for _ in range(n_edge):
@@ -102,9 +102,9 @@ def build_ultrasonic_rows(rng):
         else:
             n_edge = SAMPLES_PER_CLASS // 4
             for _ in range(n_edge):
-                rows.append((noisy_us(rng, rng.uniform(186.0, 205.0), band), label))
+                rows.append((noisy_us(rng, rng.uniform(132.0, 150.0), band), label))
             for _ in range(SAMPLES_PER_CLASS - n_edge):
-                rows.append((noisy_us(rng, rng.uniform(186.0, 250.0), band), label))
+                rows.append((noisy_us(rng, rng.uniform(132.0, 250.0), band), label))
     rows[0] = (2.00, "BLOQUEO")
     for i, (_, lbl) in enumerate(rows):
         if lbl == "SALIDA":

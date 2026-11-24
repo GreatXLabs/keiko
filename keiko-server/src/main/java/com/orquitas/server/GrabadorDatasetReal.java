@@ -46,6 +46,7 @@ public class GrabadorDatasetReal {
     private int idxEtiquetaUs = 0;
     private int idxEtiquetaCanica = 0;
     private volatile boolean grabando = false;
+    private volatile int muestrasEnRafaga = 0;
 
     public GrabadorDatasetReal(File directorioSalida) {
         this.directorioSalida = directorioSalida;
@@ -143,12 +144,19 @@ public class GrabadorDatasetReal {
     }
 
     public synchronized boolean alternarGrabacion() {
-        grabando = !grabando;
+        setGrabando(!grabando);
         return grabando;
     }
 
     public synchronized void setGrabando(boolean grabando) {
+        if (grabando && !this.grabando) {
+            this.muestrasEnRafaga = 0;
+        }
         this.grabando = grabando;
+    }
+
+    public int getMuestrasEnRafaga() {
+        return muestrasEnRafaga;
     }
 
     public boolean isGrabando() {
@@ -209,6 +217,7 @@ public class GrabadorDatasetReal {
                 bw.flush();
                 synchronized (this) {
                     conteos.merge(etiqueta, 1, Integer::sum);
+                    muestrasEnRafaga++;
                 }
                 return true;
             } catch (Exception e) {

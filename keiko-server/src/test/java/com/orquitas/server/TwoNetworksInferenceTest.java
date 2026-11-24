@@ -37,16 +37,19 @@ public class TwoNetworksInferenceTest {
         assertEquals("BLOQUEO", classifier.clasificarSectorUltrasonico(10.0));
         assertEquals("BLOQUEO", classifier.clasificarSectorUltrasonico(15.0));
 
-        // Distancia media (18 - 165 cm) -> ESPACIO_LIBRE
+        // Distancia media (19.5 - 122 cm) -> ESPACIO_LIBRE
         assertEquals("ESPACIO_LIBRE", classifier.clasificarSectorUltrasonico(25.0));
         assertEquals("ESPACIO_LIBRE", classifier.clasificarSectorUltrasonico(35.0));
         assertEquals("ESPACIO_LIBRE", classifier.clasificarSectorUltrasonico(80.0));
-        assertEquals("ESPACIO_LIBRE", classifier.clasificarSectorUltrasonico(150.0));
+        assertEquals("ESPACIO_LIBRE", classifier.clasificarSectorUltrasonico(115.0));
 
-        // Distancia larga (> 185 cm) a través de la salida de 30 cm -> SALIDA
+        // Distancia larga (> 130 cm o 999 sin eco) a través de la salida de 30 cm -> SALIDA
+        assertEquals("SALIDA", classifier.clasificarSectorUltrasonico(135.0));
+        assertEquals("SALIDA", classifier.clasificarSectorUltrasonico(150.0));
         assertEquals("SALIDA", classifier.clasificarSectorUltrasonico(195.0));
         assertEquals("SALIDA", classifier.clasificarSectorUltrasonico(220.0));
         assertEquals("SALIDA", classifier.clasificarSectorUltrasonico(245.0));
+        assertEquals("SALIDA", classifier.clasificarSectorUltrasonico(999.0));
     }
 
     @Test

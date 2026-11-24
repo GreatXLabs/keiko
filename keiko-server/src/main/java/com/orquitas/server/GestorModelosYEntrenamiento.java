@@ -158,7 +158,7 @@ public class GestorModelosYEntrenamiento {
         asegurarSnapshotInicial();
 
         List<Muestra> realesUs = cargarMuestrasUs(archivoUsReal, true);
-        List<Muestra> realesCan = cargarMuestrasCanicas(archivoCanReal, true);
+        List<Muestra> realesCan = cargarMuestrasCanicas(archivoCanReal, true, false);
         if (realesUs.isEmpty() && realesCan.isEmpty()) {
             throw new IllegalStateException(
                     "No hay muestras reales grabadas en " + directorioModelos.getParentFile() + "/data/real/");
@@ -187,7 +187,9 @@ public class GestorModelosYEntrenamiento {
 
         ResultadoRed resCan = new ResultadoRed(false, -1.0, 0, 0, 0, 0.0, null, ClasificadorNeuroph.CLASES_CANICAS_4);
         if (!realesCan.isEmpty()) {
-            List<Muestra> baseCan = cargarMuestrasCanicas(archivoCanBase, false);
+            // Omitir banda sintetica laser_medio (22..35.5 cm = NINGUNA con US abierto) para no
+            // contradecir caidas reales de canicas (~22..28 cm) grabadas en hardware fisico.
+            List<Muestra> baseCan = cargarMuestrasCanicas(archivoCanBase, false, true);
             List<Muestra> datasetCombinado = combinarBalanceado(
                     baseCan, realesCan, ClasificadorNeuroph.CLASES_CANICAS_4.length, MAX_BASE_POR_CLASE_CAN);
             EntrenamientoSalida ent = entrenarYGuardarMlp(
@@ -410,7 +412,7 @@ public class GestorModelosYEntrenamiento {
         return lista;
     }
 
-    private List<Muestra> cargarMuestrasCanicas(File csv, boolean esReal) {
+    private List<Muestra> cargarMuestrasCanicas(File csv, boolean esReal, boolean omitirBandaMediaNinguna) {
         List<Muestra> lista = new ArrayList<>();
         if (csv == null || !csv.exists()) {
             return lista;
@@ -430,13 +432,26 @@ public class GestorModelosYEntrenamiento {
                 if (idx < 0) {
                     continue;
                 }
+                double usL = Double.parseDouble(c[0].trim());
+                double usC = Double.parseDouble(c[1].trim());
+                double usR = Double.parseDouble(c[2].trim());
+                double lL = Double.parseDouble(c[3].trim());
+                double lR = Double.parseDouble(c[4].trim());
+                double ang = Double.parseDouble(c[5].trim());
+                if (omitirBandaMediaNinguna && idx == 3) {
+                    double minUs = Math.min(usL, Math.min(usC, usR));
+                    double minLas = Math.min(lL, lR);
+                    if (minUs >= 30.0 && minLas >= 22.0 && minLas <= 35.5) {
+                        continue;
+                    }
+                }
                 double[] in = {
-                        ClasificadorNeuroph.normalizarUs(Double.parseDouble(c[0].trim())),
-                        ClasificadorNeuroph.normalizarUs(Double.parseDouble(c[1].trim())),
-                        ClasificadorNeuroph.normalizarUs(Double.parseDouble(c[2].trim())),
-                        ClasificadorNeuroph.normalizarLaser(Double.parseDouble(c[3].trim())),
-                        ClasificadorNeuroph.normalizarLaser(Double.parseDouble(c[4].trim())),
-                        ClasificadorNeuroph.normalizarAnguloServo(Double.parseDouble(c[5].trim()))
+                        ClasificadorNeuroph.normalizarUs(usL),
+                        ClasificadorNeuroph.normalizarUs(usC),
+                        ClasificadorNeuroph.normalizarUs(usR),
+                        ClasificadorNeuroph.normalizarLaser(lL),
+                        ClasificadorNeuroph.normalizarLaser(lR),
+                        ClasificadorNeuroph.normalizarAnguloServo(ang)
                 };
                 lista.add(new Muestra(in, idx, esReal));
             }

@@ -354,9 +354,12 @@ public class ServidorCentral implements OyenteAuditor {
                 grabadorDataset.setGrabando(activar);
             }
             sincronizarEstadoGrabacionTui();
+            String archivoObjetivo = (grabadorDataset.getRedObjetivo() == GrabadorDatasetReal.RedObjetivo.ULTRASONICO)
+                    ? grabadorDataset.getArchivoUltrasonico().getName()
+                    : grabadorDataset.getArchivoCanicas().getName();
             monitorTui.registrarComandoControl(activar
-                    ? "REC:ON (" + grabadorDataset.getEtiquetaActiva() + ")"
-                    : "REC:PAUSA");
+                    ? "REC:ON (" + grabadorDataset.getEtiquetaActiva() + " -> " + archivoObjetivo + ")"
+                    : "REC:PAUSA (+" + grabadorDataset.getMuestrasEnRafaga() + " -> " + archivoObjetivo + ")");
         } else if (cmd.startsWith("label ")) {
             // [SOLO PRUEBAS / ENTRENAMIENTO] Fijar etiqueta explicita por nombre
             if (grabadorDataset.seleccionarEtiqueta(cmd.substring(6))) {
@@ -419,6 +422,11 @@ public class ServidorCentral implements OyenteAuditor {
     }
 
     GestorModelosYEntrenamiento.ResultadoReentrenamiento ejecutarRetrainSincrono(String nota) {
+        if (grabadorDataset.getTotalMuestrasUs() == 0 && grabadorDataset.getTotalMuestrasCanicas() == 0) {
+            monitorTui.registrarEstadoEntrenamiento(false, "SIN_DATOS");
+            monitorTui.agregarLog("WARN", "Sin muestras reales aun: elegi [u]/[m] y graba con [g] antes de [t].");
+            return null;
+        }
         monitorTui.registrarEstadoEntrenamiento(true, "Entrenando...");
         monitorTui.agregarLog("INFO", "Iniciando reentrenamiento Neuroph 2.98 (backup + real + base)...");
         try {
