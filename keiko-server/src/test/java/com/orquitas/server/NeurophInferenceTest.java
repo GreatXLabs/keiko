@@ -76,14 +76,14 @@ public class NeurophInferenceTest {
         GestorEstomago gestor = new GestorEstomago(tempEstomago);
         PlanificadorNavegacion planner = new PlanificadorNavegacion(gestor);
 
-        // Pasos 1..10: retroceso en arco para separar la trompa y la cola del muro
-        for (int i = 0; i < 10; i++) {
+        // Pasos 1..4 (default): retroceso en arco para separar la trompa y la cola del muro
+        for (int i = 0; i < ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO; i++) {
             ComandoRobot c = planner.evaluarPares(muroFrontal, pares);
             assertTrue(c.getVLeft() < 0.0 && c.getVRight() < 0.0,
                     "Debe retroceder en el paso " + i + " para despegarse del muro frontal");
         }
 
-        // Paso 11: una vez completado el retroceso, ejecuta el giro comprometido
+        // Paso 5: una vez completado el retroceso, ejecuta el giro comprometido
         VectorSensores despejado = new VectorSensores(35.0, 35.0, 35.0, 35.0, 35.0, 35.0);
         String[] paresLibres = classifier.clasificarPares(despejado);
         ComandoRobot giro = planner.evaluarPares(despejado, paresLibres);

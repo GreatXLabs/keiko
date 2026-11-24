@@ -13,16 +13,22 @@ public class PlanificadorNavegacion {
     private static final int HORIZONTE_OLVIDO_OSCILACIONES = 150;
     private static final int TAM_HISTORIAL_LADOS = 6;
     private static final int UMBRAL_EPISODIOS_MISMO_LADO = 4;
+    private static final int[] DURACIONES_GIRO_ASIMETRICO = {8, 11, 14};
     private static final double VEL_ARCO_EXT = 4.8;
     private static final double VEL_ARCO_INT = 2.0;
 
     private volatile EstadoRobot estado = EstadoRobot.BUSQUEDA;
+    // [SOLO PRUEBAS / DEBUG - cantidad de pasos en reversa ajustable en vivo desde TUI]
+    private volatile int pasosReversa = ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO;
     private int pasosRetrocesoRestantes = 0;
     private double velRetrocesoIzq = 0.0;
     private double velRetrocesoDer = 0.0;
     private int pasosGiroComprometido = 0;
     private double velGiroIzq = 0.0;
     private double velGiroDer = 0.0;
+    private boolean giroSoloSalidaActivo = false;
+    private int ultimoSentidoGiroSalida = 1;
+    private int indiceGiroAsimetrico = 0;
 
     private int contadorCiclos = 0;
     private int ultimoLadoBloqueado = 0;
@@ -41,6 +47,11 @@ public class PlanificadorNavegacion {
     private volatile boolean modoCapturaForzado = false;
 
     public PlanificadorNavegacion(GestorEstomago gestorEstomago) {
+        this(gestorEstomago, ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+    }
+
+    public PlanificadorNavegacion(GestorEstomago gestorEstomago, int pasosReversa) {
+        this.pasosReversa = ConfiguracionServidor.acotarPasosReversa(pasosReversa);
         if (gestorEstomago != null
                 && gestorEstomago.contarCapturasValidas() >= ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE) {
             this.estado = EstadoRobot.ESCAPE;
@@ -127,6 +138,10 @@ public class PlanificadorNavegacion {
         if (lIzq || lCen || lDer) {
             cancelarGiroYAvance();
         }
+        if (giroSoloSalidaActivo && (bCen || (bIzq && bDer))) {
+            pasosGiroComprometido = 0;
+            giroSoloSalidaActivo = false;
+        }
         ComandoRobot comprometido = ejecutarManiobraComprometida(EstadoRobot.BUSQUEDA);
         if (comprometido != null) {
             return comprometido;
@@ -137,10 +152,26 @@ public class PlanificadorNavegacion {
             return lobitoCmd;
         }
 
-        // Evitar egreso prematuro antes de completar las 3 capturas.
+        // Evitar egreso prematuro antes de completar las 3 capturas: sin bloqueo al frente,
+        // pivotar en el lugar (0 pasos de reversa) eligiendo lado libre y alternando sentido.
         if ("SALIDA".equals(cen) || ("SALIDA".equals(izq) && "SALIDA".equals(der))) {
-            int dir = ((contadorCiclos / 80) % 2 == 0) ? 1 : -1;
-            return iniciarRetrocesoYPivote(dir, 14, EstadoRobot.BUSQUEDA);
+            int dir;
+            if (bIzq && !bDer) {
+                dir = 1;
+            } else if (bDer && !bIzq) {
+                dir = -1;
+            } else {
+                ultimoSentidoGiroSalida = -ultimoSentidoGiroSalida;
+                dir = ultimoSentidoGiroSalida;
+            }
+            int durGiro = siguienteDuracionGiro();
+            if (bCen) {
+                return iniciarRetrocesoYPivote(dir, durGiro, EstadoRobot.BUSQUEDA);
+            }
+            pasosRetrocesoRestantes = 0;
+            iniciarGiro(dir, Math.max(0, durGiro - 1));
+            giroSoloSalidaActivo = true;
+            return new ComandoRobot(velGiroIzq, velGiroDer, EstadoRobot.BUSQUEDA);
         }
         if ("SALIDA".equals(izq)) {
             if (bCen) {
@@ -205,6 +236,7 @@ public class PlanificadorNavegacion {
 
     private void cancelarGiroYAvance() {
         pasosGiroComprometido = 0;
+        giroSoloSalidaActivo = false;
         if (velRetrocesoIzq > 0.0 && velRetrocesoDer > 0.0) {
             pasosRetrocesoRestantes = 0;
         }
@@ -217,9 +249,19 @@ public class PlanificadorNavegacion {
         }
         if (pasosGiroComprometido > 0) {
             pasosGiroComprometido--;
+            if (pasosGiroComprometido == 0) {
+                giroSoloSalidaActivo = false;
+            }
             return new ComandoRobot(velGiroIzq, velGiroDer, estadoSalida);
         }
+        giroSoloSalidaActivo = false;
         return null;
+    }
+
+    private int siguienteDuracionGiro() {
+        int dur = DURACIONES_GIRO_ASIMETRICO[indiceGiroAsimetrico];
+        indiceGiroAsimetrico = (indiceGiroAsimetrico + 1) % DURACIONES_GIRO_ASIMETRICO.length;
+        return dur;
     }
 
     private ComandoRobot evaluarBloqueo(boolean bIzq, boolean bCen, boolean bDer, EstadoRobot estadoSalida) {
@@ -229,7 +271,7 @@ public class PlanificadorNavegacion {
             if (debeActivarAntiBucle()) {
                 return activarManiobraAntiBucle(dir, estadoSalida);
             }
-            return iniciarRetrocesoYPivote(dir, 14, estadoSalida);
+            return iniciarRetrocesoYPivote(dir, siguienteDuracionGiro(), estadoSalida);
         }
         if (bIzq || bDer) {
             int lado = bIzq ? -1 : 1;
@@ -253,7 +295,14 @@ public class PlanificadorNavegacion {
             return activarManiobraAntiBucle(dir, estadoSalida);
         }
         ciclosDesdeUltimoReverso = 0;
-        iniciarRetroceso(-3.6, -3.6, 10);
+        giroSoloSalidaActivo = false;
+        int rev = pasosReversa;
+        if (rev <= 0) {
+            pasosRetrocesoRestantes = 0;
+            iniciarGiro(dir, Math.max(0, pasosGiro - 1));
+            return new ComandoRobot(velGiroIzq, velGiroDer, estadoSalida);
+        }
+        iniciarRetroceso(-3.6, -3.6, rev);
         iniciarGiro(dir, pasosGiro);
         return new ComandoRobot(-3.6, -3.6, estadoSalida);
     }
@@ -261,7 +310,14 @@ public class PlanificadorNavegacion {
     private ComandoRobot activarManiobraAntiBucle(int dir, EstadoRobot estadoSalida) {
         reiniciarMemoriaOscilaciones();
         ciclosDesdeUltimoReverso = 0;
-        iniciarRetroceso(-4.2, -4.2, 12);
+        giroSoloSalidaActivo = false;
+        int revAnti = (pasosReversa > 0) ? Math.min(ConfiguracionServidor.PASOS_REVERSA_MAX, pasosReversa + 2) : 0;
+        if (revAnti <= 0) {
+            pasosRetrocesoRestantes = 0;
+            iniciarGiro(dir, 15);
+            return new ComandoRobot(velGiroIzq, velGiroDer, estadoSalida);
+        }
+        iniciarRetroceso(-4.2, -4.2, revAnti);
         iniciarGiro(dir, 16);
         return new ComandoRobot(-4.2, -4.2, estadoSalida);
     }
@@ -343,6 +399,7 @@ public class PlanificadorNavegacion {
 
     public synchronized void activarModoEscape() {
         this.modoCapturaForzado = false;
+        this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.ESCAPE;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
@@ -354,6 +411,7 @@ public class PlanificadorNavegacion {
 
     public synchronized void finalizar() {
         this.modoCapturaForzado = false;
+        this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.FINALIZACION;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
@@ -363,8 +421,16 @@ public class PlanificadorNavegacion {
 
     public EstadoRobot getEstado() { return estado; }
 
+    public synchronized int getPasosReversa() { return pasosReversa; }
+
+    /** // [SOLO PRUEBAS / DEBUG - ajustar cantidad de pasos en reversa desde TUI] */
+    public synchronized void setPasosReversa(int pasosReversa) {
+        this.pasosReversa = ConfiguracionServidor.acotarPasosReversa(pasosReversa);
+    }
+
     public synchronized void setEstado(EstadoRobot nuevoEstado) {
         this.modoCapturaForzado = false;
+        this.giroSoloSalidaActivo = false;
         this.estado = nuevoEstado;
         if (nuevoEstado == EstadoRobot.ESCAPE) {
             this.ciclosSinSalidaEscape = 0;
@@ -374,6 +440,7 @@ public class PlanificadorNavegacion {
     // [SOLO PRUEBAS / DEBUG - metodos para forzar estados individuales desde TUI]
     public synchronized void forzarModoBusqueda() {
         this.modoCapturaForzado = false;
+        this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.BUSQUEDA;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
@@ -388,6 +455,7 @@ public class PlanificadorNavegacion {
 
     public synchronized void forzarModoCaptura() {
         this.modoCapturaForzado = true;
+        this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.CAPTURA;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
@@ -405,6 +473,7 @@ public class PlanificadorNavegacion {
     /** Reinicia el estado conductual de navegacion a BUSQUEDA para pruebas tras resetear el estomago. */
     public synchronized void reiniciarParaPrueba() {
         this.modoCapturaForzado = false;
+        this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.BUSQUEDA;
         this.pasosRetrocesoRestantes = 0;
         this.velRetrocesoIzq = 0.0;

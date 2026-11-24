@@ -6,7 +6,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [2.0.1] — 2026-11-24
+## [2.0.2] — 2026-11-24
+
+### Added (Agregado)
+- **Pasos de reversa ajustables en vivo desde TUI (`// [SOLO PRUEBAS / DEBUG]`):** [`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java) (`--reverse-steps`, env `REVERSE_STEPS`, default `4` = `0.4 s` a `10 Hz`), [`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java) (`setPasosReversa(0..15)`), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java), [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java) (`Rev:Np`) y [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java) (teclas `>`/`.`, `<`/`,` y `rev <n>`). Con `0` pasos salta el retroceso y pivota directamente.
+
+### Changed (Modificado)
+- **Modo `ESCAPE` sin detección de canicas ([`ClasificadorNeuroph.java`](keiko-server/src/main/java/com/orquitas/server/ClasificadorNeuroph.java), [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java)):** `clasificarPares(sensores, false)` omite Red 2 cuando `planificador.getEstado()` es `ESCAPE` o `FINALIZACION` para que ninguna canica reemplace sectores en la terna. En `BUSQUEDA` se mantiene `SALIDA > LOBITO`.
+- **Pivote sin reversa frente a `SALIDA` y giros anti-órbita ([`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java)):** en `BUSQUEDA`, frente a `SALIDA` sin `BLOQUEO` ejecuta **0 pasos de reversa** y pivota en el lugar alternando sentido y duraciones `{8, 11, 14}` pasos, abortando el pivote de inmediato si aparece `BLOQUEO` al frente; en `BLOQUEO` real baja el retroceso base de `10`/`12` pasos a `4`/`6` pasos (`0.4 s` / `0.6 s`).
+
+### Tests Run (Evidencia `2.0.2` — 2026-11-24)
+- `cd keiko-server && mvn clean test`: **62/62 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.2 | mega-3us-2laser`).
+
+---
+
+## [2.0.1] — 2026-11-24 (`#24`, Mergeado en `main`)
 
 ### Added (Agregado)
 - **Script automatizado de versionado ([`scripts/bump_version.sh`](scripts/bump_version.sh)):** sincroniza en un solo comando `VERSION`, `keiko-server/pom.xml`, `ConfiguracionServidor.java`, `orquita_firmware.ino`, `simulation_params.json`, `robot_client.py`, `README.md` y `AGENTS.md`, validando `9/9 [OK]` con [`check_versions.sh`](scripts/check_versions.sh).

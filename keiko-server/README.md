@@ -1,6 +1,6 @@
 # Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.1` | `mega-3us-2laser`)**.
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.2` | `mega-3us-2laser`)**.
 
 ---
 
@@ -63,9 +63,9 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **11 clases de prueba (60 tests JUnit 5)**:
+Ejecuta las **11 clases de prueba (62 tests JUnit 5)**:
 - `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `STATE_CHANGE:`, `PICKER:ON/OFF`, `DBG:estomago=...` y rechazo de tramas corruptas.
-- `PlanificadorNavegacionTest` (15 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, breakout de perímetro, anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
+- `PlanificadorNavegacionTest` (17 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, pivote sin reversa frente a `SALIDA`, pasos de reversa ajustables (`0..15`), anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
 - `RealDatasetAndRetrainTest` (3 tests): captura de datasets reales en marcha y en reposo (preservando `999.0` sin eco), reentrenamiento Neuroph 2.98, historial inmutable (`models/historial/`) y rollback en caliente.
 - `ServidorCentralControlTest` (1 test): controles 1-tecla (`k`, `1`, `2`, `3`, `p`, `b`, `+`/`=`, `-`/`_`, `[`/`]`, `r`) y activación de modos forzados.
 - `ConsolaTuiTest` (5 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) del monitor ANSI Bluetooth (incluyendo `Vel`/`PWM`, `LSR-EST`, barra visual adaptativa y parseo `stty size`), cálculo de Hz, Fail-Safe `< 500 ms` y reset.
@@ -102,6 +102,7 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
 | `--speed-scale <f>` | `SPEED_SCALE` | `1.0` | `[PRUEBAS]` Multiplicador de velocidad `(vL, vR)` (`0.20..1.20`) antes de emitir `COMMAND:` |
 | `--pwm-min <0..255>` | `PWM_MIN` | `105` | `[PRUEBAS]` Piso `pwmZonaMuerta` enviado por `CMD:PWM:` al Arduino Mega |
 | `--pwm-max <0..255>` | `PWM_MAX` | `255` | `[PRUEBAS]` Tope máximo `pwmTope` enviado por `CMD:PWM:` al Arduino Mega |
+| `--reverse-steps <0..15>` | `REVERSE_STEPS` | `4` | `[PRUEBAS]` Pasos en reversa (`0..15`, a 10 Hz = `0.4 s`) ante `BLOQUEO` en `BUSQUEDA` |
 | `--real-dir <dir>` | — | `data/real` | `[ENTRENAMIENTO]` Carpeta destino de `dataset_ultrasonico_real.csv` y `dataset_canicas_real.csv` |
 | `--retrain-real` | — | `false` | `[ENTRENAMIENTO]` Reentrena Neuroph 2.98 combinando base + CSV reales, guarda en `models/historial/` y termina |
 | `--list-models` | — | `false` | `[ENTRENAMIENTO]` Lista versiones guardadas en `models/historial/index.tsv` con accuracy y SHA-256 |
@@ -118,6 +119,7 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
   - `[b]` / `sweep` / `hold` / `laser <-45..60>`: alterna `LASER:SWEEP` / `LASER:HOLD` o fija un ángulo específico en reposo.
   - `[+]`/`[=]` y `[-]`/`[_]` (o `speed <20..120>`): ajusta escala de velocidad en pasos de `10%`.
   - `[[]` / `[]]` (o `pwm <min> [max]`): ajusta `pwmZonaMuerta` (`pwmMin`) en pasos de `±5` y emite `CMD:PWM:`.
+  - `[>]`/`[.]` y `[<]`/`[,]` (o `rev <0..15>`): ajusta en vivo los pasos de reversa ante `BLOQUEO` (`0` = pivote directo sin retroceder).
 - **`[ENTRENAMIENTO]` Captura real y reentrenamiento en caliente (`data/real` + `models/historial/`):**
   - `[u]`: pasa a modo Red 1 (`US-CEN`) y cicla etiqueta objetivo (`BLOQUEO` → `ESPACIO_LIBRE` → `SALIDA`).
   - `[m]`: pasa a modo Red 2 (`CANICAS`) y cicla etiqueta (`LOBITO_IZQ` → `LOBITO_CENTRO` → `LOBITO_DER` → `NINGUNA`).

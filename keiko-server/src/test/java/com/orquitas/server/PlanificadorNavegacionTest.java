@@ -57,8 +57,8 @@ public class PlanificadorNavegacionTest {
                 () -> assertEquals(-4.2, desatasco.getVRight(), 1e-9)
         );
 
-        // Fase 1 completa: 12 ciclos de retroceso contando el ciclo que disparo la maniobra.
-        for (int ciclo = 0; ciclo < 11; ciclo++) {
+        // Fase 1 completa: 6 ciclos de retroceso (4 + 2 anti-bucle) contando el ciclo que disparo la maniobra.
+        for (int ciclo = 0; ciclo < 5; ciclo++) {
             ComandoRobot retroceso = planner.evaluarPares(null, LIBRE);
             assertTrue(retroceso.getVLeft() < 0.0 && retroceso.getVRight() < 0.0,
                     "El retroceso anti-bucle debe continuar en el ciclo " + ciclo);
@@ -93,10 +93,13 @@ public class PlanificadorNavegacionTest {
     }
 
     @Test
-    public void testCenterBlockedBacksUpSixStepsBeforePivoting() {
-        assertDiezPasosRetrocesoYPivote(new String[]{"BLOQUEO", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
-        assertDiezPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "BLOQUEO"}, -1);
-        assertDiezPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
+    public void testCenterBlockedBacksUpDefaultStepsBeforePivoting() {
+        assertPasosRetrocesoYPivote(new String[]{"BLOQUEO", "BLOQUEO", "ESPACIO_LIBRE"}, 1,
+                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+        assertPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "BLOQUEO"}, -1,
+                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+        assertPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"}, 1,
+                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
     }
 
     @Test
@@ -303,8 +306,10 @@ public class PlanificadorNavegacionTest {
 
     @Test
     public void testSearchModeLateralSalidaWithCenterBloqueoBacksUpAndPivotsAway() {
-        assertDiezPasosRetrocesoYPivote(new String[]{"SALIDA", "BLOQUEO", "ESPACIO_LIBRE"}, 1);
-        assertDiezPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "SALIDA"}, -1);
+        assertPasosRetrocesoYPivote(new String[]{"SALIDA", "BLOQUEO", "ESPACIO_LIBRE"}, 1,
+                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+        assertPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "SALIDA"}, -1,
+                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
 
         PlanificadorNavegacion libreDer = new PlanificadorNavegacion(null);
         ComandoRobot arcIzq = libreDer.evaluarPares(null, SALIDA_IZQ);
@@ -347,7 +352,7 @@ public class PlanificadorNavegacionTest {
                 () -> assertEquals(-4.2, breakout.getVRight(), 1e-9)
         );
 
-        for (int ciclo = 0; ciclo < 11; ciclo++) {
+        for (int ciclo = 0; ciclo < 5; ciclo++) {
             ComandoRobot retroceso = planner.evaluarPares(null, LIBRE);
             assertAll(
                     () -> assertEquals(-4.2, retroceso.getVLeft(), 1e-9),
@@ -382,9 +387,9 @@ public class PlanificadorNavegacionTest {
                 contexto + " debe resolverse con arco hacia adelante");
     }
 
-    private static void assertDiezPasosRetrocesoYPivote(String[] pares, int direccionEsperada) {
+    private static void assertPasosRetrocesoYPivote(String[] pares, int direccionEsperada, int pasosEsperados) {
         PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
-        for (int ciclo = 0; ciclo < 10; ciclo++) {
+        for (int ciclo = 0; ciclo < pasosEsperados; ciclo++) {
             ComandoRobot retroceso = planner.evaluarPares(null, pares);
             assertAll(
                     () -> assertEquals(-3.6, retroceso.getVLeft(), 1e-9),
@@ -395,6 +400,39 @@ public class PlanificadorNavegacionTest {
         assertTrue(giro.getVLeft() * giro.getVRight() < 0.0, "Debe pivotar tras el retroceso");
         assertTrue(giro.getVLeft() * direccionEsperada > 0.0,
                 "El pivote debe alejarse del lado bloqueado");
+    }
+
+    @Test
+    public void testSalidaEnBusquedaNoHaceReversaYPivotaEnElLugar() {
+        PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
+        // Ante SALIDA central sin BLOQUEO, nunca debe retroceder ni 1 paso: pivote directo (vL*vR < 0)
+        ComandoRobot pivote = planner.evaluarPares(null, SALIDA_CEN);
+        assertEquals(EstadoRobot.BUSQUEDA, pivote.getEstado());
+        assertTrue(pivote.getVLeft() * pivote.getVRight() < 0.0,
+                "Frente a SALIDA sin bloqueo debe pivotar en el lugar sin dar reversa");
+
+        // Si en medio del pivote por SALIDA aparece BLOQUEO frontal, aborta pivote y reacciona al bloqueo
+        ComandoRobot reaccionBloqueo = planner.evaluarPares(null, new String[]{"BLOQUEO", "BLOQUEO", "BLOQUEO"});
+        assertTrue(reaccionBloqueo.getVLeft() < 0.0 && reaccionBloqueo.getVRight() < 0.0,
+                "Debe abortar el pivote de SALIDA si aparece BLOQUEO frontal");
+    }
+
+    @Test
+    public void testPasosReversaAjustableCeroYSiete() {
+        PlanificadorNavegacion ceroRev = new PlanificadorNavegacion(null, 0);
+        ComandoRobot pivDirecto = ceroRev.evaluarPares(null, new String[]{"BLOQUEO", "BLOQUEO", "ESPACIO_LIBRE"});
+        assertTrue(pivDirecto.getVLeft() * pivDirecto.getVRight() < 0.0,
+                "Con 0 pasos de reversa debe pivotar directamente");
+
+        PlanificadorNavegacion sieteRev = new PlanificadorNavegacion(null);
+        sieteRev.setPasosReversa(7);
+        for (int i = 0; i < 7; i++) {
+            ComandoRobot rev = sieteRev.evaluarPares(null, new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"});
+            assertEquals(-3.6, rev.getVLeft(), 1e-9);
+            assertEquals(-3.6, rev.getVRight(), 1e-9);
+        }
+        ComandoRobot piv = sieteRev.evaluarPares(null, LIBRE);
+        assertTrue(piv.getVLeft() * piv.getVRight() < 0.0, "Despues de 7 pasos debe iniciar pivote");
     }
 
     private static void avanzarLibres(PlanificadorNavegacion planner, int ciclos) {

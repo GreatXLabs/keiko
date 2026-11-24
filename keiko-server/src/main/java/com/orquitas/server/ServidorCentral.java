@@ -29,7 +29,7 @@ public class ServidorCentral implements OyenteAuditor {
         this.configuracion = configuracion;
         this.gestorEstomago = new GestorEstomago(configuracion.getArchivoEstomago());
         this.clasificador = new ClasificadorNeuroph(configuracion.resolverArchivoModelo());
-        this.planificador = new PlanificadorNavegacion(gestorEstomago);
+        this.planificador = new PlanificadorNavegacion(gestorEstomago, configuracion.getPasosReversa());
         this.monitorTui = new EstadoMonitorTui(
                 configuracion,
                 clasificador,
@@ -313,6 +313,29 @@ public class ServidorCentral implements OyenteAuditor {
             monitorTui.registrarComandoControl(msg);
             if (consolaTui == null) {
                 System.out.println("[CONTROL] Enviado " + msg);
+            }
+        } else if (">".equals(cmd) || ".".equals(cmd) || "<".equals(cmd) || ",".equals(cmd) || cmd.startsWith("rev ")) {
+            // [SOLO PRUEBAS / DEBUG - ajustar cantidad de pasos en reversa en vivo]
+            int actual = monitorTui.getPasosReversa();
+            int nuevo = actual;
+            if (">".equals(cmd) || ".".equals(cmd)) {
+                nuevo = actual + 1;
+            } else if ("<".equals(cmd) || ",".equals(cmd)) {
+                nuevo = actual - 1;
+            } else {
+                String[] partes = cmd.split("\\s+");
+                if (partes.length >= 2) {
+                    try {
+                        nuevo = Integer.parseInt(partes[1]);
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+            int acotado = ConfiguracionServidor.acotarPasosReversa(nuevo);
+            planificador.setPasosReversa(acotado);
+            monitorTui.setPasosReversa(acotado);
+            monitorTui.registrarComandoControl(String.format(java.util.Locale.US, "REV=%dp (%.1fs)", acotado, acotado * 0.1));
+            if (consolaTui == null) {
+                System.out.printf(java.util.Locale.US, "[CONTROL] Pasos de reversa ajustados a %d (%.1fs).%n", acotado, acotado * 0.1);
             }
         } else if ("u".equals(cmd)) {
             // [SOLO PRUEBAS / ENTRENAMIENTO] Seleccionar modo US y ciclar etiqueta objetivo

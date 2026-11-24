@@ -78,6 +78,21 @@ public class ServidorCentralControlTest {
                 () -> assertFalse(monitor.isModoEscapeActivo())
         );
 
+        // Ajustar pasos de reversa desde TUI (> / . / < / , / rev <n>)
+        int revInicial = monitor.getPasosReversa();
+        servidor.procesarComandoConsola(">");
+        assertEquals(revInicial + 1, monitor.getPasosReversa());
+        assertEquals(revInicial + 1, plan.getPasosReversa());
+        servidor.procesarComandoConsola(",");
+        assertEquals(revInicial, monitor.getPasosReversa());
+        servidor.procesarComandoConsola("rev 9");
+        assertEquals(9, monitor.getPasosReversa());
+        assertEquals(9, plan.getPasosReversa());
+
+        // Flag --reverse-steps en ConfiguracionServidor
+        ConfiguracionServidor cfgRev = ConfiguracionServidor.desdeArgumentos(new String[]{"--reverse-steps", "8"});
+        assertEquals(8, cfgRev.getPasosReversa());
+
         servidor.procesarComandoConsola("r");
         assertEquals(EstadoRobot.BUSQUEDA, monitor.getEstadoFsmActual());
     }

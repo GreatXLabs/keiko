@@ -421,8 +421,8 @@ public class ConsolaTui {
                     snap.comando() != null ? snap.comando().getVLeft() : 0.0,
                     snap.comando() != null ? snap.comando().getVRight() : 0.0), ancho));
             lineas.add(filaCaja(formatearLaserEstomago(estado)
-                    + String.format(Locale.US, "  |  PWM:%d..%d  [%s]",
-                    estado.getPwmMin(), estado.getPwmMax(),
+                    + String.format(Locale.US, "  |  PWM:%d..%d  Rev:%dp  [%s]",
+                    estado.getPwmMin(), estado.getPwmMax(), estado.getPasosReversa(),
                     estado.isCorridaActiva() ? "RUN" : "REPOSO"), ancho));
         }
         lineas.add(filaCaja(formatearLineaDataset(estado, ancho - 4), ancho));
@@ -443,6 +443,7 @@ public class ConsolaTui {
                 BOLD + "[b]" + RESET + "Sweep ",
                 BOLD + "[+/-]" + RESET + "Vel ",
                 BOLD + "[[/]]" + RESET + "PWM ",
+                BOLD + "[</>]" + RESET + "Rev ",
                 BOLD + "[u/m]" + RESET + "Etiq ",
                 BOLD + "[g]" + RESET + "Rec ",
                 BOLD + "[t]" + RESET + "Train ",
@@ -518,8 +519,9 @@ public class ConsolaTui {
 
         double vl = (snap != null && snap.comando() != null) ? snap.comando().getVLeft() : 0.0;
         double vr = (snap != null && snap.comando() != null) ? snap.comando().getVRight() : 0.0;
-        der.add(filaCaja(String.format(Locale.US, "Vel: %d%% | PWM: %d..%d",
-                Math.round(estado.getEscalaVelocidad() * 100.0), estado.getPwmMin(), estado.getPwmMax()), w));
+        der.add(filaCaja(String.format(Locale.US, "Vel: %d%% | PWM: %d..%d | Rev:%dp",
+                Math.round(estado.getEscalaVelocidad() * 100.0), estado.getPwmMin(), estado.getPwmMax(),
+                estado.getPasosReversa()), w));
         int anchoBarraMotor = 12 + Math.min(20, extraPanel);
         der.add(filaCaja("Motor L : " + barraMotor(vl, anchoBarraMotor), w));
         der.add(filaCaja("Motor R : " + barraMotor(vr, anchoBarraMotor), w));

@@ -204,9 +204,14 @@ public class TwoNetworksInferenceTest {
         assertEquals(EstadoRobot.APROXIMACION, cmd.getEstado());
         assertTrue(cmd.getVLeft() > 0 && cmd.getVRight() > 0, "Debe avanzar hacia la canica centrada");
 
-        // Al conmutar al Modo ESCAPE, la prioridad de LOBITO se desactiva
+        // Al conmutar al Modo ESCAPE, Red 2 no debe reemplazar sectores con LOBITO
+        String[] paresSoloUs = classifier.clasificarPares(vCen, false);
+        assertEquals("ESPACIO_LIBRE", paresSoloUs[0]);
+        assertEquals("ESPACIO_LIBRE", paresSoloUs[1], "En modo ESCAPE no debe inyectar LOBITO en la terna");
+        assertEquals("ESPACIO_LIBRE", paresSoloUs[2]);
+
         planner.activarModoEscape();
-        ComandoRobot cmdEscape = planner.evaluarPares(vCen, pares);
+        ComandoRobot cmdEscape = planner.evaluarPares(vCen, paresSoloUs);
         assertEquals(EstadoRobot.ESCAPE, cmdEscape.getEstado());
     }
 

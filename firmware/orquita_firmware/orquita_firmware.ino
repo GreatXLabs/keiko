@@ -34,7 +34,7 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <VL53L0X.h>
 
-#define KEIKO_VERSION "2.0.1"
+#define KEIKO_VERSION "2.0.2"
 #define KEIKO_RIG     "mega-3us-2laser"
 
 #define PERMITIR_MANUAL 1       // [SOLO PRUEBAS / DEBUG - poner en 0 en codigo final de competencia]

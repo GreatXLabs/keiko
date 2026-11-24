@@ -93,6 +93,7 @@ public class EstadoMonitorTui {
     private volatile double escalaVelocidad;
     private volatile int pwmMin;
     private volatile int pwmMax;
+    private volatile int pasosReversa;
     private volatile boolean corridaActiva;
     private volatile boolean barridoEnReposo = false;
     private volatile boolean pickerManualActivo = false;
@@ -119,6 +120,7 @@ public class EstadoMonitorTui {
         this.escalaVelocidad = cfg.getEscalaVelocidad();
         this.pwmMin = cfg.getPwmMin();
         this.pwmMax = cfg.getPwmMax();
+        this.pasosReversa = cfg.getPasosReversa();
         this.corridaActiva = cfg.isAutoStartSolicitado();
         this.rutaEstomago = cfg.getArchivoEstomago().getPath();
         this.capturasRequeridas = cfg.getCapturasRequeridasEscape();
@@ -304,6 +306,12 @@ public class EstadoMonitorTui {
         marcarCambio();
     }
 
+    /** // [SOLO PRUEBAS / DEBUG - ajustar cantidad de pasos en reversa desde TUI] */
+    public synchronized void setPasosReversa(int pasos) {
+        this.pasosReversa = ConfiguracionServidor.acotarPasosReversa(pasos);
+        marcarCambio();
+    }
+
     public synchronized void setCorridaActiva(boolean activa) {
         this.corridaActiva = activa;
         marcarCambio();
@@ -441,6 +449,7 @@ public class EstadoMonitorTui {
     public double getEscalaVelocidad() { return escalaVelocidad; }
     public int getPwmMin() { return pwmMin; }
     public int getPwmMax() { return pwmMax; }
+    public int getPasosReversa() { return pasosReversa; }
     public boolean isCorridaActiva() { return corridaActiva; }
     public boolean isBarridoEnReposo() { return barridoEnReposo; }
     public boolean isPickerManualActivo() { return pickerManualActivo; }

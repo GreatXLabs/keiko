@@ -15,7 +15,7 @@ import java.util.logging.Logger;
 public final class ConfiguracionServidor {
     private static final Logger LOGGER = Logger.getLogger(ConfiguracionServidor.class.getName());
 
-    public static final String VERSION_SISTEMA = "2.0.1";
+    public static final String VERSION_SISTEMA = "2.0.2";
     public static final String RIG_HARDWARE = "mega-3us-2laser";
 
     public static final String PUERTO_SERIE_PREDETERMINADO_UNIX = "/dev/rfcomm0";
@@ -32,6 +32,9 @@ public final class ConfiguracionServidor {
     public static final double ESCALA_VELOCIDAD_MAX = 1.20;
     public static final int PWM_MIN_PREDETERMINADO = 105;
     public static final int PWM_MAX_PREDETERMINADO = 255;
+    public static final int PASOS_REVERSA_MIN = 0;
+    public static final int PASOS_REVERSA_MAX = 15;
+    public static final int PASOS_REVERSA_PREDETERMINADO = 4;
 
     private String puertoSerie;
     private int baudiosSerie;
@@ -49,6 +52,7 @@ public final class ConfiguracionServidor {
     private double escalaVelocidad;
     private int pwmMin;
     private int pwmMax;
+    private int pasosReversa;
     private String directorioBaseEnv;
     // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion y reentrenamiento en vivo]
     private String rutaDatosReales = "data/real";
@@ -76,6 +80,7 @@ public final class ConfiguracionServidor {
         int maxP = Math.max(minP, Math.min(255, obtenerInt(envMap, "PWM_MAX", PWM_MAX_PREDETERMINADO)));
         this.pwmMin = minP;
         this.pwmMax = maxP;
+        this.pasosReversa = acotarPasosReversa(obtenerInt(envMap, "REVERSE_STEPS", PASOS_REVERSA_PREDETERMINADO));
     }
 
     public static ConfiguracionServidor desdeArgumentos(String[] args) {
@@ -108,6 +113,8 @@ public final class ConfiguracionServidor {
                 cfg.setRangoPwm(Integer.parseInt(args[++i]), cfg.getPwmMax());
             } else if ("--pwm-max".equalsIgnoreCase(arg) && i + 1 < args.length) {
                 cfg.setRangoPwm(cfg.getPwmMin(), Integer.parseInt(args[++i]));
+            } else if ("--reverse-steps".equalsIgnoreCase(arg) && i + 1 < args.length) {
+                cfg.setPasosReversa(Integer.parseInt(args[++i]));
             } else if ("--real-dir".equalsIgnoreCase(arg) && i + 1 < args.length) {
                 cfg.setRutaDatosReales(args[++i]);
             } else if ("--retrain-real".equalsIgnoreCase(arg)) {
@@ -239,6 +246,10 @@ public final class ConfiguracionServidor {
         return Math.max(ESCALA_VELOCIDAD_MIN, Math.min(ESCALA_VELOCIDAD_MAX, escala));
     }
 
+    public static int acotarPasosReversa(int pasos) {
+        return Math.max(PASOS_REVERSA_MIN, Math.min(PASOS_REVERSA_MAX, pasos));
+    }
+
     public static String obtenerPuertoSeriePorDefecto() {
         String os = System.getProperty("os.name", "").toLowerCase();
         return os.contains("win") ? PUERTO_SERIE_PREDETERMINADO_WINDOWS : PUERTO_SERIE_PREDETERMINADO_UNIX;
@@ -294,6 +305,9 @@ public final class ConfiguracionServidor {
         this.pwmMin = cMin;
         this.pwmMax = cMax;
     }
+
+    public int getPasosReversa() { return pasosReversa; }
+    public void setPasosReversa(int pasosReversa) { this.pasosReversa = acotarPasosReversa(pasosReversa); }
 
     /** Determina si la TUI ANSI debe activarse segun flags CLI/env y disponibilidad de consola interactiva. */
     public boolean resolverModoTui(boolean tieneConsolaInteractiva) {
