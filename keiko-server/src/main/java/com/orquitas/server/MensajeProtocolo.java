@@ -57,6 +57,11 @@ public class MensajeProtocolo {
 
     // RF-05: Parsea y valida el vector de distancias sensoriales del cliente (4, 6, 8 o 10 canales).
     public static VectorSensores parsearTelemetria(String linea) {
+        return parsearTelemetria(linea, 0, false);
+    }
+
+    /** Parsea telemetria exigiendo opcionalmente cantidad exacta de canales sensoriales y timestamp (ej. 6 + ts = 7 tokens para mega-3us-2laser). */
+    public static VectorSensores parsearTelemetria(String linea, int canalesRequeridos, boolean exigirTimestamp) {
         if (linea == null || !linea.startsWith(PREFIX_TELEMETRY)) {
             throw new IllegalArgumentException("Prefijo de telemetria invalido");
         }
@@ -78,6 +83,15 @@ public class MensajeProtocolo {
                 hasTimestamp = true;
             } else {
                 throw new IllegalArgumentException("Cantidad de campos de telemetria no soportada: " + total);
+            }
+
+            if (canalesRequeridos > 0 && numSensores != canalesRequeridos) {
+                throw new IllegalArgumentException(
+                        "Trama truncada para rig actual: esperados " + canalesRequeridos + " sensores, recibidos " + numSensores);
+            }
+            if (exigirTimestamp && !hasTimestamp) {
+                throw new IllegalArgumentException(
+                        "Trama truncada: se requieren " + (numSensores + 1) + " campos incluyendo timestamp (recibidos " + total + ")");
             }
 
             double[] canales = new double[numSensores];

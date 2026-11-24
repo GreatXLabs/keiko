@@ -34,7 +34,7 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <VL53L0X.h>
 
-#define KEIKO_VERSION "2.0.0"
+#define KEIKO_VERSION "2.0.1"
 #define KEIKO_RIG     "mega-3us-2laser"
 
 #define PERMITIR_MANUAL 1       // [SOLO PRUEBAS / DEBUG - poner en 0 en codigo final de competencia]
@@ -59,7 +59,7 @@ const unsigned long MANUAL_HOLD_MS = 450;
 Adafruit_PWMServoDriver pca;
 const uint8_t DIR_PCA = 0x40;
 const uint8_t LASER_CANAL[2] = {0, 1};
-const int8_t LASER_SENTIDO[2] = {1, -1};                 // validado: espejados
+const int8_t LASER_SENTIDO[2] = {-1, 1};                 // validado fisicamente: -45 al centro, +60 afuera
 const uint16_t SERVO_US_0 = 500, SERVO_US_180 = 2400;
 const int8_t BARRIDO_MIN = -45, BARRIDO_MAX = 60, BARRIDO_PASO = 1;  // 1° por paso sincronizado con VL53L0X
 const unsigned long BARRIDO_PASO_MS = 30;
@@ -423,27 +423,32 @@ void imprimirTelemetria(Print &p, unsigned long ahora) {
 }
 
 void enviarTelemetria(unsigned long ahora) {
+  // Una sola trama por vuelta del loop() para no saturar el buffer TX de 64B del Mega @ 9600 bps.
+  if (ahora - ultimaTelemetria >= TELEMETRIA_MS) {
+    if (ENLACE.availableForWrite() < 56) return;
+    ultimaTelemetria = ahora;
+    imprimirTelemetria(ENLACE, ahora);
+#if ESPEJAR_USB
+    imprimirTelemetria(Serial, ahora);          // para comparar con lo que llega por Bluetooth
+#endif
+    return;
+  }
+  if (!corrida && ahora - ultimoHeartbeat >= HEARTBEAT_REPOSO_MS) {
+    if (ENLACE.availableForWrite() < 14) return;
+    ultimoHeartbeat = ahora;
+    ENLACE.println(F("HEARTBEAT"));
+    return;
+  }
 #if DEPURAR_ESTOMAGO
-  // [SOLO PRUEBAS / DEBUG] Envia lectura del ToF de estomago en paralelo sin bloquear TELEMETRY
+  // [SOLO PRUEBAS / DEBUG] Envia lectura del ToF de estomago en paralelo sin pisar TELEMETRY
   static unsigned long ultimoDbg = 0;
-  if (ahora - ultimoDbg >= 200 && ENLACE.availableForWrite() >= 50) {
+  if (ahora - ultimoDbg >= 200 && ENLACE.availableForWrite() >= 48) {
     ultimoDbg = ahora;
     ENLACE.print(F("DBG:estomago=")); ENLACE.print(estomagoMm);
     ENLACE.print(F(" base=")); ENLACE.print(baseMm);
     ENLACE.print(F(" det=")); ENLACE.print((int)detector);
     ENLACE.print(F(" cambios=")); ENLACE.println(cambiosSeguidos);
   }
-#endif
-  if (!corrida && ahora - ultimoHeartbeat >= HEARTBEAT_REPOSO_MS) {
-    ultimoHeartbeat = ahora;
-    ENLACE.println(F("HEARTBEAT"));
-  }
-  if (ahora - ultimaTelemetria < TELEMETRIA_MS) return;
-  if (ENLACE.availableForWrite() < 60) return;  // no bloquear: se salta este envío
-  ultimaTelemetria = ahora;
-  imprimirTelemetria(ENLACE, ahora);
-#if ESPEJAR_USB
-  imprimirTelemetria(Serial, ahora);            // para comparar con lo que llega por Bluetooth
 #endif
 }
 

@@ -28,6 +28,7 @@ public class ManejadorCliente implements Runnable {
     private final GrabadorDatasetReal grabadorDataset;
     private final AtomicBoolean conectado = new AtomicBoolean(true);
     private final AtomicBoolean autoStartEnviado = new AtomicBoolean(false);
+    private volatile boolean exigirTelemetria7Campos;
 
     private BufferedWriter escritor;
     private final Object bloqueoEscritura = new Object();
@@ -122,6 +123,7 @@ public class ManejadorCliente implements Runnable {
         this.monitorTui = monitorTui;
         this.monitoreoPasivoEnReposo = monitoreoPasivoEnReposo;
         this.grabadorDataset = grabadorDataset;
+        this.exigirTelemetria7Campos = monitoreoPasivoEnReposo;
     }
 
     @Override
@@ -230,6 +232,9 @@ public class ManejadorCliente implements Runnable {
             boolean versionOk = MensajeProtocolo.esCompatibleMajorMinor(
                     ConfiguracionServidor.VERSION_SISTEMA, hs.version());
             boolean rigOk = ConfiguracionServidor.RIG_HARDWARE.equals(hs.rig());
+            if (rigOk) {
+                this.exigirTelemetria7Campos = true;
+            }
             if (versionOk && rigOk) {
                 LOGGER.info(String.format("[HANDSHAKE OK] Cliente=%s | Version=%s | Rig=%s",
                         descripcionOrigen, hs.version(), hs.rig()));
@@ -267,7 +272,9 @@ public class ManejadorCliente implements Runnable {
 
     private void procesarTelemetria(String linea) {
         try {
-            VectorSensores sensores = MensajeProtocolo.parsearTelemetria(linea);
+            VectorSensores sensores = exigirTelemetria7Campos
+                    ? MensajeProtocolo.parsearTelemetria(linea, 6, true)
+                    : MensajeProtocolo.parsearTelemetria(linea);
             if (!sensores.isValido()) {
                 LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico: " + linea);
                 return;

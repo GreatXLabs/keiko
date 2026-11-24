@@ -1,26 +1,53 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.1",
   "rig": "mega-3us-2laser",
   "chassis_model": "Rover 4WD Doble Bandeja Acrilico + Capote CAD (GreatXLabs/Keiko-Modelos-3D)",
   "arena": {
     "shape": "semi_ellipse_deformable",
-    "base_width_m": 1.80,
-    "semi_minor_b_m": 0.90,
-    "max_depth_a_m": 1.20,
-    "estimated_area_m2": 1.70,
-    "back_wall_y_m": -0.60,
-    "exit_vertex_y_m": 0.60,
+    "base_width_m": 1.8,
+    "semi_minor_b_m": 0.9,
+    "max_depth_a_m": 1.2,
+    "estimated_area_m2": 1.7,
+    "back_wall_y_m": -0.6,
+    "exit_vertex_y_m": 0.6,
     "wall_height_m": 0.18,
     "wall_thickness_m": 0.005,
     "wall_material": "carton_5mm_extremos_planos",
     "exit_strait": {
-      "width_m": 0.30,
+      "width_m": 0.3,
       "chamfers_enabled": false,
       "tunnel_walls_enabled": false,
       "orientations": {
-        "north": {"opening_m": [0.0, 0.60], "platform_m": [0.0, 0.85]},
-        "east": {"opening_m": [0.60, 0.0], "platform_m": [0.85, 0.0]},
-        "south": {"opening_m": [0.0, -0.60], "platform_m": [0.0, -0.85]}
+        "north": {
+          "opening_m": [
+            0.0,
+            0.6
+          ],
+          "platform_m": [
+            0.0,
+            0.85
+          ]
+        },
+        "east": {
+          "opening_m": [
+            0.6,
+            0.0
+          ],
+          "platform_m": [
+            0.85,
+            0.0
+          ]
+        },
+        "south": {
+          "opening_m": [
+            0.0,
+            -0.6
+          ],
+          "platform_m": [
+            0.0,
+            -0.85
+          ]
+        }
       }
     }
   },
@@ -30,7 +57,7 @@
       "wheel_floor": {
         "description": "Goma de neumatico TT contra suelo de baldosas",
         "coulomb_friction": 0.82,
-        "force_dependent_slip": 0.010,
+        "force_dependent_slip": 0.01,
         "bounce": 0.0
       },
       "chassis_wall": {
@@ -47,12 +74,12 @@
     "arena_tolerances": {
       "wall_height_m": 0.18,
       "wall_thickness_m": 0.005,
-      "exit_strait_clearance_m": 0.30,
+      "exit_strait_clearance_m": 0.3,
       "exit_chamfer_angle_deg": 0.0,
       "note": "La salida es un simple hueco de 30 cm en el cartón sin chaflanes, marcos ni túneles."
     },
     "sensor_realism": {
-      "beam_aperture_rad": 0.50,
+      "beam_aperture_rad": 0.5,
       "beam_aperture_deg": 28.6,
       "rays_per_transducer": 17,
       "noise_ratio": 0.02,
@@ -63,17 +90,17 @@
     "name": "Orquita_4WD",
     "cad_repository": "https://github.com/GreatXLabs/Keiko-Modelos-3D",
     "chassis_length_m": 0.257,
-    "chassis_width_m": 0.150,
+    "chassis_width_m": 0.15,
     "chassis_height_m": 0.0761,
-    "capote_length_m": 0.330,
-    "capote_width_m": 0.200,
+    "capote_length_m": 0.33,
+    "capote_width_m": 0.2,
     "capote_height_m": 0.156,
     "include_capote_default": false,
     "wheel_diameter_m": 0.0672,
     "wheel_radius_m": 0.0336,
     "wheel_width_m": 0.025,
     "wheelbase_m": 0.1171,
-    "axle_track_m": 0.120,
+    "axle_track_m": 0.12,
     "mass_kg": 0.78,
     "motors_count": 4,
     "drive_type": "4WD_Skid_Steer",
@@ -82,7 +109,10 @@
   },
   "obstacles": {
     "reference": "Borrador de pizarra",
-    "count_range": [2, 3],
+    "count_range": [
+      2,
+      3
+    ],
     "length_m": 0.14,
     "width_m": 0.06,
     "height_m": 0.12
@@ -104,73 +134,315 @@
       "type": "sonar",
       "min_range_cm": 2.0,
       "max_range_cm": 250.0,
-      "beam_aperture_rad": 0.50,
+      "beam_aperture_rad": 0.5,
       "beam_aperture_deg": 28.6,
       "rays_count": 17,
       "noise_ratio": 0.02,
       "noise_model": "ruido gaussiano espurio codificado en la 3.a columna del lookupTable (2%)",
-      "lookup_table": [0.0, 0.0, 0.0, 0.02, 2.0, 0.02, 2.50, 250.0, 0.02]
+      "lookup_table": [
+        0.0,
+        0.0,
+        0.0,
+        0.02,
+        2.0,
+        0.02,
+        2.5,
+        250.0,
+        0.02
+      ]
     },
     "configurations": {
       "dual_plane_4": {
         "sensor_count": 4,
         "description": "4 frontales en doble plano vertical (2 bajos Z=0.025 yaw ±5, 2 altos Z=0.095 yaw ±20)",
         "sensors": {
-          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.130, 0.035, 0.025], "yaw_deg": 5.0},
-          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.130, -0.035, 0.025], "yaw_deg": -5.0},
-          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.120, 0.050, 0.095], "yaw_deg": 20.0},
-          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.120, -0.050, 0.095], "yaw_deg": -20.0}
+          "us_low_left": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.13,
+              0.035,
+              0.025
+            ],
+            "yaw_deg": 5.0
+          },
+          "us_low_right": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.13,
+              -0.035,
+              0.025
+            ],
+            "yaw_deg": -5.0
+          },
+          "us_high_left": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.12,
+              0.05,
+              0.095
+            ],
+            "yaw_deg": 20.0
+          },
+          "us_high_right": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.12,
+              -0.05,
+              0.095
+            ],
+            "yaw_deg": -20.0
+          }
         }
       },
       "dual_plane_6": {
         "sensor_count": 6,
         "description": "4 frontales doble plano + 2 laterales a 90 grados (Z=0.065)",
         "sensors": {
-          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.130, 0.035, 0.025], "yaw_deg": 5.0},
-          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.130, -0.035, 0.025], "yaw_deg": -5.0},
-          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.120, 0.050, 0.095], "yaw_deg": 20.0},
-          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.120, -0.050, 0.095], "yaw_deg": -20.0},
-          "us_side_left": {"plane": "mid_deck", "offset_xyz_m": [0.0, 0.075, 0.065], "yaw_deg": 90.0},
-          "us_side_right": {"plane": "mid_deck", "offset_xyz_m": [0.0, -0.075, 0.065], "yaw_deg": -90.0}
+          "us_low_left": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.13,
+              0.035,
+              0.025
+            ],
+            "yaw_deg": 5.0
+          },
+          "us_low_right": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.13,
+              -0.035,
+              0.025
+            ],
+            "yaw_deg": -5.0
+          },
+          "us_high_left": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.12,
+              0.05,
+              0.095
+            ],
+            "yaw_deg": 20.0
+          },
+          "us_high_right": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.12,
+              -0.05,
+              0.095
+            ],
+            "yaw_deg": -20.0
+          },
+          "us_side_left": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              0.0,
+              0.075,
+              0.065
+            ],
+            "yaw_deg": 90.0
+          },
+          "us_side_right": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              0.0,
+              -0.075,
+              0.065
+            ],
+            "yaw_deg": -90.0
+          }
         }
       },
       "dual_plane_8": {
         "sensor_count": 8,
         "description": "4 frontales doble plano + 2 laterales a 90 + 2 traseros a 180 (Z=0.065)",
         "sensors": {
-          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.130, 0.035, 0.025], "yaw_deg": 5.0},
-          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.130, -0.035, 0.025], "yaw_deg": -5.0},
-          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.120, 0.050, 0.095], "yaw_deg": 20.0},
-          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.120, -0.050, 0.095], "yaw_deg": -20.0},
-          "us_side_left": {"plane": "mid_deck", "offset_xyz_m": [0.0, 0.075, 0.065], "yaw_deg": 90.0},
-          "us_side_right": {"plane": "mid_deck", "offset_xyz_m": [0.0, -0.075, 0.065], "yaw_deg": -90.0},
-          "us_rear_left": {"plane": "mid_deck", "offset_xyz_m": [-0.125, 0.040, 0.065], "yaw_deg": 180.0},
-          "us_rear_right": {"plane": "mid_deck", "offset_xyz_m": [-0.125, -0.040, 0.065], "yaw_deg": 180.0}
+          "us_low_left": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.13,
+              0.035,
+              0.025
+            ],
+            "yaw_deg": 5.0
+          },
+          "us_low_right": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.13,
+              -0.035,
+              0.025
+            ],
+            "yaw_deg": -5.0
+          },
+          "us_high_left": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.12,
+              0.05,
+              0.095
+            ],
+            "yaw_deg": 20.0
+          },
+          "us_high_right": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.12,
+              -0.05,
+              0.095
+            ],
+            "yaw_deg": -20.0
+          },
+          "us_side_left": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              0.0,
+              0.075,
+              0.065
+            ],
+            "yaw_deg": 90.0
+          },
+          "us_side_right": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              0.0,
+              -0.075,
+              0.065
+            ],
+            "yaw_deg": -90.0
+          },
+          "us_rear_left": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              -0.125,
+              0.04,
+              0.065
+            ],
+            "yaw_deg": 180.0
+          },
+          "us_rear_right": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              -0.125,
+              -0.04,
+              0.065
+            ],
+            "yaw_deg": 180.0
+          }
         }
       },
       "trisector_10": {
         "sensor_count": 10,
         "description": "3 bajos (Z=0.012 yaw -25/0/+25) + 3 altos (Z=0.095 yaw -25/0/+25) + 2 laterales a 90 + 2 traseros a 180",
         "sensors": {
-          "us_low_left": {"plane": "lower_deck", "offset_xyz_m": [0.125, 0.055, 0.012], "yaw_deg": 25.0},
-          "us_low_center": {"plane": "lower_deck", "offset_xyz_m": [0.140, 0.0, 0.012], "yaw_deg": 0.0},
-          "us_low_right": {"plane": "lower_deck", "offset_xyz_m": [0.125, -0.055, 0.012], "yaw_deg": -25.0},
-          "us_high_left": {"plane": "upper_deck", "offset_xyz_m": [0.125, 0.055, 0.095], "yaw_deg": 25.0},
-          "us_high_center": {"plane": "upper_deck", "offset_xyz_m": [0.140, 0.0, 0.095], "yaw_deg": 0.0},
-          "us_high_right": {"plane": "upper_deck", "offset_xyz_m": [0.125, -0.055, 0.095], "yaw_deg": -25.0},
-          "us_side_left": {"plane": "mid_deck", "offset_xyz_m": [0.0, 0.075, 0.065], "yaw_deg": 90.0},
-          "us_side_right": {"plane": "mid_deck", "offset_xyz_m": [0.0, -0.075, 0.065], "yaw_deg": -90.0},
-          "us_rear_left": {"plane": "mid_deck", "offset_xyz_m": [-0.125, 0.040, 0.065], "yaw_deg": 180.0},
-          "us_rear_right": {"plane": "mid_deck", "offset_xyz_m": [-0.125, -0.040, 0.065], "yaw_deg": 180.0}
+          "us_low_left": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.125,
+              0.055,
+              0.012
+            ],
+            "yaw_deg": 25.0
+          },
+          "us_low_center": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.14,
+              0.0,
+              0.012
+            ],
+            "yaw_deg": 0.0
+          },
+          "us_low_right": {
+            "plane": "lower_deck",
+            "offset_xyz_m": [
+              0.125,
+              -0.055,
+              0.012
+            ],
+            "yaw_deg": -25.0
+          },
+          "us_high_left": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.125,
+              0.055,
+              0.095
+            ],
+            "yaw_deg": 25.0
+          },
+          "us_high_center": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.14,
+              0.0,
+              0.095
+            ],
+            "yaw_deg": 0.0
+          },
+          "us_high_right": {
+            "plane": "upper_deck",
+            "offset_xyz_m": [
+              0.125,
+              -0.055,
+              0.095
+            ],
+            "yaw_deg": -25.0
+          },
+          "us_side_left": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              0.0,
+              0.075,
+              0.065
+            ],
+            "yaw_deg": 90.0
+          },
+          "us_side_right": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              0.0,
+              -0.075,
+              0.065
+            ],
+            "yaw_deg": -90.0
+          },
+          "us_rear_left": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              -0.125,
+              0.04,
+              0.065
+            ],
+            "yaw_deg": 180.0
+          },
+          "us_rear_right": {
+            "plane": "mid_deck",
+            "offset_xyz_m": [
+              -0.125,
+              -0.04,
+              0.065
+            ],
+            "yaw_deg": 180.0
+          }
         }
       }
     }
   },
   "maps": {
-    "standard": {"description": "Semielipse canónica (~1.80m x 1.20m) con 2 borradores y 3 lobitos con amplio margen"},
-    "labyrinth": {"description": "Semielipse deformada con 3 obstáculos tipo borrador y 3 lobitos"},
-    "corners": {"description": "Semielipse asimétrica con lobitos más próximos a los extremos de la base"},
-    "corridors": {"description": "Semielipse estrecha para evaluar maniobrabilidad entre borradores"}
+    "standard": {
+      "description": "Semielipse canónica (~1.80m x 1.20m) con 2 borradores y 3 lobitos con amplio margen"
+    },
+    "labyrinth": {
+      "description": "Semielipse deformada con 3 obstáculos tipo borrador y 3 lobitos"
+    },
+    "corners": {
+      "description": "Semielipse asimétrica con lobitos más próximos a los extremos de la base"
+    },
+    "corridors": {
+      "description": "Semielipse estrecha para evaluar maniobrabilidad entre borradores"
+    }
   },
   "classes": [
     "ESPACIO_LIBRE",

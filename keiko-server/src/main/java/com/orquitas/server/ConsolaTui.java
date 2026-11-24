@@ -314,7 +314,9 @@ public class ConsolaTui {
         String frame = renderizarFrame(estado, ahoraMs, modoCompacto.get(), ultimoAnchoTerminal, ultimoAltoTerminal);
         String[] lineas = frame.split("\n", -1);
         boolean limpiezaCompleta = limpiarPantallaPendiente.getAndSet(false);
-        String prompt = entradaInstantaneaActiva ? "Tecla directa activa (sin Enter) " : "keiko> ";
+        String promptBase = entradaInstantaneaActiva ? "Tecla directa activa (sin Enter) " : "keiko> ";
+        String prompt = recortar(promptBase, Math.max(8, ultimoAnchoTerminal - 1));
+        int filaPrompt = Math.min(ultimoAltoTerminal, lineas.length + 1);
 
         StringBuilder out = new StringBuilder(4096);
         if (limpiezaCompleta || lineas.length != ultimaCantidadLineas) {
@@ -322,14 +324,14 @@ public class ConsolaTui {
             for (int i = 0; i < lineas.length; i++) {
                 out.append("\033[").append(i + 1).append(";1H").append(lineas[i]).append("\033[K");
             }
-            out.append("\033[").append(lineas.length + 1).append(";1H\033[K").append(prompt).append("\033[?25h");
+            out.append("\033[").append(filaPrompt).append(";1H\033[K").append(prompt).append("\033[?25h");
             ultimaCantidadLineas = lineas.length;
         } else {
-            out.append("\0337\033[?25l");
+            out.append("\033[?25l");
             for (int i = 0; i < lineas.length; i++) {
                 out.append("\033[").append(i + 1).append(";1H").append(lineas[i]).append("\033[K");
             }
-            out.append("\0338\033[?25h");
+            out.append("\033[").append(filaPrompt).append(";1H\033[K").append(prompt).append("\033[?25h");
         }
         salida.print(out);
         salida.flush();
@@ -343,7 +345,7 @@ public class ConsolaTui {
 
     /** Renderiza el frame completo adaptando anchos y filas de logs al tamano de terminal indicado. */
     public static String renderizarFrame(EstadoMonitorTui estado, long ahoraMs, boolean compacto, int anchoTerm, int altoTerm) {
-        if (compacto) {
+        if (compacto || anchoTerm < ANCHO_DETALLADO || altoTerm < 32) {
             return renderizarModoCompacto(estado, ahoraMs, anchoTerm, altoTerm);
         }
         return renderizarModoDetallado(estado, ahoraMs, anchoTerm, altoTerm);
@@ -352,8 +354,7 @@ public class ConsolaTui {
     private static String renderizarModoDetallado(EstadoMonitorTui estado, long ahoraMs, int anchoTerm, int altoTerm) {
         int ancho = Math.max(ANCHO_DETALLADO, anchoTerm);
         int anchoPanelDer = ancho - ANCHO_ARTE - 2;
-        int alto = Math.max(ALTO_DEFECTO, altoTerm);
-        int filasLogs = Math.max(FILAS_LOGS_DETALLADO, alto - 30);
+        int alto = Math.max(32, altoTerm);
 
         List<String> lineas = new ArrayList<>(alto);
         List<String> panelDerecho = construirPanelDerecho(estado, ahoraMs, anchoPanelDer);
@@ -365,27 +366,16 @@ public class ConsolaTui {
         }
 
         agregarPanelSensoresDetallado(lineas, estado, ancho);
+        // 4 filas fijas restantes: borde sup logs (1) + borde inf logs (1) + Teclas (1) + fila prompt (1)
+        int filasLogs = Math.max(1, alto - lineas.size() - 4);
         agregarPanelLogs(lineas, estado, ancho, filasLogs);
-        lineas.add(DIM + " Teclas: " + RESET
-                + BOLD + "[k]" + RESET + "Run "
-                + BOLD + "[x]" + RESET + "Stop "
-                + BOLD + "[1/2/3]" + RESET + "Modos "
-                + BOLD + "[p]" + RESET + "Pick "
-                + BOLD + "[b]" + RESET + "Sweep "
-                + BOLD + "[+/-]" + RESET + "Vel "
-                + BOLD + "[[/]]" + RESET + "PWM "
-                + BOLD + "[u/m]" + RESET + "Etiq "
-                + BOLD + "[g]" + RESET + "Rec "
-                + BOLD + "[t]" + RESET + "Train "
-                + BOLD + "[r]" + RESET + "Rst "
-                + BOLD + "[v/c/q]" + RESET);
+        lineas.add(formatearFooterTeclas(ancho));
         return String.join("\n", lineas);
     }
 
     private static String renderizarModoCompacto(EstadoMonitorTui estado, long ahoraMs, int anchoTerm, int altoTerm) {
-        int ancho = Math.max(ANCHO_COMPACTO, anchoTerm);
-        int alto = Math.max(16, altoTerm);
-        int filasLogs = Math.max(FILAS_LOGS_COMPACTO, alto - 12);
+        int ancho = Math.max(60, anchoTerm);
+        int alto = Math.max(14, altoTerm);
 
         List<String> lineas = new ArrayList<>(alto);
         String puerto = estado.getPuertoSerie() != null ? estado.getPuertoSerie() : "---";
@@ -438,9 +428,35 @@ public class ConsolaTui {
         lineas.add(filaCaja(formatearLineaDataset(estado, ancho - 4), ancho));
         lineas.add(cajaInferior(ancho));
 
+        int filasLogs = Math.max(1, alto - lineas.size() - 4);
         agregarPanelLogs(lineas, estado, ancho, filasLogs);
-        lineas.add(DIM + " [k/x]Run/Stop [1/2/3]Modos [p]Pick [b]Sweep [+/-]Vel [[/]]PWM [u/m]Etiq [g]Rec [t]Train [r/v/c/q]" + RESET);
+        lineas.add(formatearFooterTeclas(ancho));
         return String.join("\n", lineas);
+    }
+
+    private static String formatearFooterTeclas(int anchoMax) {
+        String[] tokens = {
+                BOLD + "[k]" + RESET + "Run ",
+                BOLD + "[x]" + RESET + "Stop ",
+                BOLD + "[1/2/3]" + RESET + "Modos ",
+                BOLD + "[p]" + RESET + "Pick ",
+                BOLD + "[b]" + RESET + "Sweep ",
+                BOLD + "[+/-]" + RESET + "Vel ",
+                BOLD + "[[/]]" + RESET + "PWM ",
+                BOLD + "[u/m]" + RESET + "Etiq ",
+                BOLD + "[g]" + RESET + "Rec ",
+                BOLD + "[t]" + RESET + "Train ",
+                BOLD + "[r]" + RESET + "Rst ",
+                BOLD + "[v/c/q]" + RESET
+        };
+        StringBuilder sb = new StringBuilder(DIM + " Teclas: " + RESET);
+        for (String tok : tokens) {
+            if (longitudVisual(sb.toString()) + longitudVisual(tok) > anchoMax) {
+                break;
+            }
+            sb.append(tok);
+        }
+        return sb.toString().stripTrailing();
     }
 
     private static String colorearFilaBanner(int filaIdx) {
@@ -579,7 +595,7 @@ public class ConsolaTui {
         String red2 = String.format(Locale.US, "Red 2: %s (%2.0f%%)",
                 colorearEtiquetaCanica(snap.claseCanica()), snap.confianzaCanica() * 100.0);
 
-        lineas.add(filaCaja(" " + padRightVisual(lsrIzq, colLaser) + "│ " + padRightVisual(lsrDer, colLaser) + "│ " + red2, w));
+        lineas.add(filaCaja(" " + padRightVisual(lsrIzq, colLaser - 1) + " │ " + padRightVisual(lsrDer, colLaser - 1) + " │ " + red2, w));
 
         int anchoBarraServo = 26 + Math.min(50, extra);
         String barraServo = barraServo(s.getAnguloServo(), anchoBarraServo);
