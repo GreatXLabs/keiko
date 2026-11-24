@@ -107,6 +107,11 @@ public class ProtocolParserTest {
         assertEquals("CMD:PWM:85,200\n", MensajeProtocolo.crearCmdPwm(85, 200));
         assertEquals("CMD:PWM:0,255\n", MensajeProtocolo.crearCmdPwm(-10, 300));
         assertEquals("LASER:SWEEP\n", MensajeProtocolo.crearCmdLaser("SWEEP"));
+        assertEquals("STATE_CHANGE:BUSQUEDA\n", MensajeProtocolo.crearEstadoCambio(EstadoRobot.BUSQUEDA));
+        assertEquals("STATE_CHANGE:CAPTURA\n", MensajeProtocolo.crearEstadoCambio(EstadoRobot.CAPTURA));
+        assertEquals("STATE_CHANGE:ESCAPE\n", MensajeProtocolo.crearModoEscape());
+        assertEquals("PICKER:ON\n", MensajeProtocolo.crearPicker(true));
+        assertEquals("PICKER:OFF\n", MensajeProtocolo.crearPicker(false));
 
         MensajeProtocolo.InfoDbgEstomago dbg =
                 MensajeProtocolo.parsearDbgEstomago("DBG:estomago=42 base=45 det=2 cambios=1");

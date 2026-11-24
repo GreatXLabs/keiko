@@ -20,8 +20,8 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 |    - Emite HEARTBEAT periódico (200 ms por defecto, Fail-Safe < 500 ms)     |
 |                                                                             |
 |  [ConsolaTui + EstadoMonitorTui]                                            |
-|    - TUI ANSI en vivo (sensores, Neuroph, FSM, Fail-Safe, estomago, logs)   |
-|    - Comandos: start/k, stop/x, reset, view/v, clear/c                      |
+|    - TUI ANSI fluida (ancho/alto dinámico vía stty size, sin dependencias)  |
+|    - Tecla única sin Enter en TTY Unix (k/x, 1/2/3, p, b, +/-, [/], r, v, c)|
 |                                                                             |
 |  [ClasificadorNeuroph — Arquitectura Dual Neuroph 2.98 (3US + 2Laser)]      |
 |    - Red 1 (modelo_ultrasonico.nnet): 1 entrada -> {BLOQUEO, ESPACIO_LIBRE, |
@@ -63,10 +63,11 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **9 clases de prueba (54 tests JUnit 5)**:
-- `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `DBG:estomago=...` y rechazo de tramas corruptas.
-- `PlanificadorNavegacionTest` (14 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, breakout de perímetro, anti-bucle y modo `ESCAPE`.
-- `ConsolaTuiTest` (4 tests): renderizado detallado (`112` cols) y compacto (`92` cols) del monitor ANSI Bluetooth (incluyendo `Vel`/`PWM` y `LSR-EST`), cálculo de Hz, Fail-Safe `< 500 ms` y reset.
+Ejecuta las **10 clases de prueba (57 tests JUnit 5)**:
+- `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `STATE_CHANGE:`, `PICKER:ON/OFF`, `DBG:estomago=...` y rechazo de tramas corruptas.
+- `PlanificadorNavegacionTest` (15 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, breakout de perímetro, anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
+- `ConsolaTuiTest` (5 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) del monitor ANSI Bluetooth (incluyendo `Vel`/`PWM`, `LSR-EST`, barra visual adaptativa y parseo `stty size`), cálculo de Hz, Fail-Safe `< 500 ms` y reset.
+- `ServidorCentralControlTest` (1 test): controles 1-tecla (`k`, `1`, `2`, `3`, `p`, `b`, `+`/`=`, `-`/`_`, `[`/`]`, `r`) y activación de modos forzados.
 - `ConfiguracionServidorTest` (6 tests): carga de `.env`, argumentos CLI (`--auto-start`, `--no-tui`, `--tui`, `--speed-scale`, `--pwm-min`/`--pwm-max`) y resolución de rutas.
 - `HardwareSerialAndCaptureTest` (6 tests): monitoreo pasivo en reposo, escala de velocidad, cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados.
 - `TwoNetworksInferenceTest` (5 tests): inferencia dual pura con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
@@ -101,7 +102,16 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
 | `--pwm-min <0..255>` | `PWM_MIN` | `105` | `[PRUEBAS]` Piso `pwmZonaMuerta` enviado por `CMD:PWM:` al Arduino Mega |
 | `--pwm-max <0..255>` | `PWM_MAX` | `255` | `[PRUEBAS]` Tope máximo `pwmTope` enviado por `CMD:PWM:` al Arduino Mega |
 
-Comandos interactivos disponibles en la consola del servidor: `start` (`k`), `stop` (`x`), `speed <20..120>` / `+` / `-`, `pwm <min> [max]`, `sweep` / `hold`, `reset`, `view` (`v`) y `clear` (`c`).
+### Controles interactivos en TUI (1 tecla sin `Enter` en Linux/macOS; línea con `Enter` como respaldo)
+- **Operación:** `[k]` / `start` (`CMD:START`), `[x]` / `stop` (`CMD:STOP`), `[r]` / `reset` (vacía `estomago.txt` y reinicia FSM), `[v]` / `view` (alterna detallado/compacto), `[c]` / `clear` (limpia logs), `[q]` (salida limpia restaurando TTY).
+- **`[PRUEBAS / DEBUG]` Modos forzados y banco:**
+  - `[1]` / `busqueda`: fuerza `BUSQUEDA` (`STATE_CHANGE:BUSQUEDA`).
+  - `[2]` / `escape`: fuerza `ESCAPE` (`STATE_CHANGE:ESCAPE`) para probar algoritmo de salida sin esperar 3 canicas.
+  - `[3]` / `captura`: en corrida activa fuerza `CAPTURA` (`STATE_CHANGE:CAPTURA`); en reposo alterna `PICKER:ON`/`PICKER:OFF`.
+  - `[p]` / `picker`: alterna `PICKER:ON`/`PICKER:OFF` directo en banco.
+  - `[b]` / `sweep` / `hold`: alterna `LASER:SWEEP` / `LASER:HOLD` en reposo.
+  - `[+]`/`[=]` y `[-]`/`[_]` (o `speed <20..120>`): ajusta escala de velocidad en pasos de `10%`.
+  - `[[]` / `[]]` (o `pwm <min> [max]`): ajusta `pwmZonaMuerta` (`pwmMin`) en pasos de `±5` y emite `CMD:PWM:`.
 
 ### Ejemplos de ejecución
 ```bash

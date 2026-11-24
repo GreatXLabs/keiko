@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -400,5 +401,31 @@ public class PlanificadorNavegacionTest {
         for (int ciclo = 0; ciclo < ciclos; ciclo++) {
             planner.evaluarPares(null, LIBRE);
         }
+    }
+
+    @Test
+    public void testModosForzadosBusquedaEscapeYCaptura() {
+        PlanificadorNavegacion p = new PlanificadorNavegacion(null);
+
+        // Forzar CAPTURA mantiene el estado CAPTURA aunque no haya deteccion neuronal de canica
+        p.forzarModoCaptura();
+        assertEquals(EstadoRobot.CAPTURA, p.getEstado());
+        assertTrue(p.isModoCapturaForzado());
+        ComandoRobot cmdCap = p.evaluarPares(null, LIBRE);
+        assertEquals(EstadoRobot.CAPTURA, cmdCap.getEstado());
+        assertTrue(cmdCap.getVLeft() > 0.0 && cmdCap.getVRight() > 0.0);
+
+        // Forzar ESCAPE limpia modo captura forzado y activa ESCAPE
+        p.forzarModoEscape();
+        assertEquals(EstadoRobot.ESCAPE, p.getEstado());
+        assertFalse(p.isModoCapturaForzado());
+        ComandoRobot cmdEsc = p.evaluarPares(null, LIBRE);
+        assertEquals(EstadoRobot.ESCAPE, cmdEsc.getEstado());
+
+        // Forzar BUSQUEDA vuelve limpiamente a BUSQUEDA
+        p.forzarModoBusqueda();
+        assertEquals(EstadoRobot.BUSQUEDA, p.getEstado());
+        ComandoRobot cmdBusq = p.evaluarPares(null, LIBRE);
+        assertEquals(EstadoRobot.BUSQUEDA, cmdBusq.getEstado());
     }
 }

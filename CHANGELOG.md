@@ -6,7 +6,22 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [Unreleased] — PR-A Pruebas Reales: Telemetría en Reposo, Estómago en Vivo y Velocidad/PWM
+## [Unreleased] — PR-B TUI 1-Tecla, Layout Fluido Ancho Completo y Modos Forzados (`// [SOLO PRUEBAS / DEBUG]`)
+
+### Added (Agregado)
+- **Entrada instantánea de 1 tecla sin `Enter` ([`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):** modo TTY crudo POSIX (`stty -icanon -echo min 1 time 0 </dev/tty`, con restauración garantizada al cerrar/SIGTERM/`q` y fallback automático a lectura por línea en Windows/pipes) más filtrado de secuencias de escape CSI (`ESC [`). Atajos directos: `k`/`x`, `+`/`=`/`-`/`_`, `[`/`]`, `1`/`2`/`3`, `p`, `b`, `r`, `v`, `c`, `q`.
+- **Modos forzados y pruebas aisladas de banco ([`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java), [`MensajeProtocolo.java`](keiko-server/src/main/java/com/orquitas/server/MensajeProtocolo.java), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java)):** `1` (`BUSQUEDA`), `2` (`ESCAPE`), `3` (`CAPTURA` en corrida o toggle `PICKER:ON`/`OFF` en reposo) y `p` (`PICKER:ON`/`OFF`) mediante tramas `STATE_CHANGE:<estado>` y `PICKER:ON|OFF`, todo marcado explícitamente `// [SOLO PRUEBAS / DEBUG]`.
+- **Layout fluido de ancho y alto completos ([`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java)):** autodetección periódica de terminal vía `stty size </dev/tty` expandiendo el panel derecho, las barras visuales de US/láser/servo/motores y la cantidad de filas de logs sin romper el diseño de `112` / `92` cols ni agregar dependencias.
+- **Suite de pruebas ampliada ([`ServidorCentralControlTest.java`](keiko-server/src/test/java/com/orquitas/server/ServidorCentralControlTest.java), [`ConsolaTuiTest.java`](keiko-server/src/test/java/com/orquitas/server/ConsolaTuiTest.java), [`PlanificadorNavegacionTest.java`](keiko-server/src/test/java/com/orquitas/server/PlanificadorNavegacionTest.java), [`ProtocolParserTest.java`](keiko-server/src/test/java/com/orquitas/server/ProtocolParserTest.java)).**
+
+### Tests Run (Evidencia PR-B — 2026-11-23)
+- `cd keiko-server && mvn clean test`: **57/57 OK** (0 Failures, 0 Errors, 0 Skipped).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.0 | mega-3us-2laser`).
+
+---
+
+## [PR-A — 2026-11-23] Pruebas Reales: Telemetría en Reposo, Estómago en Vivo y Velocidad/PWM (Mergeado en `main`)
 
 ### Added (Agregado)
 - **Telemetría continua en reposo + estómago en paralelo ([`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino), [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java)):** el Mega transmite `TELEMETRY:` (7 campos) y `DBG:estomago=...` cada 200 ms sin bloquear `TELEMETRY:` aun antes de `CMD:START`; `keiko-server` clasifica con Neuroph 2.98 y actualiza la TUI en modo pasivo (sin avanzar la FSM ni mover motores mientras está detenido).
