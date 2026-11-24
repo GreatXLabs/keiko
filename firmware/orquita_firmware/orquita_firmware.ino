@@ -230,7 +230,7 @@ void atenderPicker(unsigned long ahora) {
 bool estadoFinal() { return !strcmp(estado, "ESCAPE") || !strcmp(estado, "FINALIZACION"); }
 
 void atenderBarrido(unsigned long ahora) {
-  if (!pcaOk || (!corrida && !barridoEnReposo) || laserFijo || estadoFinal() || ahora - ultimoPasoBarrido < BARRIDO_PASO_MS) return;
+  if (!pcaOk || (!corrida && !barridoEnReposo) || laserFijo || (!barridoEnReposo && estadoFinal()) || ahora - ultimoPasoBarrido < BARRIDO_PASO_MS) return;
   ultimoPasoBarrido = ahora;
   int8_t sig = angulo + sentidoBarrido * BARRIDO_PASO;
   if (sig > BARRIDO_MAX || sig < BARRIDO_MIN) { sentidoBarrido = -sentidoBarrido; sig = angulo + sentidoBarrido * BARRIDO_PASO; }
@@ -313,6 +313,7 @@ void empezarCorrida() {
 }
 void terminarCorrida() {
   corrida = false; barridoEnReposo = false; frenarMotores(); detenerPicker(); detector = DESARMADO;
+  strcpy(estado, "BUSQUEDA");
   if (pcaOk) posicionarLaseres(0);
 }
 
@@ -346,7 +347,10 @@ void procesarLinea(char *l) {
     return;
   }
   if (!strncmp(l, "LASER:", 6)) {             // LASER:SWEEP retoma barrido (incluso en reposo); LASER:HOLD/<grados> lo congela
-    if (!strcmp(l + 6, "SWEEP")) { laserFijo = false; barridoEnReposo = true; }
+    if (!strcmp(l + 6, "SWEEP")) {
+      laserFijo = false; barridoEnReposo = true; ultimoPasoBarrido = 0;
+      if (!pcaOk) ENLACE.println(F("ERROR:PCA9685_NO_RESPONDE"));
+    }
     else if (!strcmp(l + 6, "HOLD")) { laserFijo = true; laserFijoAng = angulo; barridoEnReposo = false; }
     else { laserFijo = true; barridoEnReposo = false; laserFijoAng = constrain(atoi(l + 6), -90, 90); if (pcaOk) posicionarLaseres(laserFijoAng); }
     return;

@@ -6,7 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [Unreleased] — PR-B TUI 1-Tecla, Layout Fluido Ancho Completo y Modos Forzados (`// [SOLO PRUEBAS / DEBUG]`)
+## [Unreleased] — PR-C Captura Real CSV (`999.0` sin eco), Reentrenamiento Neuroph 2.98, Historial `.nnet` y Fix `LASER:SWEEP`
+
+### Added (Agregado)
+- **Grabación guiada de datasets reales desde la TUI ([`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java), [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java)):** teclas `[u]` (cicla etiquetas US `BLOQUEO`/`ESPACIO_LIBRE`/`SALIDA`), `[m]` (cicla etiquetas Canicas `LOBITO_IZQ`/`LOBITO_CENTRO`/`LOBITO_DER`/`NINGUNA`) y `[g]` (`REC ON/PAUSA`) graban ráfagas reales en marcha o en reposo hacia `data/real/dataset_ultrasonico_real.csv` y `dataset_canicas_real.csv`, preservando lecturas `999.0` reales (sin eco) y mostrando conteos por clase en [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java).
+- **Reentrenamiento integrado Neuroph 2.98, backup inmutable y rollback en caliente ([`GestorModelosYEntrenamiento.java`](keiko-server/src/main/java/com/orquitas/server/GestorModelosYEntrenamiento.java), [`ClasificadorNeuroph.java`](keiko-server/src/main/java/com/orquitas/server/ClasificadorNeuroph.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):** tecla `[t]` / `--retrain-real` respalda los `.nnet` previos en `models/historial/<id>/` (con `index.tsv`, SHA-256, accuracy y matriz de confusión), entrena MLP (`1→8→3` / `6→32→16→4`) combinando base sintética balanceada + muestras reales con la normalización oficial compartida y recarga [`ClasificadorNeuroph`](keiko-server/src/main/java/com/orquitas/server/ClasificadorNeuroph.java) en vivo; `--list-models` y `--use-model <id>` (`use-model <id>` en consola) permiten rollback instantáneo.
+- **Suite de pruebas PR-C ([`RealDatasetAndRetrainTest.java`](keiko-server/src/test/java/com/orquitas/server/RealDatasetAndRetrainTest.java)).**
+
+### Fixed (Corregido)
+- **`LASER:SWEEP` bloqueado en reposo tras una corrida previa en `ESCAPE` ([`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino)):** `terminarCorrida()` (`CMD:STOP`) no restablecía `estado` a `"BUSQUEDA"` y `atenderBarrido()` seguía bloqueado por `estadoFinal()` aun con `barridoEnReposo == true`. Se restablece `estado` en `terminarCorrida()`, se prioriza `barridoEnReposo` en reposo y se emite `ERROR:PCA9685_NO_RESPONDE` al pedir `LASER:SWEEP` si `!pcaOk`.
+
+### Tests Run (Evidencia PR-C — 2026-11-23)
+- `cd keiko-server && mvn clean test`: **60/60 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.0 | mega-3us-2laser`).
+
+---
+
+## [PR-B — 2026-11-23] TUI 1-Tecla, Layout Fluido Ancho Completo y Modos Forzados (`#22`, Mergeado en `main`)
 
 ### Added (Agregado)
 - **Entrada instantánea de 1 tecla sin `Enter` ([`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):** modo TTY crudo POSIX (`stty -icanon -echo min 1 time 0 </dev/tty`, con restauración garantizada al cerrar/SIGTERM/`q` y fallback automático a lectura por línea en Windows/pipes) más filtrado de secuencias de escape CSI (`ESC [`). Atajos directos: `k`/`x`, `+`/`=`/`-`/`_`, `[`/`]`, `1`/`2`/`3`, `p`, `b`, `r`, `v`, `c`, `q`.

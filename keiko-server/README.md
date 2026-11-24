@@ -63,11 +63,12 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **10 clases de prueba (57 tests JUnit 5)**:
+Ejecuta las **11 clases de prueba (60 tests JUnit 5)**:
 - `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `STATE_CHANGE:`, `PICKER:ON/OFF`, `DBG:estomago=...` y rechazo de tramas corruptas.
 - `PlanificadorNavegacionTest` (15 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, breakout de perímetro, anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
-- `ConsolaTuiTest` (5 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) del monitor ANSI Bluetooth (incluyendo `Vel`/`PWM`, `LSR-EST`, barra visual adaptativa y parseo `stty size`), cálculo de Hz, Fail-Safe `< 500 ms` y reset.
+- `RealDatasetAndRetrainTest` (3 tests): captura de datasets reales en marcha y en reposo (preservando `999.0` sin eco), reentrenamiento Neuroph 2.98, historial inmutable (`models/historial/`) y rollback en caliente.
 - `ServidorCentralControlTest` (1 test): controles 1-tecla (`k`, `1`, `2`, `3`, `p`, `b`, `+`/`=`, `-`/`_`, `[`/`]`, `r`) y activación de modos forzados.
+- `ConsolaTuiTest` (5 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) del monitor ANSI Bluetooth (incluyendo `Vel`/`PWM`, `LSR-EST`, barra visual adaptativa y parseo `stty size`), cálculo de Hz, Fail-Safe `< 500 ms` y reset.
 - `ConfiguracionServidorTest` (6 tests): carga de `.env`, argumentos CLI (`--auto-start`, `--no-tui`, `--tui`, `--speed-scale`, `--pwm-min`/`--pwm-max`) y resolución de rutas.
 - `HardwareSerialAndCaptureTest` (6 tests): monitoreo pasivo en reposo, escala de velocidad, cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados.
 - `TwoNetworksInferenceTest` (5 tests): inferencia dual pura con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
@@ -101,6 +102,11 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
 | `--speed-scale <f>` | `SPEED_SCALE` | `1.0` | `[PRUEBAS]` Multiplicador de velocidad `(vL, vR)` (`0.20..1.20`) antes de emitir `COMMAND:` |
 | `--pwm-min <0..255>` | `PWM_MIN` | `105` | `[PRUEBAS]` Piso `pwmZonaMuerta` enviado por `CMD:PWM:` al Arduino Mega |
 | `--pwm-max <0..255>` | `PWM_MAX` | `255` | `[PRUEBAS]` Tope máximo `pwmTope` enviado por `CMD:PWM:` al Arduino Mega |
+| `--real-dir <dir>` | — | `data/real` | `[ENTRENAMIENTO]` Carpeta destino de `dataset_ultrasonico_real.csv` y `dataset_canicas_real.csv` |
+| `--retrain-real` | — | `false` | `[ENTRENAMIENTO]` Reentrena Neuroph 2.98 combinando base + CSV reales, guarda en `models/historial/` y termina |
+| `--list-models` | — | `false` | `[ENTRENAMIENTO]` Lista versiones guardadas en `models/historial/index.tsv` con accuracy y SHA-256 |
+| `--use-model <id>` | — | `—` | `[ENTRENAMIENTO]` Restaura una versión del historial en `models/` (rollback seguro) |
+| `--note <texto>` | — | `—` | `[ENTRENAMIENTO]` Nota de experimento asociada a `--retrain-real` |
 
 ### Controles interactivos en TUI (1 tecla sin `Enter` en Linux/macOS; línea con `Enter` como respaldo)
 - **Operación:** `[k]` / `start` (`CMD:START`), `[x]` / `stop` (`CMD:STOP`), `[r]` / `reset` (vacía `estomago.txt` y reinicia FSM), `[v]` / `view` (alterna detallado/compacto), `[c]` / `clear` (limpia logs), `[q]` (salida limpia restaurando TTY).
@@ -112,6 +118,12 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
   - `[b]` / `sweep` / `hold`: alterna `LASER:SWEEP` / `LASER:HOLD` en reposo.
   - `[+]`/`[=]` y `[-]`/`[_]` (o `speed <20..120>`): ajusta escala de velocidad en pasos de `10%`.
   - `[[]` / `[]]` (o `pwm <min> [max]`): ajusta `pwmZonaMuerta` (`pwmMin`) en pasos de `±5` y emite `CMD:PWM:`.
+- **`[ENTRENAMIENTO]` Captura real y reentrenamiento en caliente (`data/real` + `models/historial/`):**
+  - `[u]`: pasa a modo Red 1 (`US-CEN`) y cicla etiqueta objetivo (`BLOQUEO` → `ESPACIO_LIBRE` → `SALIDA`).
+  - `[m]`: pasa a modo Red 2 (`CANICAS`) y cicla etiqueta (`LOBITO_IZQ` → `LOBITO_CENTRO` → `LOBITO_DER` → `NINGUNA`).
+  - `[g]` / `rec on` / `rec off` / `label <ETIQUETA>`: inicia o pausa la grabación de ráfagas CSV reales (incluyendo lecturas `999.0` sin eco y telemetría estando detenido).
+  - `[t]` / `retrain [nota]`: hace backup automático de `.nnet` en `models/historial/`, reentrena Neuroph 2.98 con datos reales + base sintética balanceada y recarga los modelos en caliente.
+  - `models` / `use-model <id>`: lista historial y hace rollback en caliente sin reiniciar el servidor.
 
 ### Ejemplos de ejecución
 ```bash

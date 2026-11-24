@@ -131,12 +131,29 @@ public class ClasificadorNeuroph {
         return (neuralNetUltrasonico != null) || (neuralNetLegacy != null);
     }
 
+    public synchronized void recargarDesdeArchivos(File modeloUltrasonico, File modeloCanicas) {
+        cargarModeloEspecifico(modeloUltrasonico, true);
+        cargarModeloEspecifico(modeloCanicas, false);
+    }
+
+    public static double normalizarUs(double distCm) {
+        return Math.min(1.0, Math.max(0.0, (distCm - 2.0) / 248.0));
+    }
+
+    public static double normalizarLaser(double distCm) {
+        return Math.min(1.0, Math.max(0.0, (distCm - 2.0) / 41.0));
+    }
+
+    public static double normalizarAnguloServo(double anguloGrados) {
+        return Math.min(1.0, Math.max(0.0, (anguloGrados - (-45.0)) / 105.0));
+    }
+
     // Clasifica un sector ultrasónico con Red 1 (modelo_ultrasonico.nnet)
     public synchronized String clasificarSectorUltrasonico(double distCm) {
         if (neuralNetUltrasonico == null) {
             return "ESPACIO_LIBRE";
         }
-        double norm = Math.min(1.0, Math.max(0.0, (distCm - 2.0) / 248.0));
+        double norm = normalizarUs(distCm);
         neuralNetUltrasonico.setInput(norm);
         neuralNetUltrasonico.calculate();
         double[] out = neuralNetUltrasonico.getOutput();
@@ -164,12 +181,12 @@ public class ClasificadorNeuroph {
             this.ultimaConfianzaCanica = 0.0;
             return "NINGUNA";
         }
-        double nUsIzq = Math.min(1.0, Math.max(0.0, (sensores.getUsLeft() - 2.0) / 248.0));
-        double nUsCen = Math.min(1.0, Math.max(0.0, (sensores.getUsCenter() - 2.0) / 248.0));
-        double nUsDer = Math.min(1.0, Math.max(0.0, (sensores.getUsRight() - 2.0) / 248.0));
-        double nLaserIzq = Math.min(1.0, Math.max(0.0, (sensores.getLaserLeft() - 2.0) / 41.0));
-        double nLaserDer = Math.min(1.0, Math.max(0.0, (sensores.getLaserRight() - 2.0) / 41.0));
-        double nServo = Math.min(1.0, Math.max(0.0, (sensores.getAnguloServo() - (-45.0)) / 105.0));
+        double nUsIzq = normalizarUs(sensores.getUsLeft());
+        double nUsCen = normalizarUs(sensores.getUsCenter());
+        double nUsDer = normalizarUs(sensores.getUsRight());
+        double nLaserIzq = normalizarLaser(sensores.getLaserLeft());
+        double nLaserDer = normalizarLaser(sensores.getLaserRight());
+        double nServo = normalizarAnguloServo(sensores.getAnguloServo());
 
         neuralNetCanicas.setInput(nUsIzq, nUsCen, nUsDer, nLaserIzq, nLaserDer, nServo);
         neuralNetCanicas.calculate();
