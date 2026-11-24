@@ -16,9 +16,11 @@ public class MensajeProtocolo {
     public static final String PREFIX_DBG = "DBG:";
     public static final String CMD_START = "CMD:START";
     public static final String CMD_STOP = "CMD:STOP";
-    // [SOLO PRUEBAS / DEBUG - retirar cuando se fijen constantes PWM y barrido finales]
+    // [SOLO PRUEBAS / DEBUG - retirar cuando se fijen constantes PWM, barrido y picker finales]
     public static final String PREFIX_CMD_PWM = "CMD:PWM:";
     public static final String PREFIX_LASER = "LASER:";
+    public static final String MSG_PICKER_ON = "PICKER:ON";
+    public static final String MSG_PICKER_OFF = "PICKER:OFF";
 
     public record InfoHandshake(String version, String rig) {}
 
@@ -96,9 +98,15 @@ public class MensajeProtocolo {
                 PREFIX_COMMAND, cmd.getVLeft(), cmd.getVRight(), cmd.getEstado().name());
     }
 
+    // Crea trama de notificacion de cambio formal de estado (ej. ESCAPE, BUSQUEDA, CAPTURA).
+    public static String crearEstadoCambio(EstadoRobot estado) {
+        EstadoRobot efectivo = (estado != null) ? estado : EstadoRobot.BUSQUEDA;
+        return String.format("%s%s\n", PREFIX_STATE_CHANGE, efectivo.name());
+    }
+
     // Crea trama de notificacion de transicion al Modo Escape.
     public static String crearModoEscape() {
-        return String.format("%s%s\n", PREFIX_STATE_CHANGE, EstadoRobot.ESCAPE.name());
+        return crearEstadoCambio(EstadoRobot.ESCAPE);
     }
 
     // Genera trama de latido para el control de timeout fail-safe.
@@ -132,6 +140,11 @@ public class MensajeProtocolo {
     public static String crearCmdLaser(String modo) {
         String limpio = (modo != null && !modo.isBlank()) ? modo.trim() : "SWEEP";
         return PREFIX_LASER + limpio + "\n";
+    }
+
+    // [SOLO PRUEBAS / DEBUG] Enciende o apaga manualmente el picker en pruebas de banco.
+    public static String crearPicker(boolean encender) {
+        return (encender ? MSG_PICKER_ON : MSG_PICKER_OFF) + "\n";
     }
 
     /** Parsea tramas DBG:estomago=<mm> base=<mm> det=<0|1|2> cambios=<n> enviadas por el Mega. */

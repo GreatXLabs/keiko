@@ -141,4 +141,43 @@ public class ConsolaTuiTest {
         assertEquals(0, estado.getCapturasEstomago());
         assertEquals(EstadoRobot.BUSQUEDA, estado.getEstadoFsmActual());
     }
+
+    @Test
+    public void testRenderizadoFluidoAnchoCompletoYParseoStty() {
+        int[] tam = ConsolaTui.parsearTamanoStty("42 150");
+        assertArrayEquals(new int[]{150, 42}, tam);
+        assertNull(ConsolaTui.parsearTamanoStty("invalido"));
+
+        EstadoMonitorTui estado = crearEstadoBase();
+        estado.registrarConexionCliente("Serie:/dev/rfcomm0@9600", 1);
+        for (int i = 0; i < 12; i++) {
+            estado.agregarLog("INFO", "Evento de prueba numero " + i);
+        }
+        VectorSensores s = new VectorSensores(new double[]{25.0, 95.0, 45.0, 14.0, 999.0, -5.0}, 5000L);
+        estado.registrarTelemetria(
+                s,
+                new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "ESPACIO_LIBRE"},
+                new double[]{0.95, 0.96, 0.92},
+                "LOBITO_CENTRO",
+                0.91,
+                new ComandoRobot(3.0, 3.0, EstadoRobot.APROXIMACION),
+                10,
+                5000L);
+
+        String ancho = ConsolaTui.renderizarFrame(estado, 5050L, false, 150, 44);
+        String[] lineas = ancho.split("\n");
+        for (int i = 18; i < lineas.length - 1; i++) {
+            assertEquals(150, ConsolaTui.longitudVisual(lineas[i]),
+                    "Linea expandida debe medir 150 cols en " + i);
+        }
+        assertTrue(ancho.contains("Evento de prueba numero 11"));
+        assertTrue(ancho.contains("Evento de prueba numero 2"), "Con terminal alta debe mostrar mas filas de logs");
+
+        String compactoAncho = ConsolaTui.renderizarFrame(estado, 5050L, true, 136, 30);
+        String[] lineasComp = compactoAncho.split("\n");
+        for (int i = 0; i < lineasComp.length - 1; i++) {
+            assertEquals(136, ConsolaTui.longitudVisual(lineasComp[i]),
+                    "Linea compacta expandida debe medir 136 cols en " + i);
+        }
+    }
 }

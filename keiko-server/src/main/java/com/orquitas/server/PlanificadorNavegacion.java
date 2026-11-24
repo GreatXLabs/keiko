@@ -37,6 +37,8 @@ public class PlanificadorNavegacion {
     private int ciclosPersistenciaLobito = 0;
     private String ultimoLobito = null;
     private int ciclosSinSalidaEscape = 0;
+    // [SOLO PRUEBAS / DEBUG - permite forzar CAPTURA para validar picker en pista]
+    private volatile boolean modoCapturaForzado = false;
 
     public PlanificadorNavegacion(GestorEstomago gestorEstomago) {
         if (gestorEstomago != null
@@ -59,6 +61,11 @@ public class PlanificadorNavegacion {
         ciclosDesdeUltimoReverso++;
         if (ciclosDesdeUltimoReverso > 100) {
             contadorReversosConsecutivos = 0;
+        }
+
+        if (modoCapturaForzado) {
+            this.estado = EstadoRobot.CAPTURA;
+            return new ComandoRobot(2.4, 2.4, EstadoRobot.CAPTURA);
         }
 
         String izq = pares[0] != null ? pares[0] : "ESPACIO_LIBRE";
@@ -335,6 +342,7 @@ public class PlanificadorNavegacion {
     }
 
     public synchronized void activarModoEscape() {
+        this.modoCapturaForzado = false;
         this.estado = EstadoRobot.ESCAPE;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
@@ -345,6 +353,7 @@ public class PlanificadorNavegacion {
     }
 
     public synchronized void finalizar() {
+        this.modoCapturaForzado = false;
         this.estado = EstadoRobot.FINALIZACION;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
@@ -355,10 +364,38 @@ public class PlanificadorNavegacion {
     public EstadoRobot getEstado() { return estado; }
 
     public synchronized void setEstado(EstadoRobot nuevoEstado) {
+        this.modoCapturaForzado = false;
         this.estado = nuevoEstado;
         if (nuevoEstado == EstadoRobot.ESCAPE) {
             this.ciclosSinSalidaEscape = 0;
         }
+    }
+
+    // [SOLO PRUEBAS / DEBUG - metodos para forzar estados individuales desde TUI]
+    public synchronized void forzarModoBusqueda() {
+        this.modoCapturaForzado = false;
+        this.estado = EstadoRobot.BUSQUEDA;
+        this.pasosRetrocesoRestantes = 0;
+        this.pasosGiroComprometido = 0;
+        this.ciclosPersistenciaLobito = 0;
+        this.ultimoLobito = null;
+        LOGGER.info("[PRUEBA] Modo forzado: BUSQUEDA.");
+    }
+
+    public synchronized void forzarModoEscape() {
+        activarModoEscape();
+    }
+
+    public synchronized void forzarModoCaptura() {
+        this.modoCapturaForzado = true;
+        this.estado = EstadoRobot.CAPTURA;
+        this.pasosRetrocesoRestantes = 0;
+        this.pasosGiroComprometido = 0;
+        LOGGER.info("[PRUEBA] Modo forzado: CAPTURA (prueba de picker).");
+    }
+
+    public synchronized boolean isModoCapturaForzado() {
+        return modoCapturaForzado;
     }
 
     public synchronized int getCiclosSinSalidaEscape() { return ciclosSinSalidaEscape; }
@@ -367,6 +404,7 @@ public class PlanificadorNavegacion {
 
     /** Reinicia el estado conductual de navegacion a BUSQUEDA para pruebas tras resetear el estomago. */
     public synchronized void reiniciarParaPrueba() {
+        this.modoCapturaForzado = false;
         this.estado = EstadoRobot.BUSQUEDA;
         this.pasosRetrocesoRestantes = 0;
         this.velRetrocesoIzq = 0.0;

@@ -93,6 +93,7 @@ public class EstadoMonitorTui {
     private volatile int pwmMax;
     private volatile boolean corridaActiva;
     private volatile boolean barridoEnReposo = false;
+    private volatile boolean pickerManualActivo = false;
     private volatile int estomagoMm = -1;
     private volatile int estomagoBaseMm = -1;
     private volatile int estomagoDetector = -1;
@@ -304,6 +305,20 @@ public class EstadoMonitorTui {
         marcarCambio();
     }
 
+    public synchronized void setPickerManualActivo(boolean activo) {
+        this.pickerManualActivo = activo;
+        marcarCambio();
+    }
+
+    /** // [SOLO PRUEBAS / DEBUG - reflejar modo forzado en TUI antes del siguiente tick] */
+    public synchronized void setEstadoFsmActual(EstadoRobot estado) {
+        if (estado != null) {
+            this.estadoFsmActual = estado;
+            this.modoEscapeActivo = (estado == EstadoRobot.ESCAPE);
+            marcarCambio();
+        }
+    }
+
     public synchronized void registrarComandoControl(String cmd) {
         this.ultimoComandoControl = cmd != null ? cmd : "---";
         agregarLog("CTRL", "Enviado " + this.ultimoComandoControl);
@@ -394,6 +409,7 @@ public class EstadoMonitorTui {
     public int getPwmMax() { return pwmMax; }
     public boolean isCorridaActiva() { return corridaActiva; }
     public boolean isBarridoEnReposo() { return barridoEnReposo; }
+    public boolean isPickerManualActivo() { return pickerManualActivo; }
     public int getEstomagoMm() { return estomagoMm; }
     public int getEstomagoBaseMm() { return estomagoBaseMm; }
     public int getEstomagoDetector() { return estomagoDetector; }
