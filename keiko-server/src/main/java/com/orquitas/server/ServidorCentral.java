@@ -248,11 +248,18 @@ public class ServidorCentral implements OyenteAuditor {
                     } catch (NumberFormatException ignored) {}
                 }
             }
-        } else if ("b".equals(cmd) || "sweep".equals(cmd) || "hold".equals(cmd)) {
-            // [SOLO PRUEBAS / DEBUG - activar o pausar barrido servo en reposo]
-            boolean sweep = "b".equals(cmd) ? !monitorTui.isBarridoEnReposo() : "sweep".equals(cmd);
-            monitorTui.setBarridoEnReposo(sweep);
-            String modo = sweep ? "SWEEP" : "HOLD";
+        } else if ("b".equals(cmd) || "sweep".equals(cmd) || "hold".equals(cmd) || cmd.startsWith("laser ")) {
+            // [SOLO PRUEBAS / DEBUG - activar/pausar barrido servo o fijar angulo en reposo]
+            String modo;
+            if (cmd.startsWith("laser ")) {
+                String arg = cmd.substring(6).trim().toUpperCase(java.util.Locale.ROOT);
+                modo = arg.isEmpty() ? "SWEEP" : arg;
+                monitorTui.setBarridoEnReposo("SWEEP".equals(modo));
+            } else {
+                boolean sweep = "b".equals(cmd) ? !monitorTui.isBarridoEnReposo() : "sweep".equals(cmd);
+                monitorTui.setBarridoEnReposo(sweep);
+                modo = sweep ? "SWEEP" : "HOLD";
+            }
             enviarComandoControl(MensajeProtocolo.crearCmdLaser(modo));
             monitorTui.registrarComandoControl("LASER:" + modo);
             if (consolaTui == null) {

@@ -121,5 +121,12 @@ public class ProtocolParserTest {
         assertEquals(2, dbg.detector());
         assertEquals(1, dbg.cambios());
         assertNull(MensajeProtocolo.parsearDbgEstomago("DBG:otro=1"));
+
+        // Trama truncada a 6 campos (faltando 1 sensor) debe rechazarse en validacion estricta mega-3us-2laser
+        assertThrows(IllegalArgumentException.class,
+                () -> MensajeProtocolo.parsearTelemetria("TELEMETRY:20.7,24.7,3,38.8,0,130284", 6, true));
+        VectorSensores estricto = MensajeProtocolo.parsearTelemetria("TELEMETRY:20.7,24.7,35.0,999.0,38.8,0,130284", 6, true);
+        assertEquals(6, estricto.getCantidadSensores());
+        assertEquals(130284L, estricto.getTimestamp());
     }
 }

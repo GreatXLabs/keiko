@@ -6,7 +6,26 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [Unreleased] — PR-C Captura Real CSV (`999.0` sin eco), Reentrenamiento Neuroph 2.98, Historial `.nnet` y Fix `LASER:SWEEP`
+## [2.0.1] — 2026-11-24
+
+### Added (Agregado)
+- **Script automatizado de versionado ([`scripts/bump_version.sh`](scripts/bump_version.sh)):** sincroniza en un solo comando `VERSION`, `keiko-server/pom.xml`, `ConfiguracionServidor.java`, `orquita_firmware.ino`, `simulation_params.json`, `robot_client.py`, `README.md` y `AGENTS.md`, validando `9/9 [OK]` con [`check_versions.sh`](scripts/check_versions.sh).
+- **Validación estricta de protocolo de 7 campos ([`MensajeProtocolo.java`](keiko-server/src/main/java/com/orquitas/server/MensajeProtocolo.java), [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java)):** `parsearTelemetria(linea, 6, true)` rechaza tramas mutiladas por Bluetooth de 6 tokens evitando que el timestamp pase al campo `angulo_servo`.
+- **Comando `laser <-45..60>` en consola ([`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):** permite fijar ángulo directo para validar servos en banco.
+
+### Fixed (Corregido)
+- **Sentido físico invertido de servos láser en [`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino):** actualizado `LASER_SENTIDO[2] = {-1, 1}` (antes `{1, -1}`) tras validar en el robot real que `-45°` apuntaba hacia afuera; ahora `-45°` converge hacia el centro y `+60°` abre hacia afuera igual que Webots y `modelo_canicas.nnet`.
+- **Desbordes del buffer TX `Serial1` @ `9600` bps en [`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino):** `enviarTelemetria()` emite como máximo una trama por vuelta del `loop()` (`TELEMETRY:` / `HEARTBEAT` / `DBG:`) verificando `availableForWrite()`, evitando tramas cortadas al principio/medio.
+- **Desbordes verticales y de márgenes en [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java):** cálculo exacto `alto - lineas.size() - 4` (incluyendo los 2 renglones de captura real y la fila de prompt dentro de `altoTerm`), cambio automático a modo compacto en terminales angostas/bajas (`< 112` cols o `< 32` filas), barra `Teclas:` acotada al ancho sin wrap y espaciado limpio en `LSR-IZQ` / `LSR-DER`.
+
+### Tests Run (Evidencia `2.0.1` — 2026-11-24)
+- `cd keiko-server && mvn clean test`: **60/60 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5, con pruebas de no-desborde `112x34`, `120x39`, `150x44`, `95x28`, `84x24` y rechazo estricto de tramas truncadas).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.1 | mega-3us-2laser`).
+
+---
+
+## [PR-C — 2026-11-23] Captura Real CSV (`999.0` sin eco), Reentrenamiento Neuroph 2.98, Historial `.nnet` y Fix `LASER:SWEEP` (`#23`, Mergeado en `main`)
 
 ### Added (Agregado)
 - **Grabación guiada de datasets reales desde la TUI ([`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java), [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java)):** teclas `[u]` (cicla etiquetas US `BLOQUEO`/`ESPACIO_LIBRE`/`SALIDA`), `[m]` (cicla etiquetas Canicas `LOBITO_IZQ`/`LOBITO_CENTRO`/`LOBITO_DER`/`NINGUNA`) y `[g]` (`REC ON/PAUSA`) graban ráfagas reales en marcha o en reposo hacia `data/real/dataset_ultrasonico_real.csv` y `dataset_canicas_real.csv`, preservando lecturas `999.0` reales (sin eco) y mostrando conteos por clase en [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java).

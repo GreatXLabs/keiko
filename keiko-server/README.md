@@ -1,6 +1,6 @@
 # Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.0` | `mega-3us-2laser`)**.
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.1` | `mega-3us-2laser`)**.
 
 ---
 
@@ -115,7 +115,7 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
   - `[2]` / `escape`: fuerza `ESCAPE` (`STATE_CHANGE:ESCAPE`) para probar algoritmo de salida sin esperar 3 canicas.
   - `[3]` / `captura`: en corrida activa fuerza `CAPTURA` (`STATE_CHANGE:CAPTURA`); en reposo alterna `PICKER:ON`/`PICKER:OFF`.
   - `[p]` / `picker`: alterna `PICKER:ON`/`PICKER:OFF` directo en banco.
-  - `[b]` / `sweep` / `hold`: alterna `LASER:SWEEP` / `LASER:HOLD` en reposo.
+  - `[b]` / `sweep` / `hold` / `laser <-45..60>`: alterna `LASER:SWEEP` / `LASER:HOLD` o fija un ángulo específico en reposo.
   - `[+]`/`[=]` y `[-]`/`[_]` (o `speed <20..120>`): ajusta escala de velocidad en pasos de `10%`.
   - `[[]` / `[]]` (o `pwm <min> [max]`): ajusta `pwmZonaMuerta` (`pwmMin`) en pasos de `±5` y emite `CMD:PWM:`.
 - **`[ENTRENAMIENTO]` Captura real y reentrenamiento en caliente (`data/real` + `models/historial/`):**

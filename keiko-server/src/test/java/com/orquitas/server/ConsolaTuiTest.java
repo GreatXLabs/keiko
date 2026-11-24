@@ -179,5 +179,17 @@ public class ConsolaTuiTest {
             assertEquals(136, ConsolaTui.longitudVisual(lineasComp[i]),
                     "Linea compacta expandida debe medir 136 cols en " + i);
         }
+
+        // Verificar que nunca desborda vertical ni horizontalmente (ej. 120x39 y terminal angosta 84x24)
+        for (int[] dim : new int[][]{{112, 34}, {120, 39}, {150, 44}, {95, 28}, {84, 24}}) {
+            String f = ConsolaTui.renderizarFrame(estado, 5050L, false, dim[0], dim[1]);
+            String[] rows = f.split("\n", -1);
+            assertTrue(rows.length <= dim[1] - 1,
+                    String.format("Desborde vertical en %dx%d: %d filas (max %d)", dim[0], dim[1], rows.length, dim[1] - 1));
+            for (int r = 0; r < rows.length; r++) {
+                assertTrue(ConsolaTui.longitudVisual(rows[r]) <= dim[0],
+                        String.format("Desborde horizontal en %dx%d fila %d: %d cols", dim[0], dim[1], r, ConsolaTui.longitudVisual(rows[r])));
+            }
+        }
     }
 }

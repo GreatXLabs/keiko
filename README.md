@@ -2,13 +2,13 @@
 
 Ecosistema robótico autónomo distribuido para la competencia **"Inteligencia y Supervivencia en la Bahía de Caza"** (Programación Sobre Redes & Desarrollo de Sistemas, Ciclo Lectivo 2026).
 
-Versión activa: **`2.0.0`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
+Versión activa: **`2.0.1`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
 
 ---
 
 ## Visión General del Sistema
 
-1. **La Orquita (Cliente físico):** Chasis **4WD Skid-Steer** sobre **Arduino Mega 2560**, shield **L293D** (`M1..M4`), driver PWM I2C **PCA9685** (`0x40`), **3× sensores ultrasónicos HC-SR04** fijos en fila superior (`TRIG {24,26,28}`, `ECHO {25,27,29}`), **2× sensores láser ToF VL53L0X** (`0x30`, `0x31`) sobre servos SG90 en barrido espejo (`LASER_SENTIDO {1,-1}`), picker recolector (**2× servos SG90 360°** con neutro `{1485,1500}` y corte al capturar / tope 10 s), **1× VL53L0X de estómago** (`0x32`, `XSHUT A10`), módulo Bluetooth **HC-05** (`Serial1`, `9600` bps) y **Watchdog Fail-Safe (`< 500 ms`)**.
+1. **La Orquita (Cliente físico):** Chasis **4WD Skid-Steer** sobre **Arduino Mega 2560**, shield **L293D** (`M1..M4`), driver PWM I2C **PCA9685** (`0x40`), **3× sensores ultrasónicos HC-SR04** fijos en fila superior (`TRIG {24,26,28}`, `ECHO {25,27,29}`), **2× sensores láser ToF VL53L0X** (`0x30`, `0x31`) sobre servos SG90 en barrido espejo (`LASER_SENTIDO {-1,1}`), picker recolector (**2× servos SG90 360°** con neutro `{1485,1500}` y corte al capturar / tope 10 s), **1× VL53L0X de estómago** (`0x32`, `XSHUT A10`), módulo Bluetooth **HC-05** (`Serial1`, `9600` bps) y **Watchdog Fail-Safe (`< 500 ms`)**.
 2. **Servidor Central (Cerebro en PC):** Aplicación multihilo en **Java 21 LTS** (Maven + compatible con Apache NetBeans) con arquitectura dual **Neuroph 2.98** (`modelo_ultrasonico.nnet` + `modelo_canicas.nnet`), transporte exclusivo **Bluetooth RFCOMM/SPP** (`jSerialComm`), TUI ANSI en vivo (`ConsolaTui` + `EstadoMonitorTui`), persistencia atómica en `estomago.txt` (`GestorEstomago` con `synchronized` + `FileDescriptor.sync()`) e **Hilo Auditor (`AuditorEstomago`)** que dispara la transición irreversible a `ESCAPE` al validar 3 capturas físicas en disco.
 3. **Bahía de Caza (Simulador 3D Webots):** Entorno paramétrico semielíptico (`~1.80 m` base × `~1.20 m` profundidad) y circular (`R = 0.90 m`) con múltiples escenarios (`scen_1..14`, `circular`), física de ultrasonido y láser ToF, controlador `robot_client.py` (`mega-3us-2laser`) y recolección de datasets.
 4. **Entrenamiento Neuroph (`neuroph-train/`):** Herramienta Swing/Java para entrenamiento local o distribuido (`neuroph.aguilucho.ar:443`) de redes `.nnet`.
@@ -19,7 +19,7 @@ Versión activa: **`2.0.0`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
 
 ```text
 keiko/
-├── VERSION                   <- Fuente única de verdad de versión (2.0.0)
+├── VERSION                   <- Fuente única de verdad de versión (2.0.1)
 ├── CHANGELOG.md              <- Historial de cambios, matriz de compatibilidad y evidencia de tests
 ├── AGENTS.md                 <- Especificación técnica, reglas de arquitectura y enrutador
 ├── scripts/
