@@ -37,9 +37,9 @@
 #define KEIKO_VERSION "2.0.0"
 #define KEIKO_RIG     "mega-3us-2laser"
 
-#define PERMITIR_MANUAL 0       // 0 = competencia (desactiva wasdkx); 1 = habilita pruebas de banco wasdkx por USB/BT
-#define DEPURAR_ESTOMAGO 0      // manda DBG:estomago=... por el enlace (el servidor lo ignora)
-#define ESPEJAR_USB 0           // copia la telemetría al USB (115200) para depurar
+#define PERMITIR_MANUAL 1       // [SOLO PRUEBAS / DEBUG - poner en 0 en codigo final de competencia]
+#define DEPURAR_ESTOMAGO 1      // [SOLO PRUEBAS / DEBUG - envia DBG:estomago=... en paralelo sin pisar TELEMETRY]
+#define ESPEJAR_USB 0           // [SOLO PRUEBAS / DEBUG - copia la telemetria al USB (115200)]
 #define ENLACE Serial1          // HC-05
 const unsigned long BAUD_ENLACE = 9600;
 
@@ -49,8 +49,9 @@ AF_DCMotor *motor[4] = {&m1, &m2, &m3, &m4};
 const bool ES_IZQUIERDO[4] = {true, true, false, false};
 const bool INVERTIDO[4] = {true, true, true, true};      // validado
 const float MAX_VEL_SERVIDOR = 8.0f;
-// shortcut: PWM lineal entre zona muerta y 255, sin tabla por motor; medir el arranque real en el piso y afinar.
-const uint8_t PWM_ZONA_MUERTA = 105;
+// [SOLO PRUEBAS / DEBUG - ajustable por CMD:PWM:<min>,<max> para calibrar arranque en piso y luego fijar como const]
+uint8_t pwmZonaMuerta = 105;
+uint8_t pwmTope = 255;
 const uint8_t PWM_MANUAL = 180;                          // validado: capturó canicas
 const unsigned long MANUAL_HOLD_MS = 450;
 
@@ -60,9 +61,9 @@ const uint8_t DIR_PCA = 0x40;
 const uint8_t LASER_CANAL[2] = {0, 1};
 const int8_t LASER_SENTIDO[2] = {1, -1};                 // validado: espejados
 const uint16_t SERVO_US_0 = 500, SERVO_US_180 = 2400;
-const int8_t BARRIDO_MIN = -45, BARRIDO_MAX = 60, BARRIDO_PASO = 5;  // doc SIMULACION-UNITY §4
-const unsigned long BARRIDO_PASO_MS = 40;
-const unsigned long LASER_ASENTAR_MS = 30;               // espera tras mover antes de medir
+const int8_t BARRIDO_MIN = -45, BARRIDO_MAX = 60, BARRIDO_PASO = 1;  // 1° por paso sincronizado con VL53L0X
+const unsigned long BARRIDO_PASO_MS = 30;
+const unsigned long LASER_ASENTAR_MS = 10;               // espera tras mover antes de medir
 
 const uint8_t PICKER_CANAL[2] = {2, 3};
 const uint16_t PICKER_NEUTRO[2] = {1485, 1500};          // validado
@@ -77,8 +78,11 @@ const unsigned long PICKER_MAX_MS = 10000;               // tope duro de giro co
 const uint8_t XSHUT[3] = {A8, A9, A10};                  // izq, der, estómago
 const uint8_t DIRECCION[3] = {0x30, 0x31, 0x32};
 const char *NOMBRE_TOF[3] = {"LASER_IZQ", "LASER_DER", "ESTOMAGO"};
-const uint32_t TOF_PRESUPUESTO_US = 20000;
-const unsigned long TOF_PERIODO_MS = 22;
+const uint32_t TOF_PRESUPUESTO_US = 30000;
+const unsigned long TOF_PERIODO_MS = 30;
+// Estómago (detector de canicas): 20 ms es el mínimo útil del VL53L0X
+const uint32_t TOF_ESTOMAGO_PRESUPUESTO_US = 20000;
+const unsigned long TOF_ESTOMAGO_PERIODO_MS = 20;
 const uint16_t TOF_SIN_ECO_MM = 8000;
 const float SIN_ECO_CM = 999.0f;
 
@@ -86,13 +90,18 @@ const float SIN_ECO_CM = 999.0f;
 const uint8_t US_TRIG[3] = {24, 26, 28};                 // validado (no los de tests-emi)
 const uint8_t US_ECHO[3] = {25, 27, 29};
 const unsigned long US_TIMEOUT_US = 15000UL;             // ~2,5 m, alcanza para el rango del servidor
+// Calibración a mano (2026-11-21): real = A*lectura + B
+const float LASER_B_CM[2] = {-2.5f, -4.0f};
+const float US_A[3] = {1.04f, 1.04f, 1.04f};
+const float US_B[3] = {0.25f, 0.77f, 0.57f};
 const unsigned long US_ENTRE_DISPAROS_MS = 20;           // un sensor a la vez: no se pisan
 
 // ---------------- Estómago ----------------
 const uint8_t CAPTURAS_META = 3;
 const uint8_t MUESTRAS_BASE = 10;
 const uint16_t UMBRAL_MM = 10;
-const uint8_t LECTURAS_CONFIRMAR = 2;
+const uint8_t LECTURAS_CONFIRMAR = 4;
+const unsigned long CAPTURA_ENFRIAMIENTO_MS = 3000;      // sin calibrar ni detectar tras una captura
 
 // ---------------- Protocolo ----------------
 const unsigned long TELEMETRIA_MS = 100;
@@ -114,6 +123,9 @@ unsigned long ultimoServidor = 0;
 bool failSafe = false;
 
 int8_t angulo = 0;
+bool laserFijo = false;                       // [SOLO PRUEBAS / DEBUG] LASER:<grados|HOLD>
+int8_t laserFijoAng = 0;
+bool barridoEnReposo = false;                 // [SOLO PRUEBAS / DEBUG] permite barrido servo en !corrida
 int8_t sentidoBarrido = 1;
 unsigned long ultimoPasoBarrido = 0, ultimoMovServo = 0;
 bool pcaOk = false;
@@ -121,6 +133,7 @@ bool pcaOk = false;
 uint8_t pickerEscala = 0;       // 0 = frenado, 1..PASOS = arrancando/girando
 bool pickerQuiere = false;
 unsigned long pickerApagarMs = 0, pickerUltimoPaso = 0, pickerInicioMs = 0;
+bool pickerManual = false;      // [SOLO PRUEBAS / DEBUG] PICKER:ON del operador
 bool pickerBloqueado = false;   // cortado por captura o por tope: no rearranca hasta salir de APROXIMACION/CAPTURA
 
 enum Detector : uint8_t { DESARMADO, CALIBRANDO, ARMADO };
@@ -129,6 +142,7 @@ uint32_t baseAcum = 0;
 uint8_t baseN = 0, cambiosSeguidos = 0;
 uint16_t baseMm = 0;
 uint8_t capturas = 0;
+unsigned long ultimaCaptura = 0;   // 0 = ninguna en esta corrida
 
 char rx[64];
 uint8_t rxLen = 0;
@@ -140,7 +154,9 @@ unsigned long ultimaTelemetria = 0, ultimoHeartbeat = 0;
 uint8_t pwmDeVelocidad(float v) {
   float a = fabs(v);
   if (a < 0.05f) return 0;
-  int pwm = PWM_ZONA_MUERTA + (int)((a / MAX_VEL_SERVIDOR) * (255 - PWM_ZONA_MUERTA));
+  int rango = (int)pwmTope - (int)pwmZonaMuerta;
+  if (rango < 0) rango = 0;
+  int pwm = (int)pwmZonaMuerta + (int)((a / MAX_VEL_SERVIDOR) * rango);
   return (uint8_t)constrain(pwm, 0, 255);
 }
 
@@ -194,7 +210,7 @@ void pickerQuerer(bool si, unsigned long extraMs = 0) {
   pickerQuiere = si;
   if (si) pickerApagarMs = millis() + extraMs;   // al soltarlo sigue girando hasta este plazo
 }
-void detenerPicker() { pickerQuiere = false; pickerApagarMs = 0; }
+void detenerPicker() { pickerQuiere = false; pickerApagarMs = 0; pickerManual = false; }
 void cortarPicker() { detenerPicker(); pickerBloqueado = true; }   // por captura o por tope de tiempo
 // Arranque suave y apagado sin bloquear
 void atenderPicker(unsigned long ahora) {
@@ -211,8 +227,10 @@ void atenderPicker(unsigned long ahora) {
   }
 }
 
+bool estadoFinal() { return !strcmp(estado, "ESCAPE") || !strcmp(estado, "FINALIZACION"); }
+
 void atenderBarrido(unsigned long ahora) {
-  if (!pcaOk || !corrida || ahora - ultimoPasoBarrido < BARRIDO_PASO_MS) return;
+  if (!pcaOk || (!corrida && !barridoEnReposo) || laserFijo || estadoFinal() || ahora - ultimoPasoBarrido < BARRIDO_PASO_MS) return;
   ultimoPasoBarrido = ahora;
   int8_t sig = angulo + sentidoBarrido * BARRIDO_PASO;
   if (sig > BARRIDO_MAX || sig < BARRIDO_MIN) { sentidoBarrido = -sentidoBarrido; sig = angulo + sentidoBarrido * BARRIDO_PASO; }
@@ -225,7 +243,8 @@ float leerUsCm(uint8_t i) {
   digitalWrite(US_TRIG[i], HIGH); delayMicroseconds(10);
   digitalWrite(US_TRIG[i], LOW);
   unsigned long us = pulseIn(US_ECHO[i], HIGH, US_TIMEOUT_US);
-  return us ? us * 0.0343f / 2.0f : SIN_ECO_CM;
+  if (!us) return SIN_ECO_CM;
+  return max(0.0f, US_A[i] * (us * 0.0343f / 2.0f) + US_B[i]);
 }
 
 // Una sola tarea lenta por vuelta
@@ -238,12 +257,12 @@ void atenderSensores(unsigned long ahora) {
   }
   // Los láseres de barrido miden solo con el servo ya asentado
   for (uint8_t i = 0; i < 3; i++) {
-    if (!tofOk[i] || ahora - tofUltimo[i] < TOF_PERIODO_MS) continue;
+    if (!tofOk[i] || ahora - tofUltimo[i] < (i == 2 ? TOF_ESTOMAGO_PERIODO_MS : TOF_PERIODO_MS)) continue;
     if (i < 2 && ahora - ultimoMovServo < LASER_ASENTAR_MS) continue;
     tofUltimo[i] = ahora;
     uint16_t mm = tof[i].readRangeContinuousMillimeters();
     bool ok = !tof[i].timeoutOccurred() && mm < TOF_SIN_ECO_MM;
-    if (i < 2) laserCm[i] = ok ? mm / 10.0f : SIN_ECO_CM;
+    if (i < 2) laserCm[i] = ok ? max(0.0f, mm / 10.0f + LASER_B_CM[i]) : SIN_ECO_CM;
     else estomagoMm = ok ? mm : 0;
     return;
   }
@@ -257,6 +276,7 @@ void armarEstomago() {
 void atenderEstomago() {
   static unsigned long ultimaMuestra = 0;
   if (detector == DESARMADO || estomagoMm == 0 || tofUltimo[2] == ultimaMuestra) return;
+  if (ultimaCaptura && millis() - ultimaCaptura < CAPTURA_ENFRIAMIENTO_MS) return;   // el picker aún mueve la canica
   ultimaMuestra = tofUltimo[2];
   if (detector == CALIBRANDO) {
     baseAcum += estomagoMm;
@@ -266,7 +286,7 @@ void atenderEstomago() {
   uint16_t d = estomagoMm > baseMm ? estomagoMm - baseMm : baseMm - estomagoMm;
   cambiosSeguidos = (d >= UMBRAL_MM) ? cambiosSeguidos + 1 : 0;
   if (cambiosSeguidos >= LECTURAS_CONFIRMAR) {
-    capturas++;
+    capturas++; ultimaCaptura = millis();
     ENLACE.print(F("EVENT:CAPTURA_LOBITO_")); ENLACE.println(capturas);
     cortarPicker();         // la canica ya está adentro: el picker deja de girar
     detector = DESARMADO;   // el servidor decide si hay que volver a armar
@@ -282,27 +302,31 @@ void enviarHello() {
 }
 
 void empezarCorrida() {
-  corrida = true; failSafe = false; capturas = 0; pickerBloqueado = false;
+  corrida = true; failSafe = false; capturas = 0; ultimaCaptura = 0; pickerBloqueado = false;
   strcpy(estado, "BUSQUEDA");
   ultimoServidor = millis();
-  sentidoBarrido = 1; posicionarLaseres(BARRIDO_MIN);
+  sentidoBarrido = 1; posicionarLaseres(laserFijo ? laserFijoAng : BARRIDO_MIN);
   armarEstomago();
   enviarHello();
+  for (uint8_t i = 0; i < 3; i++)             // el aviso de setup() sale antes de que conecte el Bluetooth
+    if (!tofOk[i]) { ENLACE.print(F("ERROR:SENSOR_")); ENLACE.println(NOMBRE_TOF[i]); }
 }
 void terminarCorrida() {
-  corrida = false; frenarMotores(); detenerPicker(); detector = DESARMADO;
+  corrida = false; barridoEnReposo = false; frenarMotores(); detenerPicker(); detector = DESARMADO;
   if (pcaOk) posicionarLaseres(0);
 }
 
 void nuevoEstado(const char *e) {
+  bool cambio = strcmp(estado, e) != 0;       // cada COMMAND (10/s) repite el estado: no recentrar en cada uno
   strncpy(estado, e, sizeof(estado) - 1); estado[sizeof(estado) - 1] = 0;
-  if (!strcmp(estado, "ESCAPE") || !strcmp(estado, "FINALIZACION")) {
+  if (estadoFinal()) {
     detector = DESARMADO; detenerPicker();
-    if (pcaOk) posicionarLaseres(0);
+    if (cambio && pcaOk) posicionarLaseres(0);
     if (!strcmp(estado, "FINALIZACION")) frenarMotores();
     return;
   }
   if (detector == DESARMADO) armarEstomago();
+  if (pickerManual) return;
   if (!strcmp(estado, "APROXIMACION") || !strcmp(estado, "CAPTURA")) pickerQuerer(true, PICKER_EXTRA_MS);
   else { pickerBloqueado = false; pickerQuerer(false); }   // salió del estado: se puede volver a usar
 }
@@ -311,6 +335,25 @@ void procesarLinea(char *l) {
   if (!strcmp(l, "CMD:START")) { empezarCorrida(); return; }
   if (!strcmp(l, "CMD:STOP")) { terminarCorrida(); return; }
   if (!strcmp(l, "HEARTBEAT")) { ultimoServidor = millis(); failSafe = false; return; }
+#if PERMITIR_MANUAL
+  // [SOLO PRUEBAS / DEBUG - retirar en competencia]
+  if (!strncmp(l, "CMD:PWM:", 8)) {
+    char *c1 = strchr(l + 8, ',');
+    int minP = constrain(atoi(l + 8), 0, 255);
+    int maxP = c1 ? constrain(atoi(c1 + 1), minP, 255) : pwmTope;
+    pwmZonaMuerta = (uint8_t)minP;
+    pwmTope = (uint8_t)maxP;
+    return;
+  }
+  if (!strncmp(l, "LASER:", 6)) {             // LASER:SWEEP retoma barrido (incluso en reposo); LASER:HOLD/<grados> lo congela
+    if (!strcmp(l + 6, "SWEEP")) { laserFijo = false; barridoEnReposo = true; }
+    else if (!strcmp(l + 6, "HOLD")) { laserFijo = true; laserFijoAng = angulo; barridoEnReposo = false; }
+    else { laserFijo = true; barridoEnReposo = false; laserFijoAng = constrain(atoi(l + 6), -90, 90); if (pcaOk) posicionarLaseres(laserFijoAng); }
+    return;
+  }
+  if (!strcmp(l, "PICKER:ON")) { pickerBloqueado = false; pickerManual = true; if (capturas >= CAPTURAS_META) capturas = 0; armarEstomago(); pickerQuerer(true); return; }
+  if (!strcmp(l, "PICKER:OFF")) { detenerPicker(); return; }
+#endif
   if (!corrida) return;                       // en reposo se ignora todo lo demás
   if (!strncmp(l, "COMMAND:", 8)) {
     char *c1 = strchr(l + 8, ',');
@@ -368,7 +411,7 @@ void atenderEnlace() {
 
 void imprimirTelemetria(Print &p, unsigned long ahora) {
   p.print(F("TELEMETRY:"));
-  for (uint8_t i = 0; i < 3; i++) { p.print(usCm[i], 0); p.print(','); }
+  for (uint8_t i = 0; i < 3; i++) { p.print(usCm[i], 1); p.print(','); }
   p.print(laserCm[0], 1); p.print(',');
   p.print(laserCm[1], 1); p.print(',');
   p.print(angulo); p.print(',');
@@ -377,21 +420,21 @@ void imprimirTelemetria(Print &p, unsigned long ahora) {
 
 void enviarTelemetria(unsigned long ahora) {
 #if DEPURAR_ESTOMAGO
+  // [SOLO PRUEBAS / DEBUG] Envia lectura del ToF de estomago en paralelo sin bloquear TELEMETRY
   static unsigned long ultimoDbg = 0;
-  if (corrida && ahora - ultimoDbg >= 100 && ENLACE.availableForWrite() >= 50) {
+  if (ahora - ultimoDbg >= 200 && ENLACE.availableForWrite() >= 50) {
     ultimoDbg = ahora;
     ENLACE.print(F("DBG:estomago=")); ENLACE.print(estomagoMm);
     ENLACE.print(F(" base=")); ENLACE.print(baseMm);
     ENLACE.print(F(" det=")); ENLACE.print((int)detector);
     ENLACE.print(F(" cambios=")); ENLACE.println(cambiosSeguidos);
-    return;
   }
 #endif
-  if (ahora - ultimaTelemetria < TELEMETRIA_MS) return;
-  if (!corrida) {
-    if (ahora - ultimoHeartbeat >= HEARTBEAT_REPOSO_MS) { ultimoHeartbeat = ahora; ENLACE.println(F("HEARTBEAT")); }
-    return;
+  if (!corrida && ahora - ultimoHeartbeat >= HEARTBEAT_REPOSO_MS) {
+    ultimoHeartbeat = ahora;
+    ENLACE.println(F("HEARTBEAT"));
   }
+  if (ahora - ultimaTelemetria < TELEMETRIA_MS) return;
   if (ENLACE.availableForWrite() < 60) return;  // no bloquear: se salta este envío
   ultimaTelemetria = ahora;
   imprimirTelemetria(ENLACE, ahora);
@@ -419,7 +462,7 @@ void setup() {
     tofOk[i] = tof[i].init();
     if (tofOk[i]) {
       tof[i].setAddress(DIRECCION[i]);
-      tof[i].setMeasurementTimingBudget(TOF_PRESUPUESTO_US);
+      tof[i].setMeasurementTimingBudget(i == 2 ? TOF_ESTOMAGO_PRESUPUESTO_US : TOF_PRESUPUESTO_US);
       tof[i].startContinuous();
     } else {
       ENLACE.print(F("ERROR:SENSOR_")); ENLACE.println(NOMBRE_TOF[i]);

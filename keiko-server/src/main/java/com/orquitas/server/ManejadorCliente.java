@@ -24,6 +24,7 @@ public class ManejadorCliente implements Runnable {
     private final long intervaloHeartbeatMs;
     private final boolean autoStartEnHello;
     private final EstadoMonitorTui monitorTui;
+    private final boolean monitoreoPasivoEnReposo;
     private final AtomicBoolean conectado = new AtomicBoolean(true);
     private final AtomicBoolean autoStartEnviado = new AtomicBoolean(false);
 
@@ -72,6 +73,23 @@ public class ManejadorCliente implements Runnable {
                             long intervaloHeartbeatMs,
                             boolean autoStartEnHello,
                             EstadoMonitorTui monitorTui) {
+        this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
+                gestorEstomago, clasificador, planificador,
+                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, false);
+    }
+
+    public ManejadorCliente(InputStream flujoEntrada,
+                            OutputStream flujoSalida,
+                            String descripcionOrigen,
+                            Closeable recursoCierre,
+                            GestorEstomago gestorEstomago,
+                            ClasificadorNeuroph clasificador,
+                            PlanificadorNavegacion planificador,
+                            long cooldownCapturaMs,
+                            long intervaloHeartbeatMs,
+                            boolean autoStartEnHello,
+                            EstadoMonitorTui monitorTui,
+                            boolean monitoreoPasivoEnReposo) {
         this.flujoEntrada = flujoEntrada;
         this.flujoSalida = flujoSalida;
         this.descripcionOrigen = descripcionOrigen;
@@ -83,6 +101,7 @@ public class ManejadorCliente implements Runnable {
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
         this.autoStartEnHello = autoStartEnHello;
         this.monitorTui = monitorTui;
+        this.monitoreoPasivoEnReposo = monitoreoPasivoEnReposo;
     }
 
     @Override
@@ -206,9 +225,20 @@ public class ManejadorCliente implements Runnable {
             if (autoStartEnHello && autoStartEnviado.compareAndSet(false, true)) {
                 LOGGER.info("[AUTO-START] Enviando CMD:START tras handshake a " + descripcionOrigen);
                 if (monitorTui != null) {
+                    monitorTui.setCorridaActiva(true);
                     monitorTui.registrarComandoControl("CMD:START (auto)");
+                    if (monitorTui.getPwmMin() != ConfiguracionServidor.PWM_MIN_PREDETERMINADO
+                            || monitorTui.getPwmMax() != ConfiguracionServidor.PWM_MAX_PREDETERMINADO) {
+                        enviarMensaje(MensajeProtocolo.crearCmdPwm(monitorTui.getPwmMin(), monitorTui.getPwmMax()));
+                    }
                 }
                 enviarMensaje(MensajeProtocolo.crearCmdStart());
+            } else if (monitorTui != null && !autoStartEnHello && monitoreoPasivoEnReposo) {
+                monitorTui.setCorridaActiva(false);
+                if (monitorTui.getPwmMin() != ConfiguracionServidor.PWM_MIN_PREDETERMINADO
+                        || monitorTui.getPwmMax() != ConfiguracionServidor.PWM_MAX_PREDETERMINADO) {
+                    enviarMensaje(MensajeProtocolo.crearCmdPwm(monitorTui.getPwmMin(), monitorTui.getPwmMax()));
+                }
             }
         } catch (Exception e) {
             LOGGER.warning("[HANDSHAKE] Error al parsear HELLO: " + e.getMessage());
@@ -223,7 +253,27 @@ public class ManejadorCliente implements Runnable {
                 return;
             }
             String[] pares = clasificador.clasificarPares(sensores);
-            ComandoRobot cmd = planificador.evaluarPares(sensores, pares);
+            boolean corridaActiva = !monitoreoPasivoEnReposo || (monitorTui != null && monitorTui.isCorridaActiva());
+            if (!corridaActiva) {
+                if (monitorTui != null) {
+                    ComandoRobot detenido = new ComandoRobot(0.0, 0.0, planificador.getEstado());
+                    monitorTui.registrarTelemetria(
+                            sensores, pares,
+                            clasificador.getUltimasConfianzasUs(),
+                            clasificador.getUltimaClaseCanica(),
+                            clasificador.getUltimaConfianzaCanica(),
+                            detenido,
+                            planificador.getContadorCiclos(),
+                            System.currentTimeMillis());
+                }
+                return;
+            }
+
+            ComandoRobot baseCmd = planificador.evaluarPares(sensores, pares);
+            double escala = (monitorTui != null) ? monitorTui.getEscalaVelocidad() : 1.0;
+            ComandoRobot cmd = (Math.abs(escala - 1.0) > 1e-4)
+                    ? new ComandoRobot(baseCmd.getVLeft() * escala, baseCmd.getVRight() * escala, baseCmd.getEstado())
+                    : baseCmd;
             if (monitorTui != null) {
                 monitorTui.registrarTelemetria(
                         sensores, pares,

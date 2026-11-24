@@ -63,12 +63,12 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **9 clases de prueba (52 tests JUnit 5)**:
-- `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `DBG:`, `esCompatibleMajorMinor` y rechazo de tramas corruptas.
+Ejecuta las **9 clases de prueba (54 tests JUnit 5)**:
+- `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `DBG:estomago=...` y rechazo de tramas corruptas.
 - `PlanificadorNavegacionTest` (14 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, breakout de perímetro, anti-bucle y modo `ESCAPE`.
-- `ConsolaTuiTest` (4 tests): renderizado detallado (`112` cols) y compacto (`92` cols) del monitor ANSI Bluetooth, cálculo de Hz, Fail-Safe `< 500 ms` y reset.
-- `ConfiguracionServidorTest` (5 tests): carga de `.env`, argumentos CLI (`--auto-start`, `--no-tui`, `--tui`) y resolución de rutas.
-- `HardwareSerialAndCaptureTest` (5 tests): cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados (`SALIDA_META`).
+- `ConsolaTuiTest` (4 tests): renderizado detallado (`112` cols) y compacto (`92` cols) del monitor ANSI Bluetooth (incluyendo `Vel`/`PWM` y `LSR-EST`), cálculo de Hz, Fail-Safe `< 500 ms` y reset.
+- `ConfiguracionServidorTest` (6 tests): carga de `.env`, argumentos CLI (`--auto-start`, `--no-tui`, `--tui`, `--speed-scale`, `--pwm-min`/`--pwm-max`) y resolución de rutas.
+- `HardwareSerialAndCaptureTest` (6 tests): monitoreo pasivo en reposo, escala de velocidad, cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados.
 - `TwoNetworksInferenceTest` (5 tests): inferencia dual pura con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
 - `ConcurrencyEstomagoTest` (2 tests): estrés concurrente entre múltiples hilos escritores y `AuditorEstomago`.
 - `Hito2IntegrationTest` (2 tests): integración de persistencia concurrente e inferencia dual Neuroph + FSM.
@@ -97,8 +97,11 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
 | `--auto-start` | `AUTO_START` | `false` | Envía `CMD:START` automáticamente al recibir `HELLO:` (también disponible `start`/`stop` por consola) |
 | `--no-tui` | `NO_TUI` | `false` | Desactiva la TUI ANSI en vivo y usa salida lineal clásica en consola |
 | `--tui` | — | `false` | Fuerza la TUI ANSI en vivo incluso si `System.console()` no detecta TTY interactivo |
+| `--speed-scale <f>` | `SPEED_SCALE` | `1.0` | `[PRUEBAS]` Multiplicador de velocidad `(vL, vR)` (`0.20..1.20`) antes de emitir `COMMAND:` |
+| `--pwm-min <0..255>` | `PWM_MIN` | `105` | `[PRUEBAS]` Piso `pwmZonaMuerta` enviado por `CMD:PWM:` al Arduino Mega |
+| `--pwm-max <0..255>` | `PWM_MAX` | `255` | `[PRUEBAS]` Tope máximo `pwmTope` enviado por `CMD:PWM:` al Arduino Mega |
 
-Comandos interactivos disponibles en la consola del servidor: `start` (`k`), `stop` (`x`), `reset` (vacía `estomago.txt` y reinicia el planificador para pruebas), `view` (`v`, alterna vista detallada/compacta) y `clear` (`c`, limpia el panel de eventos recientes).
+Comandos interactivos disponibles en la consola del servidor: `start` (`k`), `stop` (`x`), `speed <20..120>` / `+` / `-`, `pwm <min> [max]`, `sweep` / `hold`, `reset`, `view` (`v`) y `clear` (`c`).
 
 ### Ejemplos de ejecución
 ```bash

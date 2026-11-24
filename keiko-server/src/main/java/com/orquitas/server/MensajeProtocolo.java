@@ -16,8 +16,13 @@ public class MensajeProtocolo {
     public static final String PREFIX_DBG = "DBG:";
     public static final String CMD_START = "CMD:START";
     public static final String CMD_STOP = "CMD:STOP";
+    // [SOLO PRUEBAS / DEBUG - retirar cuando se fijen constantes PWM y barrido finales]
+    public static final String PREFIX_CMD_PWM = "CMD:PWM:";
+    public static final String PREFIX_LASER = "LASER:";
 
     public record InfoHandshake(String version, String rig) {}
+
+    public record InfoDbgEstomago(int estomagoMm, int baseMm, int detector, int cambios) {}
 
     public static InfoHandshake parsearHello(String linea) {
         if (linea == null || !linea.startsWith(PREFIX_HELLO)) {
@@ -114,5 +119,50 @@ public class MensajeProtocolo {
     // Detiene la corrida autonoma y pasa el firmware Mega a reposo (CMD:STOP).
     public static String crearCmdStop() {
         return CMD_STOP + "\n";
+    }
+
+    // [SOLO PRUEBAS / DEBUG] Ajusta PWM_ZONA_MUERTA y PWM_TOPE en el Mega en vivo.
+    public static String crearCmdPwm(int minPwm, int maxPwm) {
+        int clampedMin = Math.max(0, Math.min(255, minPwm));
+        int clampedMax = Math.max(clampedMin, Math.min(255, maxPwm));
+        return String.format(Locale.US, "%s%d,%d\n", PREFIX_CMD_PWM, clampedMin, clampedMax);
+    }
+
+    // [SOLO PRUEBAS / DEBUG] Controla el barrido de los servos laser en reposo (SWEEP / HOLD / grados).
+    public static String crearCmdLaser(String modo) {
+        String limpio = (modo != null && !modo.isBlank()) ? modo.trim() : "SWEEP";
+        return PREFIX_LASER + limpio + "\n";
+    }
+
+    /** Parsea tramas DBG:estomago=<mm> base=<mm> det=<0|1|2> cambios=<n> enviadas por el Mega. */
+    public static InfoDbgEstomago parsearDbgEstomago(String linea) {
+        if (linea == null || !linea.startsWith(PREFIX_DBG)) {
+            return null;
+        }
+        String cuerpo = linea.substring(PREFIX_DBG.length()).trim();
+        Integer estomago = null;
+        int base = 0;
+        int det = -1;
+        int cambios = 0;
+        for (String token : cuerpo.split("\\s+")) {
+            int eq = token.indexOf('=');
+            if (eq <= 0 || eq >= token.length() - 1) {
+                continue;
+            }
+            String clave = token.substring(0, eq).trim();
+            String valor = token.substring(eq + 1).trim();
+            try {
+                switch (clave) {
+                    case "estomago" -> estomago = Integer.parseInt(valor);
+                    case "base" -> base = Integer.parseInt(valor);
+                    case "det" -> det = Integer.parseInt(valor);
+                    case "cambios" -> cambios = Integer.parseInt(valor);
+                    default -> {}
+                }
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return (estomago != null) ? new InfoDbgEstomago(estomago, base, det, cambios) : null;
     }
 }

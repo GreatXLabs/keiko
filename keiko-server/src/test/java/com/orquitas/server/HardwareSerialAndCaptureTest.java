@@ -297,6 +297,65 @@ public class HardwareSerialAndCaptureTest {
         }
     }
 
+    @Test
+    public void testMonitoreoPasivoEnReposoYEscalaDeVelocidadEnCorrida() throws Exception {
+        PipedOutputStream clientTx = new PipedOutputStream();
+        PipedInputStream serverRx = new PipedInputStream(clientTx);
+        PipedOutputStream serverTx = new PipedOutputStream();
+        PipedInputStream clientRx = new PipedInputStream(serverTx);
+
+        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(
+                new String[]{"--speed-scale", "0.50", "--pwm-min", "90", "--pwm-max", "210"});
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(cfg.resolverArchivoModelo());
+        PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
+        EstadoMonitorTui monitor = new EstadoMonitorTui(cfg, clasificador, 0, List.of());
+
+        ManejadorCliente sesion = new ManejadorCliente(
+                serverRx, serverTx, "Serie:/dev/rfcomm0@9600", () -> {},
+                gestorEstomago, clasificador, planificador, 180L, 5000L, false, monitor, true);
+
+        Thread serverThread = new Thread(sesion, "Test-IdleAndScale");
+        serverThread.start();
+
+        BufferedWriter toServer = new BufferedWriter(new OutputStreamWriter(clientTx, StandardCharsets.UTF_8));
+        BufferedReader fromServer = new BufferedReader(new InputStreamReader(clientRx, StandardCharsets.UTF_8));
+
+        try {
+            // 1. En reposo (!corrida): actualiza TUI y clasifica Red 1/2 pero no avanza FSM ni emite COMMAND
+            toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1000\n");
+            toServer.write("DBG:estomago=42 base=45 det=2 cambios=1\n");
+            toServer.flush();
+
+            long deadline = System.currentTimeMillis() + 1000L;
+            while (monitor.getUltimaTelemetria() == null && System.currentTimeMillis() < deadline) {
+                Thread.sleep(15);
+            }
+            assertNotNull(monitor.getUltimaTelemetria(), "La TUI debe recibir telemetria aun en reposo");
+            assertEquals("LOBITO_CENTRO", monitor.getUltimaClaseCanica());
+            assertEquals(42, monitor.getEstomagoMm());
+            assertEquals(45, monitor.getEstomagoBaseMm());
+            assertEquals(2, monitor.getEstomagoDetector());
+            assertEquals(0, planificador.getContadorCiclos(), "En reposo no debe avanzar el planificador");
+            assertEquals(0.0, monitor.getUltimaTelemetria().comando().getVLeft(), 1e-4);
+
+            // 2. Al activar corrida: emite COMMAND escalado al 50% (3.8 -> 1.90)
+            monitor.setCorridaActiva(true);
+            toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1100\n");
+            toServer.flush();
+
+            String cmdLine = leerHastaPrefijo(fromServer, "COMMAND:");
+            String[] partes = cmdLine.substring("COMMAND:".length()).split(",");
+            assertEquals(1.90, Double.parseDouble(partes[0]), 0.05);
+            assertEquals(1.90, Double.parseDouble(partes[1]), 0.05);
+            assertEquals(1, planificador.getContadorCiclos());
+        } finally {
+            sesion.cerrar();
+            toServer.close();
+            fromServer.close();
+            serverThread.join(1000);
+        }
+    }
+
     private static String leerHastaPrefijo(BufferedReader reader, String prefijo) throws IOException {
         for (int i = 0; i < 15; i++) {
             String line = reader.readLine();

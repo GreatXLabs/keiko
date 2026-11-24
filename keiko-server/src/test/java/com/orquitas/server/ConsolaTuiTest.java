@@ -66,7 +66,9 @@ public class ConsolaTuiTest {
         EstadoMonitorTui estado = crearEstadoBase();
         estado.registrarConexionCliente("Serie:/dev/rfcomm0@9600", 1);
         estado.registrarHandshake("Serie:/dev/rfcomm0@9600", "2.0.0", "mega-3us-2laser", true);
-        estado.registrarDebugCliente("DBG:estomago=28mm");
+        estado.setEscalaVelocidad(0.60);
+        estado.setRangoPwm(90, 210);
+        estado.registrarDebugCliente("DBG:estomago=42 base=45 det=2 cambios=1");
         estado.registrarEvento("CAPTURA_LOBITO_1");
         estado.actualizarEstomago(1, List.of(new RegistroCaptura("lobito_ingesta", "CAPTURA_LOBITO_1")), false);
 
@@ -85,6 +87,11 @@ public class ConsolaTuiTest {
         String plano = detallado.replaceAll("\033\\[[0-9;]*m", "");
         assertFalse(plano.contains("TCP:"), "No debe mostrar transporte TCP en modo Bluetooth exclusivo");
         assertTrue(plano.contains("BT /dev/rfcomm0 @ 9600"));
+        assertTrue(plano.contains("Vel: 60%"));
+        assertTrue(plano.contains("PWM: 90..210"));
+        assertTrue(plano.contains("LSR-EST"));
+        assertTrue(plano.contains("42mm"));
+        assertTrue(plano.contains("ARM"));
         assertTrue(plano.contains("US-IZQ"));
         assertTrue(plano.contains("14.2cm"));
         assertTrue(plano.contains("97%"));
@@ -95,7 +102,6 @@ public class ConsolaTuiTest {
         assertTrue(plano.contains("LOBITO_DER"));
         assertTrue(plano.contains("TERNA: [BLOQUEO|SALIDA|LOBITO]"));
         assertTrue(plano.contains("APROXIMACION"));
-        assertTrue(plano.contains("estomago=28mm"));
         assertTrue(plano.contains("CAPTURA_LOBITO_1"));
         assertTrue(plano.contains("FS:OK"));
 

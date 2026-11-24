@@ -125,7 +125,7 @@ public class ReceptorSerie implements Runnable {
                 ManejadorCliente manejador = new ManejadorCliente(
                         in, out, origenSerie,
                         port::closePort, gestorEstomago, clasificador, planificador,
-                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui);
+                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, true);
                 sesionActiva = manejador;
                 manejador.run();
             } catch (Exception e) {

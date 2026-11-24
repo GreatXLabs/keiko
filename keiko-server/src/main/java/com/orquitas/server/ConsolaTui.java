@@ -250,11 +250,14 @@ public class ConsolaTui {
         agregarPanelSensoresDetallado(lineas, estado);
         agregarPanelLogs(lineas, estado, ANCHO_DETALLADO, FILAS_LOGS_DETALLADO);
         lineas.add(DIM + " Comandos: " + RESET
-                + BOLD + "[start|k]" + RESET + " Iniciar  "
-                + BOLD + "[stop|x]" + RESET + " Detener  "
-                + BOLD + "[reset]" + RESET + " Vaciar estomago  "
-                + BOLD + "[view|v]" + RESET + " Vista compacta  "
-                + BOLD + "[clear|c]" + RESET + " Limpiar logs");
+                + BOLD + "[start|k]" + RESET + " Run  "
+                + BOLD + "[stop|x]" + RESET + " Stop  "
+                + BOLD + "[speed %|+|-]" + RESET + " Vel  "
+                + BOLD + "[pwm min [max]]" + RESET + " PWM  "
+                + BOLD + "[sweep|hold]" + RESET + " Servo  "
+                + BOLD + "[reset]" + RESET + "  "
+                + BOLD + "[view|v]" + RESET + "  "
+                + BOLD + "[clear|c]" + RESET);
         return String.join("\n", lineas);
     }
 
@@ -262,10 +265,11 @@ public class ConsolaTui {
         List<String> lineas = new ArrayList<>(22);
         String puerto = estado.getPuertoSerie() != null ? estado.getPuertoSerie() : "---";
         String header = String.format(Locale.US,
-                "%sKEIKO // ORQUITAS%s  %s | %s | BT:%s@%d",
+                "%sKEIKO // ORQUITAS%s  %s | %s | BT:%s@%d | Vel:%d%%",
                 BOLD + CIAN, RESET,
                 estado.getVersion(), estado.getRig(),
-                puerto, estado.getBaudiosSerie());
+                puerto, estado.getBaudiosSerie(),
+                Math.round(estado.getEscalaVelocidad() * 100.0));
         lineas.add(cajaSuperior("KEIKO TUI (COMPACTA)", ANCHO_COMPACTO));
         lineas.add(filaCaja(header, ANCHO_COMPACTO));
 
@@ -301,11 +305,15 @@ public class ConsolaTui {
                     snap.claseCanica(),
                     snap.comando() != null ? snap.comando().getVLeft() : 0.0,
                     snap.comando() != null ? snap.comando().getVRight() : 0.0), ANCHO_COMPACTO));
+            lineas.add(filaCaja(formatearLaserEstomago(estado)
+                    + String.format(Locale.US, "  |  PWM:%d..%d  [%s]",
+                    estado.getPwmMin(), estado.getPwmMax(),
+                    estado.isCorridaActiva() ? "RUN" : "REPOSO"), ANCHO_COMPACTO));
         }
         lineas.add(cajaInferior(ANCHO_COMPACTO));
 
         agregarPanelLogs(lineas, estado, ANCHO_COMPACTO, FILAS_LOGS_COMPACTO);
-        lineas.add(DIM + " [start|k] [stop|x] [reset] [view|v: detallada] [clear|c]" + RESET);
+        lineas.add(DIM + " [start|k] [stop|x] [speed %|+|-] [pwm min] [sweep|hold] [reset] [view|v] [clear|c]" + RESET);
         return String.join("\n", lineas);
     }
 
@@ -361,12 +369,14 @@ public class ConsolaTui {
         der.add(cajaSeparador("CEREBRO (FSM) & MOTORES", w));
         EstadoMonitorTui.SnapshotTelemetria snap = estado.getUltimaTelemetria();
         int ciclo = snap != null ? snap.ciclosFsm() : 0;
-        der.add(filaCaja(String.format("Estado  : %-22s Ciclo:#%d",
-                formatearBadgeFsm(estado.getEstadoFsmActual()), ciclo), w));
+        String modoRun = estado.isCorridaActiva() ? VERDE + "RUN" + RESET : AMARILLO + "REP" + RESET;
+        der.add(filaCaja(String.format("Estado  : %-21s %s #%d",
+                formatearBadgeFsm(estado.getEstadoFsmActual()), modoRun, ciclo), w));
 
         double vl = (snap != null && snap.comando() != null) ? snap.comando().getVLeft() : 0.0;
         double vr = (snap != null && snap.comando() != null) ? snap.comando().getVRight() : 0.0;
-        der.add(filaCaja("Accion  : " + describirAccionMotriz(vl, vr), w));
+        der.add(filaCaja(String.format(Locale.US, "Vel: %d%% | PWM: %d..%d",
+                Math.round(estado.getEscalaVelocidad() * 100.0), estado.getPwmMin(), estado.getPwmMax()), w));
         der.add(filaCaja("Motor L : " + barraMotor(vl), w));
         der.add(filaCaja("Motor R : " + barraMotor(vr), w));
 
@@ -377,7 +387,7 @@ public class ConsolaTui {
 
         List<RegistroCaptura> caps = estado.getRegistrosEstomago();
         der.add(filaCaja(formatearLineaCaptura(caps, 0, w - 4), w));
-        der.add(filaCaja(formatearLineaCaptura(caps, 1, w - 4), w));
+        der.add(filaCaja(formatearLaserEstomago(estado), w));
 
         String dbg = String.format("DBG Mega: %-18s | Errs:%d",
                 recortar(estado.getUltimoDbgEstomago(), 18), estado.getTotalErroresCliente());
@@ -583,6 +593,21 @@ public class ConsolaTui {
         int num = (c.getNumeroCaptura() > 0) ? c.getNumeroCaptura() : (idx + 1);
         String texto = String.format("#%d: %s", num, c.getMetadata());
         return CIAN + recortar(texto, maxAncho) + RESET;
+    }
+
+    private static String formatearLaserEstomago(EstadoMonitorTui estado) {
+        int mm = estado.getEstomagoMm();
+        if (mm < 0) {
+            return GRIS + "LSR-EST : --- mm (sin DBG)" + RESET;
+        }
+        String detTxt = switch (estado.getEstomagoDetector()) {
+            case 0 -> GRIS + "DES" + RESET;
+            case 1 -> AMARILLO + "CAL" + RESET;
+            case 2 -> (estado.getEstomagoCambios() > 0 ? VERDE + BOLD : VERDE) + "ARM" + RESET;
+            default -> GRIS + "---" + RESET;
+        };
+        return String.format(Locale.US, "LSR-EST : %3dmm (b:%3d d:%d) [%s]",
+                mm, Math.max(0, estado.getEstomagoBaseMm()), estado.getEstomagoCambios(), detTxt);
     }
 
     private static String colorPorEtiqueta(String etiqueta) {
