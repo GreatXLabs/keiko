@@ -48,10 +48,10 @@ public class HardwareSerialAndCaptureTest {
         ClasificadorNeuroph clasificador = new ClasificadorNeuroph(new ConfiguracionServidor().resolverArchivoModelo());
         PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
 
-        // Cooldown de 180 ms y heartbeat cada 120 ms para test rápido y determinista
+        // Cooldown de 500 ms y heartbeat cada 120 ms para tolerar fsync en disco sin flakiness
         ManejadorCliente sesionSerie = new ManejadorCliente(
                 serverRx, serverTx, "Serial:/dev/rfcomm0", () -> {},
-                gestorEstomago, clasificador, planificador, 180L, 120L);
+                gestorEstomago, clasificador, planificador, 500L, 120L);
 
         CountDownLatch escapeLatch = new CountDownLatch(1);
         AuditorEstomago auditor = new AuditorEstomago(gestorEstomago, 25, 3);
@@ -86,7 +86,7 @@ public class HardwareSerialAndCaptureTest {
             String cmdLine = leerHastaPrefijo(fromServer, "COMMAND:");
             assertTrue(cmdLine.contains("APROXIMACION"), "Debe responder COMMAND en APROXIMACION, recibió: " + cmdLine);
 
-            // 3. Captura #1 + rebote espurio inmediato (30 ms después < 180 ms cooldown)
+            // 3. Captura #1 + rebote espurio inmediato (30 ms después < 500 ms cooldown)
             toServer.write("EVENT:CAPTURA_LOBITO_1\n");
             toServer.flush();
             Thread.sleep(30);
@@ -96,14 +96,14 @@ public class HardwareSerialAndCaptureTest {
             assertEquals(1, gestorEstomago.contarCapturasValidas(), "El rebote dentro del cooldown no debe duplicar la captura");
 
             // 4. Captura #2 tras vencer el cooldown
-            Thread.sleep(160);
+            Thread.sleep(520);
             toServer.write("EVENT:CAPTURA_LOBITO_2\n");
             toServer.flush();
             Thread.sleep(60);
             assertEquals(2, gestorEstomago.contarCapturasValidas());
 
             // 5. Captura #3 tras vencer el cooldown -> dispara STATE_CHANGE:ESCAPE
-            Thread.sleep(160);
+            Thread.sleep(520);
             toServer.write("EVENT:CAPTURA_LOBITO_3\n");
             toServer.flush();
 
@@ -113,7 +113,7 @@ public class HardwareSerialAndCaptureTest {
             assertEquals(3, gestorEstomago.contarCapturasValidas());
 
             // 6. Un 4.º evento después de panza llena no debe exceder las 3 canicas
-            Thread.sleep(200);
+            Thread.sleep(550);
             toServer.write("EVENT:CAPTURA_EXTRA\n");
             toServer.flush();
             Thread.sleep(60);

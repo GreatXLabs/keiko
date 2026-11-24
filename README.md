@@ -2,7 +2,7 @@
 
 Ecosistema robótico autónomo distribuido para la competencia **"Inteligencia y Supervivencia en la Bahía de Caza"** (Programación Sobre Redes & Desarrollo de Sistemas, Ciclo Lectivo 2026).
 
-Versión activa: **`2.0.2`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
+Versión activa: **`2.0.3`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
 
 ---
 
@@ -19,7 +19,7 @@ Versión activa: **`2.0.2`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
 
 ```text
 keiko/
-├── VERSION                   <- Fuente única de verdad de versión (2.0.2)
+├── VERSION                   <- Fuente única de verdad de versión (2.0.3)
 ├── CHANGELOG.md              <- Historial de cambios, matriz de compatibilidad y evidencia de tests
 ├── AGENTS.md                 <- Especificación técnica, reglas de arquitectura y enrutador
 ├── scripts/

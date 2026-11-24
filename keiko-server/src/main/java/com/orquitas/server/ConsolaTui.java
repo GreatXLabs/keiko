@@ -438,15 +438,15 @@ public class ConsolaTui {
         String[] tokens = {
                 BOLD + "[k]" + RESET + "Run ",
                 BOLD + "[x]" + RESET + "Stop ",
-                BOLD + "[1/2/3]" + RESET + "Modos ",
-                BOLD + "[p]" + RESET + "Pick ",
-                BOLD + "[b]" + RESET + "Sweep ",
+                BOLD + "[1/2/3]" + RESET + "Mod ",
+                BOLD + "[p]" + RESET + "Pck ",
+                BOLD + "[b]" + RESET + "Swp ",
                 BOLD + "[+/-]" + RESET + "Vel ",
                 BOLD + "[[/]]" + RESET + "PWM ",
                 BOLD + "[</>]" + RESET + "Rev ",
-                BOLD + "[u/m]" + RESET + "Etiq ",
+                BOLD + "[u/m]" + RESET + "Etq ",
                 BOLD + "[g]" + RESET + "Rec ",
-                BOLD + "[t]" + RESET + "Train ",
+                BOLD + "[t]" + RESET + "Trn ",
                 BOLD + "[r]" + RESET + "Rst ",
                 BOLD + "[v/c/q]" + RESET
         };
@@ -586,8 +586,8 @@ public class ConsolaTui {
         lineas.add(cajaSeparador("FILA INFERIOR (2x VL53L0X ToF + Servo SG90 -> Red 2 Canicas)", w));
 
         int extraLas = Math.min(18, extra / 3);
-        int anchoBarraLaser = 14 + extraLas;
-        int colLaser = 35 + extraLas;
+        int anchoBarraLaser = 12 + extraLas;
+        int colLaser = 34 + extraLas;
         String lsrIzq = String.format(Locale.US, "LSR-IZQ: %s %s",
                 padRightVisual(formatearDistanciaLaser(s.getLaserLeft()), 9),
                 barraLaser(s.getLaserLeft(), anchoBarraLaser));

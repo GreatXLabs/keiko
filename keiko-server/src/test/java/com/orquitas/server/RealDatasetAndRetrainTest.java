@@ -151,6 +151,44 @@ public class RealDatasetAndRetrainTest {
     }
 
     @Test
+    public void testReentrenamientoAprendeCanicaRealEnBanda25cmSinContradiccion(@TempDir Path tempDir) throws Exception {
+        Path dirModelos = tempDir.resolve("models");
+        Path dirReal = tempDir.resolve("real");
+        Files.createDirectories(dirModelos);
+        Files.createDirectories(dirReal);
+
+        Files.copy(new File("models/modelo_ultrasonico.nnet").toPath(),
+                dirModelos.resolve("modelo_ultrasonico.nnet"), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(new File("models/modelo_canicas.nnet").toPath(),
+                dirModelos.resolve("modelo_canicas.nnet"), StandardCopyOption.REPLACE_EXISTING);
+
+        GrabadorDatasetReal grab = new GrabadorDatasetReal(dirReal.toFile());
+        grab.setGrabando(true);
+        // Patron real observado en vidrio: piso ~40 cm baja a ~24-26 cm en centro (-10..0 deg)
+        for (int i = 0; i < 12; i++) {
+            grab.seleccionarEtiqueta("LOBITO_CENTRO");
+            grab.registrarTelemetria(v(75.0, 80.0, 78.0, 24.0 + (i % 3), 24.5 + (i % 3), -4.0, 100L + i));
+            grab.seleccionarEtiqueta("NINGUNA");
+            grab.registrarTelemetria(v(75.0, 80.0, 78.0, 40.0 + (i % 2), 40.5 + (i % 2), 0.0, 200L + i));
+        }
+
+        GestorModelosYEntrenamiento gestor = new GestorModelosYEntrenamiento(
+                dirModelos.toFile(),
+                GestorModelosYEntrenamiento.resolverDatasetBasePorDefecto("dataset_ultrasonico.csv"),
+                GestorModelosYEntrenamiento.resolverDatasetBasePorDefecto("dataset_canicas.csv"),
+                grab.getArchivoUltrasonico(), grab.getArchivoCanicas(),
+                180, 200);
+        ClasificadorNeuroph clf = new ClasificadorNeuroph(
+                dirModelos.resolve("modelo_ultrasonico.nnet").toFile(),
+                dirModelos.resolve("modelo_canicas.nnet").toFile());
+
+        gestor.reentrenarYActivar("vidrio-25cm", clf);
+        String claseReal = clf.clasificarCanicas(v(78.0, 80.0, 77.0, 25.0, 25.2, -3.0, 999L));
+        assertEquals("LOBITO_CENTRO", claseReal,
+                "Tras reentrenar sin la banda sintetica contradictoria debe reconocer la canica real en ~25 cm");
+    }
+
+    @Test
     public void testCapturaEnReposoDesdeManejadorClienteYComandosConsola(@TempDir Path tempDir) throws Exception {
         GrabadorDatasetReal grab = new GrabadorDatasetReal(tempDir.resolve("real").toFile());
         grab.seleccionarEtiqueta("SALIDA");
