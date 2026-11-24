@@ -1,6 +1,6 @@
 # Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.3` | `mega-3us-2laser`)**.
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.4` | `mega-3us-2laser`)**.
 
 ---
 
@@ -63,12 +63,12 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **11 clases de prueba (63 tests JUnit 5)**:
+Ejecuta las **11 clases de prueba (65 tests JUnit 5)**:
 - `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `STATE_CHANGE:`, `PICKER:ON/OFF`, `DBG:estomago=...` y rechazo de tramas corruptas.
 - `PlanificadorNavegacionTest` (17 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, pivote sin reversa frente a `SALIDA`, pasos de reversa ajustables (`0..15`), anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
 - `RealDatasetAndRetrainTest` (4 tests): captura de datasets reales en marcha y en reposo (preservando `999.0` sin eco), aprendizaje fiel de canica real en `~25 cm`, reentrenamiento Neuroph 2.98, historial inmutable (`models/historial/`) y rollback en caliente.
-- `ServidorCentralControlTest` (1 test): controles 1-tecla (`k`, `1`, `2`, `3`, `p`, `b`, `+`/`=`, `-`/`_`, `[`/`]`, `r`) y activación de modos forzados.
-- `ConsolaTuiTest` (5 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) del monitor ANSI Bluetooth (incluyendo `Vel`/`PWM`, `LSR-EST`, barra visual adaptativa y parseo `stty size`), cálculo de Hz, Fail-Safe `< 500 ms` y reset.
+- `ServidorCentralControlTest` (2 tests): controles 1-tecla (`k`, `1`, `2`, `3`, `p`, `b`, `+`/`=`, `-`/`_`, `[`/`]`, `r`), modos forzados y flujo completo del Asistente Guiado `[w]` (`ESPACIO`, `n`, `a`, auto-stop por meta).
+- `ConsolaTuiTest` (6 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) incluyendo el Asistente Guiado `[w]`, `Vel`/`PWM`, `LSR-EST`, barras adaptativas y parseo `stty size`, cálculo de Hz, Fail-Safe `< 500 ms` y reset.
 - `ConfiguracionServidorTest` (6 tests): carga de `.env`, argumentos CLI (`--auto-start`, `--no-tui`, `--tui`, `--speed-scale`, `--pwm-min`/`--pwm-max`) y resolución de rutas.
 - `HardwareSerialAndCaptureTest` (6 tests): monitoreo pasivo en reposo, escala de velocidad, cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados.
 - `TwoNetworksInferenceTest` (5 tests): inferencia dual pura con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
@@ -120,10 +120,13 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
   - `[+]`/`[=]` y `[-]`/`[_]` (o `speed <20..120>`): ajusta escala de velocidad en pasos de `10%`.
   - `[[]` / `[]]` (o `pwm <min> [max]`): ajusta `pwmZonaMuerta` (`pwmMin`) en pasos de `±5` y emite `CMD:PWM:`.
   - `[>]`/`[.]` y `[<]`/`[,]` (o `rev <0..15>`): ajusta en vivo los pasos de reversa ante `BLOQUEO` (`0` = pivote directo sin retroceder).
-- **`[ENTRENAMIENTO]` Captura real y reentrenamiento en caliente (`data/real` + `models/historial/`):**
-  - `[u]`: pasa a modo Red 1 (`US-CEN`) y cicla etiqueta objetivo (`BLOQUEO` → `ESPACIO_LIBRE` → `SALIDA`).
-  - `[m]`: pasa a modo Red 2 (`CANICAS`) y cicla etiqueta (`LOBITO_IZQ` → `LOBITO_CENTRO` → `LOBITO_DER` → `NINGUNA`).
-  - `[g]` / `rec on` / `rec off` / `label <ETIQUETA>`: inicia o pausa la grabación de ráfagas CSV reales (incluyendo lecturas `999.0` sin eco y telemetría estando detenido).
+- **`[ENTRENAMIENTO]` Asistente guiado, captura real y reentrenamiento en caliente (`data/real` + `models/historial/`):**
+  - `[w]` / `wizard`: activa o sale del **Asistente de Entrenamiento Guiado (12 pasos)**. Detiene el robot por seguridad, configura automáticamente la red/etiqueta y servos (`LASER:0` o `LASER:SWEEP`), y te indica dónde colocar el robot o la canica:
+    - `[ESPACIO]` (o `[g]`): graba la ráfaga del paso actual y se detiene + avanza solo al llegar a la meta (`25` muestras US / `30` Canicas).
+    - `[n]` / `[a]`: salta al paso siguiente o vuelve al paso anterior.
+  - `[u]`: (modo libre) pasa a Red 1 (`US-CEN`) y cicla etiqueta (`BLOQUEO` → `ESPACIO_LIBRE` → `SALIDA`).
+  - `[m]`: (modo libre) pasa a Red 2 (`CANICAS`) y cicla etiqueta (`LOBITO_IZQ` → `LOBITO_CENTRO` → `LOBITO_DER` → `NINGUNA`).
+  - `[g]` / `rec on` / `rec off` / `label <ETIQUETA>`: inicia o pausa la grabación manual de ráfagas CSV reales.
   - `[t]` / `retrain [nota]`: hace backup automático de `.nnet` en `models/historial/`, reentrena Neuroph 2.98 con datos reales + base sintética balanceada y recarga los modelos en caliente.
   - `models` / `use-model <id>`: lista historial y hace rollback en caliente sin reiniciar el servidor.
 
@@ -166,7 +169,7 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 | `CMD:START` / `CMD:STOP` | Servidor → Cliente | Arranque / detención de la corrida en firmware Mega (`--auto-start` o consola `start`/`stop`) |
 | `HEARTBEAT` | Bidireccional | `HEARTBEAT\n` (mantiene vivo el enlace por debajo del watchdog de `500 ms`) |
 
-> **Arquitectura pura (`2.0.3`):** `ClasificadorNeuroph` y `PlanificadorNavegacion` operan exclusivamente sobre inferencia **Neuroph 2.98** y FSM simbólica, sin umbrales sensoriales crudos ni soporte de pose de simulación (`SIM-01..13` y `HRD-01..14` resueltos en [`docs/AUDITORIA_CONSOLIDACION.md`](../docs/AUDITORIA_CONSOLIDACION.md)).
+> **Arquitectura pura (`2.0.4`):** `ClasificadorNeuroph` y `PlanificadorNavegacion` operan exclusivamente sobre inferencia **Neuroph 2.98** y FSM simbólica, sin umbrales sensoriales crudos ni soporte de pose de simulación (`SIM-01..13` y `HRD-01..14` resueltos en [`docs/AUDITORIA_CONSOLIDACION.md`](../docs/AUDITORIA_CONSOLIDACION.md)).
 
 ---
 
@@ -174,14 +177,14 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 
 > **Mantenimiento obligatorio:** cada PR que agregue, quite o modifique paneles, métricas o atajos de `ConsolaTui` debe mantener actualizada esta sección y su captura ASCII de referencia.
 
-### 7.1 Captura Visual de Referencia (`v2.0.3` — Modo Detallado)
+### 7.1 Captura Visual de Referencia (`v2.0.4` — Modo Detallado)
 
 ```text
     ______ __    ___________               ⣸⣧                     ╭─ SISTEMA & ENLACE ─────────────────────────────╮
-    ___  //_/_______(_)__  /_______       ⢠⣿⣿⣧                    │ Ver: 2.0.3 | Rig: mega-3us-2laser              │
+    ___  //_/_______(_)__  /_______       ⢠⣿⣿⣧                    │ Ver: 2.0.4 | Rig: mega-3us-2laser              │
     __  ,<  _  _ \_  /__  //_/  __ \     ⢠⣿⣿⣿⣿⡆     ⢀⣀⣄⡀⠰⠴⣶⣶⣤⣤⡀   │ Enlace  : BT /dev/rfcomm0 @ 9600               │
     _  /| | /  __/  / _  ,<  / /_/ /    ⣠⣿⣿⣿⣿⣿⡇ ⢀⣤⣶⣻⣾⣿⣴⣴⣾⣿⣿⣿⣿⣿⣿⡆  │ Cliente : Serie:/dev/rfcomm0@9600 (1)          │
-    /_/ |_| \___//_/  /_/|_| \____/    ⣴⣿⣿⣿⣿⣿⣿⣥⣾⠿⢿⣿⣽⣾⣿⣿⣿⣿⣿⣿⣿⠿⢿⡿⣧  │ Hello   : [OK] v2.0.3                          │
+    /_/ |_| \___//_/  /_/|_| \____/    ⣴⣿⣿⣿⣿⣿⣿⣥⣾⠿⢿⣿⣽⣾⣿⣿⣿⣿⣿⣿⣿⠿⢿⡿⣧  │ Hello   : [OK] v2.0.4                          │
                                      ⣠⣾⣿⣿⣿⣿⣿⠟⠉   ⣸⣿⣿⣿⣿⡿⠟⠛⠋⠉⠐⠊⠡⢹⢚  │ Enlace  :  0.0Hz | dt: 45ms | FS:OK            │
                            ⢀⣀⣠⣤⣤⡴⠂⠐⠒⢨⣿⣿⣿⣿⣿⣿⣤⣆⣤⣠⣴⣾⣿⣷⡿⠋⠁     ⠐⣁⠎ ⡘  │ Redes   : US[OK] CAN[OK] Pkts:1                │
                       ⢐⣠⣤⣶⣾⣿⣿⣿⣿⣿⣆⡀⡀⣀⣨⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁           ⡜  ⡐   ├─ CEREBRO (FSM) & MOTORES ──────────────────────┤
@@ -206,10 +209,10 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 │ [● REC] CANICAS:LOBITO_CENTRO | BLQ:42 LIB:48 SAL:35 | I:28 C:31 D:27 N:44 | Train:US:99.3% CAN:96.8%            │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ EVENTOS Y LOGS RECIENTES ───────────────────────────────────────────────────────────────────────────────────────╮
-│ 13:24:09 [OK] HELLO Serie:/dev/rfcomm0@9600 | ver=2.0.3 rig=mega-3us-2laser (COMPATIBLE)                         │
+│ 13:24:09 [OK] HELLO Serie:/dev/rfcomm0@9600 | ver=2.0.4 rig=mega-3us-2laser (COMPATIBLE)                         │
 │ 13:24:10 [CTRL] Enviado REV=4p (0.4s)                                                                            │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- Teclas: [k]Run [x]Stop [1/2/3]Mod [p]Pck [b]Swp [+/-]Vel [[/]]PWM [</>]Rev [u/m]Etq [g]Rec [t]Trn [r]Rst [v/c/q]
+ Ctrl: [k]Run [x]Stop [1-3]Mod [p]Pck [b]Swp [+/-]Vel [[/]]PWM [</>]Rev [u/m]Etq [g]Rec [w]Wiz [t]Trn [r/v/c/q]
 ```
 
 *(Si la terminal mide menos de `112` columnas o menos de `32` filas, la TUI cambia automáticamente a `KEIKO TUI (COMPACTA)` para no desbordar márgenes).*
@@ -229,11 +232,42 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 | **`DBG Mega` + `Errs`** | Última trama de diagnóstico cruda emitida por el Arduino (`DBG:estomago=...`) y contador de errores reportados (`ERROR:...`). Si muestra `PCA9685_NO_RESPONDE` o `PICKER_TOPE_10S`, queda reflejado en `Ult. Err`. |
 | **`US-IZQ / US-CEN / US-DER`** | Distancia en cm de los 3 HC-SR04 superiores (`999.0` = sin eco), etiqueta de Red 1 (`BLOQUEO`, `ESPACIO_LIBRE`, `SALIDA`), confianza `%` y **`TERNA`** final fusionada `[IZQ|CEN|DER]`. |
 | **`LSR-IZQ / LSR-DER / Red 2 / SERVO`** | Distancia de los 2 VL53L0X inferiores (`TIMEOUT` = `999.0` sin retorno), clase de Red 2 (`LOBITO_*` / `NINGUNA`) y ángulo de espejo (`-45°` converge al centro, `0°` recto, `+60°` abre hacia afuera). |
-| **`CAPTURA REAL & REENTRENAMIENTO`** | Estado del grabador (`[● REC]` / `[PAUSA]`), `RED:ETIQUETA` activa, conteos acumulados en `keiko-server/data/real/` (`BLQ`, `LIB`, `SAL` / `I`, `C`, `D`, `N`) y resultado del último entrenamiento `[t]`. |
+| **`CAPTURA REAL` / `ASISTENTE GUIADO`** | En modo libre muestra `[● REC]`/`[PAUSA]`, `RED:ETIQUETA` y conteos en `data/real/`. Con `[w]` abre el **Asistente Guiado (12 pasos)** con instrucción en vivo, barra de progreso `muestras/meta` y atajos `[ESP/g]Grabar [n]Sig [a]Ant [t]Entrenar [w]Salir`. |
 
-### 7.3 Guía Paso a Paso para Grabar Datos Reales y Reentrenar Neuroph 2.98
+### 7.3 Entrenamiento en Pista con Asistente Guiado `[w]` (Método Recomendado)
 
-Todas las grabaciones se pueden hacer **con el robot quieto (`REP`)** sin apretar `[k]`:
+Con el robot encendido y conectado en reposo (sin apretar `[k]`), apretá **`[w]`** para abrir el asistente paso a paso:
+
+```text
+├─ ASISTENTE GUIADO [w] (Paso 1/12: Pared recta 10 cm) ────────────────────────────────────────────────────────────┤
+│ >> Pone el frente del auto a 10 cm de una PARED recta. Listo -> [ESPACIO]                                        │
+│ [● GRAB] [█████░░░░░] 12/25 | ULTRASONICO:BLOQUEO (Servo 0°) | Hechos:0/12                                       │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ Asistente: [ESP/g]Grabar [n]Sig [a]Ant [t]Entrenar [w]Salir [v/c/q]
+```
+
+El asistente configura solo la red, la etiqueta y el servo (`LASER:0` para pasos HC-SR04 y `LASER:SWEEP` para pasos de canicas), detiene el robot si estaba corriendo, y en cada paso solo tenés que **colocar el auto como indica la pantalla y apretar `[ESPACIO]`** (para solo al juntar las muestras y avanza al paso siguiente):
+
+| Paso | Red / Etiqueta | Servo | Pose a colocar en la pista | Meta |
+| :---: | :--- | :---: | :--- | :---: |
+| **1** | `ULTRASONICO:BLOQUEO` | `0°` | Frente del auto a **10 cm** de una pared recta | 25 |
+| **2** | `ULTRASONICO:BLOQUEO` | `0°` | Frente del auto a **18 cm** de una pared recta | 25 |
+| **3** | `ULTRASONICO:BLOQUEO` | `0°` | Cubo obstáculo `6×6 cm` centrado a **12 cm** | 25 |
+| **4** | `ULTRASONICO:ESPACIO_LIBRE` | `0°` | Apuntar al interior libre (**45–90 cm** hasta muro) | 25 |
+| **5** | `ULTRASONICO:SALIDA` | `0°` | Apuntar derecho a través de la salida `30 cm` (**> 130 cm**) | 25 |
+| **6** | `CANICAS:NINGUNA` | Barrido | Pista vacía sin canicas (`> 40 cm` libre) | 30 |
+| **7** | `CANICAS:NINGUNA` | Barrido | Auto en **diagonal (30–45°)** a **15–20 cm** de pared, sin canica | 30 |
+| **8** | `CANICAS:NINGUNA` | Barrido | Cubo `6×6 cm` cerca (**12–18 cm**), sin canica | 30 |
+| **9** | `CANICAS:LOBITO_CENTRO` | Barrido | Canica real de vidrio centrada a **~7 cm** (boca del picker) | 30 |
+| **10** | `CANICAS:LOBITO_CENTRO` | Barrido | Canica real de vidrio centrada a **~14 cm** | 30 |
+| **11** | `CANICAS:LOBITO_IZQ` | Barrido | Canica real a la izquierda (**10–15 cm**, `~4 cm` a izq.) | 30 |
+| **12** | `CANICAS:LOBITO_DER` | Barrido | Canica real a la derecha (**10–15 cm**, `~4 cm` a der.) | 30 |
+
+Al completar los 12 pasos, la TUI muestra **`ASISTENTE GUIADO [w] (12/12 COMPLETADO)`** y te pide apretar **`[t]`** para respaldar, reentrenar Neuroph 2.98 y activar las redes en vivo. (Podés usar **`[n]`** / **`[a]`** en cualquier momento para saltar o repetir un paso).
+
+### 7.4 Captura Manual Libre (`[u]/[m]/[g]`) y Rollback de Modelos
+
+Todas las grabaciones manuales también funcionan **con el robot quieto (`REP`)** sin apretar `[k]`:
 
 1. **Verificar sentido físico de servos (una sola vez tras flashear):**
    - Apretá `[b]` (o en consola `laser -45` → `laser 0` → `laser 60`).

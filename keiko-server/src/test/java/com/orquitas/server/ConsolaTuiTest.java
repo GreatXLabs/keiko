@@ -192,4 +192,66 @@ public class ConsolaTuiTest {
             }
         }
     }
+
+    @Test
+    public void testRenderizadoAsistenteEntrenamientoGuiadoAlineado() {
+        EstadoMonitorTui estado = crearEstadoBase();
+        estado.registrarConexionCliente("Serie:/dev/rfcomm0@9600", 1);
+        VectorSensores s = new VectorSensores(new double[]{10.5, 10.2, 10.8, 40.0, 41.0, 0.0}, 5000L);
+        estado.registrarTelemetria(
+                s,
+                new String[]{"BLOQUEO", "BLOQUEO", "BLOQUEO"},
+                new double[]{0.99, 0.99, 0.99},
+                "NINGUNA",
+                0.98,
+                new ComandoRobot(0.0, 0.0, EstadoRobot.BUSQUEDA),
+                1,
+                5000L);
+        estado.actualizarWizard(new EstadoMonitorTui.EstadoWizardSnapshot(
+                true, false, 1, 12,
+                "ULTRASONICO", "BLOQUEO", false, true,
+                12, 25, 0,
+                "Pared recta 10 cm",
+                "Pone el frente del auto a 10 cm de una PARED recta. Listo -> [ESPACIO]"));
+
+        String detallado = ConsolaTui.renderizarFrame(estado, 5040L, false);
+        String plano = detallado.replaceAll("\033\\[[0-9;]*m", "");
+        assertTrue(plano.contains("ASISTENTE GUIADO [w] (Paso 1/12: Pared recta 10 cm)"));
+        assertTrue(plano.contains("Pone el frente del auto a 10 cm de una PARED recta"));
+        assertTrue(plano.contains("12/25"));
+        assertTrue(plano.contains("Asistente:"));
+        String[] lineas = detallado.split("\n");
+        for (int i = 18; i < lineas.length - 1; i++) {
+            assertEquals(112, ConsolaTui.longitudVisual(lineas[i]),
+                    "Linea wizard detallada desalineada en " + i + ": " + lineas[i]);
+        }
+
+        // Vista completada en modo compacto y verificacion sin desbordes
+        estado.actualizarWizard(new EstadoMonitorTui.EstadoWizardSnapshot(
+                true, true, 12, 12,
+                "CANICAS", "LOBITO_DER", true, false,
+                0, 30, 12,
+                "Canica DER ~10-15 cm",
+                ""));
+        String compacto = ConsolaTui.renderizarFrame(estado, 5040L, true);
+        String planoComp = compacto.replaceAll("\033\\[[0-9;]*m", "");
+        assertTrue(planoComp.contains("ASISTENTE GUIADO [w] (12/12 COMPLETADO)"));
+        assertTrue(planoComp.contains("Apreta [t] para REENTRENAR"));
+        String[] lineasComp = compacto.split("\n");
+        for (int i = 0; i < lineasComp.length - 1; i++) {
+            assertEquals(92, ConsolaTui.longitudVisual(lineasComp[i]),
+                    "Linea wizard compacta desalineada en " + i);
+        }
+
+        for (int[] dim : new int[][]{{112, 34}, {120, 39}, {84, 24}}) {
+            String f = ConsolaTui.renderizarFrame(estado, 5050L, false, dim[0], dim[1]);
+            String[] rows = f.split("\n", -1);
+            assertTrue(rows.length <= dim[1] - 1,
+                    String.format("Desborde vertical wizard en %dx%d: %d filas", dim[0], dim[1], rows.length));
+            for (int r = 0; r < rows.length; r++) {
+                assertTrue(ConsolaTui.longitudVisual(rows[r]) <= dim[0],
+                        String.format("Desborde horizontal wizard en %dx%d fila %d: %d cols", dim[0], dim[1], r, ConsolaTui.longitudVisual(rows[r])));
+            }
+        }
+    }
 }

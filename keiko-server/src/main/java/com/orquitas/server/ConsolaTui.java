@@ -369,7 +369,7 @@ public class ConsolaTui {
         // 4 filas fijas restantes: borde sup logs (1) + borde inf logs (1) + Teclas (1) + fila prompt (1)
         int filasLogs = Math.max(1, alto - lineas.size() - 4);
         agregarPanelLogs(lineas, estado, ancho, filasLogs);
-        lineas.add(formatearFooterTeclas(ancho));
+        lineas.add(formatearFooterTeclas(estado, ancho));
         return String.join("\n", lineas);
     }
 
@@ -425,20 +425,39 @@ public class ConsolaTui {
                     estado.getPwmMin(), estado.getPwmMax(), estado.getPasosReversa(),
                     estado.isCorridaActiva() ? "RUN" : "REPOSO"), ancho));
         }
-        lineas.add(filaCaja(formatearLineaDataset(estado, ancho - 4), ancho));
+        agregarPanelDatasetOWizard(lineas, estado, ancho, true);
         lineas.add(cajaInferior(ancho));
 
         int filasLogs = Math.max(1, alto - lineas.size() - 4);
         agregarPanelLogs(lineas, estado, ancho, filasLogs);
-        lineas.add(formatearFooterTeclas(ancho));
+        lineas.add(formatearFooterTeclas(estado, ancho));
         return String.join("\n", lineas);
     }
 
-    private static String formatearFooterTeclas(int anchoMax) {
+    private static String formatearFooterTeclas(EstadoMonitorTui estado, int anchoMax) {
+        EstadoMonitorTui.EstadoWizardSnapshot wiz = estado.getEstadoWizard();
+        if (wiz != null && wiz.activo()) {
+            String[] wizTokens = {
+                    AMARILLO + BOLD + "[ESP/g]" + RESET + "Grabar ",
+                    BOLD + "[n]" + RESET + "Sig ",
+                    BOLD + "[a]" + RESET + "Ant ",
+                    VERDE + BOLD + "[t]" + RESET + "Entrenar ",
+                    CIAN + BOLD + "[w]" + RESET + "Salir ",
+                    BOLD + "[v/c/q]" + RESET
+            };
+            StringBuilder sb = new StringBuilder(CIAN + " Asistente: " + RESET);
+            for (String tok : wizTokens) {
+                if (longitudVisual(sb.toString()) + longitudVisual(tok) > anchoMax) {
+                    break;
+                }
+                sb.append(tok);
+            }
+            return sb.toString().stripTrailing();
+        }
         String[] tokens = {
                 BOLD + "[k]" + RESET + "Run ",
                 BOLD + "[x]" + RESET + "Stop ",
-                BOLD + "[1/2/3]" + RESET + "Mod ",
+                BOLD + "[1-3]" + RESET + "Mod ",
                 BOLD + "[p]" + RESET + "Pck ",
                 BOLD + "[b]" + RESET + "Swp ",
                 BOLD + "[+/-]" + RESET + "Vel ",
@@ -446,11 +465,11 @@ public class ConsolaTui {
                 BOLD + "[</>]" + RESET + "Rev ",
                 BOLD + "[u/m]" + RESET + "Etq ",
                 BOLD + "[g]" + RESET + "Rec ",
+                CIAN + BOLD + "[w]" + RESET + "Wiz ",
                 BOLD + "[t]" + RESET + "Trn ",
-                BOLD + "[r]" + RESET + "Rst ",
-                BOLD + "[v/c/q]" + RESET
+                BOLD + "[r/v/c/q]" + RESET
         };
-        StringBuilder sb = new StringBuilder(DIM + " Teclas: " + RESET);
+        StringBuilder sb = new StringBuilder(DIM + " Ctrl: " + RESET);
         for (String tok : tokens) {
             if (longitudVisual(sb.toString()) + longitudVisual(tok) > anchoMax) {
                 break;
@@ -557,7 +576,7 @@ public class ConsolaTui {
                     + " Conecte Arduino Mega por Bluetooth HC-05 (TELEMETRY:usL,usC,usR,lsrL,lsrR,servo,ts).", w));
             lineas.add(filaCaja("  Fila Superior : 3x HC-SR04 (IZQ, CEN, DER) -> Red 1 (BLOQUEO / ESPACIO_LIBRE / SALIDA)", w));
             lineas.add(filaCaja("  Fila Inferior : 2x VL53L0X + Servo SG90 (-45°..+60°) -> Red 2 (LOBITO_IZQ/CEN/DER/NINGUNA)", w));
-            lineas.add(filaCaja(formatearLineaDataset(estado, w - 4), w));
+            agregarPanelDatasetOWizard(lineas, estado, w, false);
             lineas.add(cajaInferior(w));
             return;
         }
@@ -604,9 +623,61 @@ public class ConsolaTui {
         lineas.add(filaCaja(String.format(Locale.US,
                 " SERVO  : %+5.1f°  [-45° %s +60°]   Barrido espejo L/R",
                 s.getAnguloServo(), barraServo), w));
-        lineas.add(cajaSeparador("CAPTURA REAL & REENTRENAMIENTO NEUROPH (data/real)", w));
-        lineas.add(filaCaja(formatearLineaDataset(estado, w - 4), w));
+        agregarPanelDatasetOWizard(lineas, estado, w, false);
         lineas.add(cajaInferior(w));
+    }
+
+    private static void agregarPanelDatasetOWizard(List<String> lineas, EstadoMonitorTui estado, int w, boolean compacto) {
+        EstadoMonitorTui.EstadoWizardSnapshot wiz = estado.getEstadoWizard();
+        int maxTxt = w - 4;
+        if (wiz == null || !wiz.activo()) {
+            if (!compacto) {
+                lineas.add(cajaSeparador("CAPTURA REAL & REENTRENAMIENTO NEUROPH (data/real)", w));
+            }
+            lineas.add(filaCaja(formatearLineaDataset(estado, maxTxt), w));
+            return;
+        }
+        String tituloSep = wiz.completado()
+                ? String.format(Locale.US, "ASISTENTE GUIADO [w] (%d/%d COMPLETADO)", wiz.pasosHechos(), wiz.totalPasos())
+                : String.format(Locale.US, "ASISTENTE GUIADO [w] (Paso %d/%d: %s)", wiz.pasoActual(), wiz.totalPasos(), wiz.titulo());
+        lineas.add(cajaSeparador(tituloSep, w));
+
+        if (wiz.completado()) {
+            lineas.add(filaCaja(VERDE + BOLD
+                    + ">> LISTO! Poses grabadas. Apreta [t] para REENTRENAR ahora, [a] repetir o [w] salir." + RESET, w));
+            java.util.Map<String, Integer> c = estado.getGrabacionConteos();
+            String conteos = String.format(Locale.US,
+                    "BLQ:%d LIB:%d SAL:%d | I:%d C:%d D:%d N:%d",
+                    c.getOrDefault("BLOQUEO", 0), c.getOrDefault("ESPACIO_LIBRE", 0), c.getOrDefault("SALIDA", 0),
+                    c.getOrDefault("LOBITO_IZQ", 0), c.getOrDefault("LOBITO_CENTRO", 0),
+                    c.getOrDefault("LOBITO_DER", 0), c.getOrDefault("NINGUNA", 0));
+            String trainTxt = estado.isReentrenando()
+                    ? AMARILLO + "ENTRENANDO..." + RESET
+                    : ("---".equals(estado.getUltimoResumenEntrenamiento()) ? "Pendiente [t]" : "Train:" + estado.getUltimoResumenEntrenamiento());
+            String resumen = String.format(Locale.US, "%s | %s", conteos, trainTxt);
+            lineas.add(filaCaja(longitudVisual(resumen) <= maxTxt ? resumen : conteos, w));
+            return;
+        }
+
+        lineas.add(filaCaja(AMARILLO + BOLD + ">> " + RESET + BLANCO + recortar(wiz.instruccion(), Math.max(20, maxTxt - 3)) + RESET, w));
+
+        int anchoBarra = 10;
+        double ratio = wiz.metaPaso() > 0 ? Math.min(1.0, Math.max(0.0, (double) wiz.muestrasPaso() / wiz.metaPaso())) : 0.0;
+        int llenos = (int) Math.round(ratio * anchoBarra);
+        String barra = (wiz.capturando() ? VERDE : CIAN) + "█".repeat(llenos) + GRIS + "░".repeat(anchoBarra - llenos) + RESET;
+        String estadoCap = wiz.capturando()
+                ? ROJO + BOLD + "[● GRAB]" + RESET
+                : CIAN + "[LISTO]" + RESET;
+        String servoModo = wiz.barridoLaser() ? "Sweep" : "Servo 0°";
+        String prog = String.format(Locale.US, "%s [%s] %d/%d | %s:%s (%s) | Hechos:%d/%d",
+                estadoCap, barra, wiz.muestrasPaso(), wiz.metaPaso(),
+                CIAN + wiz.red() + RESET, AMARILLO + wiz.etiqueta() + RESET,
+                servoModo, wiz.pasosHechos(), wiz.totalPasos());
+        if (longitudVisual(prog) > maxTxt) {
+            prog = String.format(Locale.US, "%s [%s] %d/%d | %s (%s)",
+                    estadoCap, barra, wiz.muestrasPaso(), wiz.metaPaso(), wiz.etiqueta(), servoModo);
+        }
+        lineas.add(filaCaja(prog, w));
     }
 
     private static String formatearLineaDataset(EstadoMonitorTui estado, int maxAncho) {

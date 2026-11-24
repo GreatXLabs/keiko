@@ -24,6 +24,7 @@ public class ServidorCentral implements OyenteAuditor {
     // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion real y reentrenamiento integrado]
     private final GrabadorDatasetReal grabadorDataset;
     private final GestorModelosYEntrenamiento gestorModelos;
+    private final AsistenteEntrenamientoGuiado asistenteGuiado = new AsistenteEntrenamientoGuiado();
 
     public ServidorCentral(ConfiguracionServidor configuracion) {
         this.configuracion = configuracion;
@@ -55,6 +56,7 @@ public class ServidorCentral implements OyenteAuditor {
                 grabadorDataset.getRedObjetivo().name(),
                 grabadorDataset.getEtiquetaActiva(),
                 grabadorDataset.obtenerConteosPorClase());
+        this.grabadorDataset.setOnMuestraRegistrada(this::manejarMuestraWizardGrabada);
         this.receptorSerie.setGrabadorDataset(grabadorDataset);
 
         this.auditor = new AuditorEstomago(
@@ -148,6 +150,10 @@ public class ServidorCentral implements OyenteAuditor {
                     continue;
                 }
                 char c = Character.toLowerCase((char) b);
+                if (c == ' ') {
+                    procesarComandoConsola("space");
+                    continue;
+                }
                 if (c == 'q') {
                     auditor.detener();
                     receptorSerie.detener();
@@ -337,6 +343,63 @@ public class ServidorCentral implements OyenteAuditor {
             if (consolaTui == null) {
                 System.out.printf(java.util.Locale.US, "[CONTROL] Pasos de reversa ajustados a %d (%.1fs).%n", acotado, acotado * 0.1);
             }
+        } else if ("w".equals(cmd) || "wizard".equals(cmd)) {
+            // [SOLO PRUEBAS / ENTRENAMIENTO] Activar/desactivar asistente guiado paso a paso en TUI
+            if (!asistenteGuiado.isActivo()) {
+                if (monitorTui.isCorridaActiva()) {
+                    monitorTui.setCorridaActiva(false);
+                    enviarComandoControl(MensajeProtocolo.crearCmdStop());
+                }
+                grabadorDataset.setGrabando(false);
+                AsistenteEntrenamientoGuiado.PasoWizard paso = asistenteGuiado.activar();
+                aplicarConfiguracionPasoWizard(paso);
+                monitorTui.registrarComandoControl("WIZARD:ON (Paso 1/" + asistenteGuiado.getTotalPasos() + ")");
+                monitorTui.agregarLog("INFO", "[WIZARD] Coloca el auto segun la pantalla y apreta [ESPACIO] o [g] para capturar.");
+            } else {
+                asistenteGuiado.desactivar();
+                grabadorDataset.setGrabando(false);
+                sincronizarEstadoGrabacionTui();
+                monitorTui.actualizarWizard(null);
+                monitorTui.registrarComandoControl("WIZARD:OFF");
+            }
+        } else if ("space".equals(cmd) || ("g".equals(cmd) && asistenteGuiado.isActivo())) {
+            if (!asistenteGuiado.isActivo()) {
+                return;
+            }
+            if (asistenteGuiado.isCompletado()) {
+                monitorTui.agregarLog("INFO", "[WIZARD] Poses completas: apreta [t] para reentrenar, [a] repetir o [w] salir.");
+                return;
+            }
+            boolean cap = asistenteGuiado.alternarCapturaPaso();
+            AsistenteEntrenamientoGuiado.PasoWizard paso = asistenteGuiado.getPasoActual();
+            if (cap) {
+                grabadorDataset.seleccionarEtiqueta(paso.etiqueta());
+                grabadorDataset.setGrabando(true);
+                monitorTui.registrarComandoControl("WIZ:GRAB P" + paso.numero() + " (" + paso.etiqueta() + ")");
+            } else {
+                grabadorDataset.setGrabando(false);
+                monitorTui.registrarComandoControl("WIZ:PAUSA P" + paso.numero());
+            }
+            sincronizarEstadoGrabacionTui();
+            monitorTui.actualizarWizard(asistenteGuiado.getSnapshot());
+        } else if (("n".equals(cmd) || "next".equals(cmd)) && asistenteGuiado.isActivo()) {
+            grabadorDataset.setGrabando(false);
+            AsistenteEntrenamientoGuiado.PasoWizard sig = asistenteGuiado.siguientePaso();
+            if (sig != null) {
+                aplicarConfiguracionPasoWizard(sig);
+                monitorTui.registrarComandoControl("WIZ:PASO " + sig.numero() + "/" + asistenteGuiado.getTotalPasos());
+            } else {
+                sincronizarEstadoGrabacionTui();
+                monitorTui.actualizarWizard(asistenteGuiado.getSnapshot());
+                monitorTui.agregarLog("INFO", "[WIZARD] Fin de pasos. Apreta [t] para reentrenar o [w] para salir.");
+            }
+        } else if (("a".equals(cmd) || "prev".equals(cmd) || "back".equals(cmd)) && asistenteGuiado.isActivo()) {
+            grabadorDataset.setGrabando(false);
+            AsistenteEntrenamientoGuiado.PasoWizard ant = asistenteGuiado.anteriorPaso();
+            if (ant != null) {
+                aplicarConfiguracionPasoWizard(ant);
+                monitorTui.registrarComandoControl("WIZ:PASO " + ant.numero() + "/" + asistenteGuiado.getTotalPasos());
+            }
         } else if ("u".equals(cmd)) {
             // [SOLO PRUEBAS / ENTRENAMIENTO] Seleccionar modo US y ciclar etiqueta objetivo
             String etiqueta = grabadorDataset.ciclarModoUs();
@@ -421,6 +484,43 @@ public class ServidorCentral implements OyenteAuditor {
                 grabadorDataset.obtenerConteosPorClase());
     }
 
+    private void aplicarConfiguracionPasoWizard(AsistenteEntrenamientoGuiado.PasoWizard paso) {
+        if (paso == null) {
+            return;
+        }
+        grabadorDataset.seleccionarEtiqueta(paso.etiqueta());
+        boolean sweep = paso.barridoLaser();
+        monitorTui.setBarridoEnReposo(sweep);
+        enviarComandoControl(MensajeProtocolo.crearCmdLaser(sweep ? "SWEEP" : "0"));
+        sincronizarEstadoGrabacionTui();
+        monitorTui.actualizarWizard(asistenteGuiado.getSnapshot());
+    }
+
+    private void manejarMuestraWizardGrabada() {
+        if (!asistenteGuiado.isActivo()) {
+            return;
+        }
+        AsistenteEntrenamientoGuiado.ResultadoMuestra res = asistenteGuiado.registrarMuestraCapturada();
+        if (res.pasoCompletado()) {
+            grabadorDataset.setGrabando(false);
+            monitorTui.agregarLog("OK", String.format(java.util.Locale.US,
+                    "[WIZARD] Paso %d/%d COMPLETADO (+%d -> %s).",
+                    res.pasoTerminado().numero(), asistenteGuiado.getTotalPasos(),
+                    res.pasoTerminado().metaMuestras(), res.pasoTerminado().etiqueta()));
+            if (res.siguientePaso() != null) {
+                aplicarConfiguracionPasoWizard(res.siguientePaso());
+                monitorTui.agregarLog("INFO", String.format(java.util.Locale.US,
+                        "[WIZARD] Siguiente Paso %d/%d: %s",
+                        res.siguientePaso().numero(), asistenteGuiado.getTotalPasos(),
+                        res.siguientePaso().titulo()));
+                return;
+            }
+            monitorTui.agregarLog("OK", "[WIZARD] 12/12 poses completas! Apreta [t] para reentrenar y activar en vivo.");
+        }
+        sincronizarEstadoGrabacionTui();
+        monitorTui.actualizarWizard(asistenteGuiado.getSnapshot());
+    }
+
     GestorModelosYEntrenamiento.ResultadoReentrenamiento ejecutarRetrainSincrono(String nota) {
         if (grabadorDataset.getTotalMuestrasUs() == 0 && grabadorDataset.getTotalMuestrasCanicas() == 0) {
             monitorTui.registrarEstadoEntrenamiento(false, "SIN_DATOS");
@@ -464,6 +564,10 @@ public class ServidorCentral implements OyenteAuditor {
 
     PlanificadorNavegacion getPlanificador() {
         return planificador;
+    }
+
+    AsistenteEntrenamientoGuiado getAsistenteGuiado() {
+        return asistenteGuiado;
     }
 
     public void enviarComandoControl(String mensaje) {

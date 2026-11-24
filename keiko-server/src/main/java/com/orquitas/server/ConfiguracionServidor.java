@@ -15,7 +15,7 @@ import java.util.logging.Logger;
 public final class ConfiguracionServidor {
     private static final Logger LOGGER = Logger.getLogger(ConfiguracionServidor.class.getName());
 
-    public static final String VERSION_SISTEMA = "2.0.3";
+    public static final String VERSION_SISTEMA = "2.0.4";
     public static final String RIG_HARDWARE = "mega-3us-2laser";
 
     public static final String PUERTO_SERIE_PREDETERMINADO_UNIX = "/dev/rfcomm0";
