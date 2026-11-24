@@ -515,7 +515,9 @@ public class ServidorCentral implements OyenteAuditor {
                         res.siguientePaso().titulo()));
                 return;
             }
-            monitorTui.agregarLog("OK", "[WIZARD] 12/12 poses completas! Apreta [t] para reentrenar y activar en vivo.");
+            monitorTui.agregarLog("OK", String.format(java.util.Locale.US,
+                    "[WIZARD] %d/%d poses completas! Apreta [t] para reentrenar y activar en vivo.",
+                    asistenteGuiado.getTotalPasos(), asistenteGuiado.getTotalPasos()));
         }
         sincronizarEstadoGrabacionTui();
         monitorTui.actualizarWizard(asistenteGuiado.getSnapshot());

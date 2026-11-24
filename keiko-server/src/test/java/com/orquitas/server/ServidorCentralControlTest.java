@@ -116,6 +116,7 @@ public class ServidorCentralControlTest {
         servidor.procesarComandoConsola("w");
         assertFalse(monitor.isCorridaActiva(), "El wizard debe pasar el robot a REPOSO");
         assertTrue(wizard.isActivo());
+        assertEquals(21, wizard.getTotalPasos());
         assertEquals(1, monitor.getEstadoWizard().pasoActual());
         assertEquals("BLOQUEO", grabador.getEtiquetaActiva());
         assertFalse(monitor.isBarridoEnReposo(), "Los pasos HC-SR04 deben centrar servos en 0 deg");
@@ -125,7 +126,7 @@ public class ServidorCentralControlTest {
         assertTrue(grabador.isGrabando());
         assertTrue(monitor.getEstadoWizard().capturando());
 
-        VectorSensores sWall = new VectorSensores(new double[]{10.5, 10.2, 10.8, 40.0, 41.0, 0.0}, 1000L);
+        VectorSensores sWall = new VectorSensores(new double[]{5.5, 5.2, 5.8, 40.0, 41.0, 0.0}, 1000L);
         for (int i = 0; i < 25; i++) {
             assertTrue(grabador.registrarTelemetria(sWall));
         }
@@ -138,22 +139,23 @@ public class ServidorCentralControlTest {
         assertFalse(monitor.getEstadoWizard().capturando());
         assertEquals(25, grabador.obtenerConteosPorClase().get("BLOQUEO"));
 
-        // Navegar adelante (n) hasta Paso 6 (Red 2 -> activa barrido solo) y atras (a)
-        for (int i = 0; i < 4; i++) {
+        // Navegar adelante (n) hasta Paso 9 (Red 2 -> activa barrido completo de 65 muestras) y volver al 8
+        for (int i = 0; i < 7; i++) {
             servidor.procesarComandoConsola("n");
         }
-        assertEquals(6, monitor.getEstadoWizard().pasoActual());
+        assertEquals(9, monitor.getEstadoWizard().pasoActual());
+        assertEquals(65, monitor.getEstadoWizard().metaPaso());
         assertEquals("CANICAS", monitor.getEstadoWizard().red());
         assertEquals("NINGUNA", grabador.getEtiquetaActiva());
         assertTrue(monitor.isBarridoEnReposo(), "Los pasos de canicas deben activar barrido espejo");
 
         servidor.procesarComandoConsola("a");
-        assertEquals(5, monitor.getEstadoWizard().pasoActual());
+        assertEquals(8, monitor.getEstadoWizard().pasoActual());
         assertEquals("SALIDA", grabador.getEtiquetaActiva());
         assertFalse(monitor.isBarridoEnReposo());
 
-        // Avanzar hasta finalizar los 12 pasos -> entra en estado completado
-        for (int i = 0; i < 8; i++) {
+        // Avanzar hasta finalizar los 21 pasos -> entra en estado completado
+        for (int i = 0; i < 14; i++) {
             servidor.procesarComandoConsola("n");
         }
         assertTrue(wizard.isCompletado());

@@ -5,7 +5,8 @@ import java.util.List;
 /**
  * [SOLO PRUEBAS / ENTRENAMIENTO] Maquina de pasos para el Asistente Guiado en TUI.
  * Indica al operador donde colocar el robot/canica en pista paso a paso, configura
- * la red/etiqueta y el modo de servo (0° o barrido), y detiene la rafaga al alcanzar la meta.
+ * la red/etiqueta y el modo de servo (0° o barrido completo 6.5 s), y detiene la
+ * rafaga automaticamente al alcanzar la meta de cada pose.
  */
 public class AsistenteEntrenamientoGuiado {
 
@@ -25,43 +26,72 @@ public class AsistenteEntrenamientoGuiado {
             PasoWizard siguientePaso
     ) {}
 
+    // Red 1 (US-CEN): 25 muestras (~2.5 s) con servos fijos en 0°.
+    // Red 2 (Canicas + barrido -45°..+60° a 1°/30ms): 65 muestras (~6.5 s) cubre ida y vuelta completa.
     private static final List<PasoWizard> PASOS_POR_DEFECTO = List.of(
             new PasoWizard(1, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "BLOQUEO", false, 25,
-                    "Pared recta 10 cm",
-                    "Pone el frente del auto a 10 cm de una PARED recta. Listo -> [ESPACIO]"),
+                    "Pared pegada ~5 cm",
+                    "Pone el frente del auto muy cerca (~5 cm) de una PARED recta. Listo -> [ESPACIO]"),
             new PasoWizard(2, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "BLOQUEO", false, 25,
-                    "Pared recta 18 cm",
-                    "Alejalo un poco: frente del auto a 18 cm de una PARED recta. Listo -> [ESPACIO]"),
+                    "Pared recta 12 cm",
+                    "Aleja el frente del auto a 12 cm de la PARED recta. Listo -> [ESPACIO]"),
             new PasoWizard(3, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "BLOQUEO", false, 25,
-                    "Obstaculo 6x6 a 12 cm",
-                    "Pone un cubo 6x6 cm centrado a 12 cm frente al sensor US. Listo -> [ESPACIO]"),
-            new PasoWizard(4, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "ESPACIO_LIBRE", false, 25,
-                    "Interior libre 45-90cm",
-                    "Apunta el auto hacia el interior libre (pared a 45-90 cm). Listo -> [ESPACIO]"),
-            new PasoWizard(5, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "SALIDA", false, 25,
-                    "Salida > 130 cm",
-                    "Apunta derecho por la SALIDA abierta de 30 cm (> 130 cm). Listo -> [ESPACIO]"),
-            new PasoWizard(6, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 30,
+                    "Pared limite ~20 cm",
+                    "Pone el frente a ~20 cm de la PARED recta (zona limite bloqueo). Listo -> [ESPACIO]"),
+            new PasoWizard(4, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "BLOQUEO", false, 25,
+                    "Cubo 6x6 a 12 cm",
+                    "Pone un cubo obstaculo 6x6 cm centrado a 12 cm del sensor US. Listo -> [ESPACIO]"),
+            new PasoWizard(5, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "ESPACIO_LIBRE", false, 25,
+                    "Libre corto ~35 cm",
+                    "Pone el frente mirando a pared a ~35 cm (espacio libre cercano). Listo -> [ESPACIO]"),
+            new PasoWizard(6, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "ESPACIO_LIBRE", false, 25,
+                    "Libre medio ~75 cm",
+                    "Apunta al interior libre de la bahia (~65-85 cm hasta pared). Listo -> [ESPACIO]"),
+            new PasoWizard(7, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "ESPACIO_LIBRE", false, 25,
+                    "Libre largo ~115 cm",
+                    "Apunta a pared lejana a ~110-120 cm (NO es salida aun!). Listo -> [ESPACIO]"),
+            new PasoWizard(8, GrabadorDatasetReal.RedObjetivo.ULTRASONICO, "SALIDA", false, 25,
+                    "Salida > 135 cm",
+                    "Apunta derecho por la SALIDA abierta de 30 cm (> 135 cm o vacio). Listo -> [ESPACIO]"),
+            new PasoWizard(9, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 65,
                     "Pista vacia (barrido)",
-                    "Pista VACIA sin canica (> 40 cm libre). Lasers barriendo. Listo -> [ESPACIO]"),
-            new PasoWizard(7, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 30,
-                    "Pared en DIAGONAL",
-                    "Auto en DIAGONAL (30-45 deg) a ~15-20 cm de pared, SIN canica. -> [ESPACIO]"),
-            new PasoWizard(8, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 30,
+                    "Pista VACIA sin canicas (> 50 cm libre). Barrido completo 6.5s. Listo -> [ESPACIO]"),
+            new PasoWizard(10, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 65,
+                    "Pared recta ~12 cm",
+                    "Frente a PARED recta a ~12 cm SIN canica (anti falso lobito). Listo -> [ESPACIO]"),
+            new PasoWizard(11, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 65,
+                    "Diagonal IZQ ~15 cm",
+                    "Pared en DIAGONAL hacia la IZQ (~35 deg, 12-20 cm), SIN canica. -> [ESPACIO]"),
+            new PasoWizard(12, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 65,
+                    "Diagonal DER ~15 cm",
+                    "Pared en DIAGONAL hacia la DER (~35 deg, 12-20 cm), SIN canica. -> [ESPACIO]"),
+            new PasoWizard(13, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 65,
+                    "Esquina sin canica",
+                    "Frente a una ESQUINA de dos paredes (~15-25 cm) SIN canica. Listo -> [ESPACIO]"),
+            new PasoWizard(14, GrabadorDatasetReal.RedObjetivo.CANICAS, "NINGUNA", true, 65,
                     "Cubo cerca sin canica",
-                    "Cubo 6x6 cm a ~12-18 cm delante SIN canica (anti falso +). -> [ESPACIO]"),
-            new PasoWizard(9, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_CENTRO", true, 30,
-                    "Canica CENTRO ~7 cm",
-                    "Pone 1 canica de vidrio centrada a ~7 cm frente al picker. Listo -> [ESPACIO]"),
-            new PasoWizard(10, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_CENTRO", true, 30,
-                    "Canica CENTRO ~14 cm",
-                    "Aleja la canica centrada a ~14 cm delante del auto. Listo -> [ESPACIO]"),
-            new PasoWizard(11, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_IZQ", true, 30,
-                    "Canica IZQ ~10-15 cm",
-                    "Pone la canica a la IZQUIERDA (10-15 cm adelante, ~4 cm izq). -> [ESPACIO]"),
-            new PasoWizard(12, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_DER", true, 30,
-                    "Canica DER ~10-15 cm",
-                    "Pone la canica a la DERECHA (10-15 cm adelante, ~4 cm der). -> [ESPACIO]")
+                    "Cubo 6x6 cm a ~12-18 cm delante SIN canica (anti falso +). Listo -> [ESPACIO]"),
+            new PasoWizard(15, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_CENTRO", true, 65,
+                    "Canica CENTRO ~6 cm",
+                    "1 CANICA de vidrio centrada a ~6 cm (entrada del picker). Listo -> [ESPACIO]"),
+            new PasoWizard(16, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_CENTRO", true, 65,
+                    "Canica CENTRO ~13 cm",
+                    "CANICA centrada a ~13 cm (puedes poner pared atras a ~45 cm). Listo -> [ESPACIO]"),
+            new PasoWizard(17, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_CENTRO", true, 65,
+                    "Canica CENTRO ~21 cm",
+                    "CANICA centrada lejos (~20-22 cm, ideal con fondo real pista). Listo -> [ESPACIO]"),
+            new PasoWizard(18, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_IZQ", true, 65,
+                    "Canica IZQ ~8-12 cm",
+                    "CANICA a la IZQUIERDA (8-12 cm adelante, ~4 cm corrida a izq). Listo -> [ESPACIO]"),
+            new PasoWizard(19, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_IZQ", true, 65,
+                    "Canica IZQ ~16-20 cm",
+                    "CANICA a la IZQUIERDA mas lejos (16-20 cm adelante, ~5 cm izq). Listo -> [ESPACIO]"),
+            new PasoWizard(20, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_DER", true, 65,
+                    "Canica DER ~8-12 cm",
+                    "CANICA a la DERECHA (8-12 cm adelante, ~4 cm corrida a der). Listo -> [ESPACIO]"),
+            new PasoWizard(21, GrabadorDatasetReal.RedObjetivo.CANICAS, "LOBITO_DER", true, 65,
+                    "Canica DER ~16-20 cm",
+                    "CANICA a la DERECHA mas lejos (16-20 cm adelante, ~5 cm der). Listo -> [ESPACIO]")
     );
 
     private final List<PasoWizard> pasos;
@@ -114,6 +144,10 @@ public class AsistenteEntrenamientoGuiado {
 
     public synchronized PasoWizard getPasoActual() {
         return pasos.get(Math.min(indicePaso, pasos.size() - 1));
+    }
+
+    public synchronized List<PasoWizard> getPasos() {
+        return pasos;
     }
 
     public synchronized int getTotalPasos() {

@@ -121,8 +121,8 @@ Genera `target/keiko-server.jar` con `com.orquitas.server.ServidorCentral` como 
   - `[[]` / `[]]` (o `pwm <min> [max]`): ajusta `pwmZonaMuerta` (`pwmMin`) en pasos de `±5` y emite `CMD:PWM:`.
   - `[>]`/`[.]` y `[<]`/`[,]` (o `rev <0..15>`): ajusta en vivo los pasos de reversa ante `BLOQUEO` (`0` = pivote directo sin retroceder).
 - **`[ENTRENAMIENTO]` Asistente guiado, captura real y reentrenamiento en caliente (`data/real` + `models/historial/`):**
-  - `[w]` / `wizard`: activa o sale del **Asistente de Entrenamiento Guiado (12 pasos)**. Detiene el robot por seguridad, configura automáticamente la red/etiqueta y servos (`LASER:0` o `LASER:SWEEP`), y te indica dónde colocar el robot o la canica:
-    - `[ESPACIO]` (o `[g]`): graba la ráfaga del paso actual y se detiene + avanza solo al llegar a la meta (`25` muestras US / `30` Canicas).
+  - `[w]` / `wizard`: activa o sale del **Asistente de Entrenamiento Guiado (21 pasos)**. Detiene el robot por seguridad, configura automáticamente la red/etiqueta y servos (`LASER:0` o `LASER:SWEEP`), y te indica dónde colocar el robot o la canica:
+    - `[ESPACIO]` (o `[g]`): graba la ráfaga del paso actual (`25` muestras US = ~2.5 s / `65` muestras Canicas = ~6.5 s para barrido completo `-45°..+60°` ida y vuelta) y se detiene + avanza solo al llegar a la meta.
     - `[n]` / `[a]`: salta al paso siguiente o vuelve al paso anterior.
   - `[u]`: (modo libre) pasa a Red 1 (`US-CEN`) y cicla etiqueta (`BLOQUEO` → `ESPACIO_LIBRE` → `SALIDA`).
   - `[m]`: (modo libre) pasa a Red 2 (`CANICAS`) y cicla etiqueta (`LOBITO_IZQ` → `LOBITO_CENTRO` → `LOBITO_DER` → `NINGUNA`).
@@ -232,38 +232,47 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 | **`DBG Mega` + `Errs`** | Última trama de diagnóstico cruda emitida por el Arduino (`DBG:estomago=...`) y contador de errores reportados (`ERROR:...`). Si muestra `PCA9685_NO_RESPONDE` o `PICKER_TOPE_10S`, queda reflejado en `Ult. Err`. |
 | **`US-IZQ / US-CEN / US-DER`** | Distancia en cm de los 3 HC-SR04 superiores (`999.0` = sin eco), etiqueta de Red 1 (`BLOQUEO`, `ESPACIO_LIBRE`, `SALIDA`), confianza `%` y **`TERNA`** final fusionada `[IZQ|CEN|DER]`. |
 | **`LSR-IZQ / LSR-DER / Red 2 / SERVO`** | Distancia de los 2 VL53L0X inferiores (`TIMEOUT` = `999.0` sin retorno), clase de Red 2 (`LOBITO_*` / `NINGUNA`) y ángulo de espejo (`-45°` converge al centro, `0°` recto, `+60°` abre hacia afuera). |
-| **`CAPTURA REAL` / `ASISTENTE GUIADO`** | En modo libre muestra `[● REC]`/`[PAUSA]`, `RED:ETIQUETA` y conteos en `data/real/`. Con `[w]` abre el **Asistente Guiado (12 pasos)** con instrucción en vivo, barra de progreso `muestras/meta` y atajos `[ESP/g]Grabar [n]Sig [a]Ant [t]Entrenar [w]Salir`. |
+| **`CAPTURA REAL` / `ASISTENTE GUIADO`** | En modo libre muestra `[● REC]`/`[PAUSA]`, `RED:ETIQUETA` y conteos en `data/real/`. Con `[w]` abre el **Asistente Guiado (21 pasos)** con instrucción en vivo, barra de progreso `muestras/meta` y atajos `[ESP/g]Grabar [n]Sig [a]Ant [t]Entrenar [w]Salir`. |
 
 ### 7.3 Entrenamiento en Pista con Asistente Guiado `[w]` (Método Recomendado)
 
 Con el robot encendido y conectado en reposo (sin apretar `[k]`), apretá **`[w]`** para abrir el asistente paso a paso:
 
 ```text
-├─ ASISTENTE GUIADO [w] (Paso 1/12: Pared recta 10 cm) ────────────────────────────────────────────────────────────┤
-│ >> Pone el frente del auto a 10 cm de una PARED recta. Listo -> [ESPACIO]                                        │
-│ [● GRAB] [█████░░░░░] 12/25 | ULTRASONICO:BLOQUEO (Servo 0°) | Hechos:0/12                                       │
+├─ ASISTENTE GUIADO [w] (Paso 1/21: Pared pegada ~5 cm) ─────────────────────────────────────────────────────────┤
+│ >> Pone el frente del auto muy cerca (~5 cm) de una PARED recta. Listo -> [ESPACIO]                              │
+│ [● GRAB] [█████░░░░░] 12/25 | ULTRASONICO:BLOQUEO (Servo 0°) | Hechos:0/21                                       │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  Asistente: [ESP/g]Grabar [n]Sig [a]Ant [t]Entrenar [w]Salir [v/c/q]
 ```
 
-El asistente configura solo la red, la etiqueta y el servo (`LASER:0` para pasos HC-SR04 y `LASER:SWEEP` para pasos de canicas), detiene el robot si estaba corriendo, y en cada paso solo tenés que **colocar el auto como indica la pantalla y apretar `[ESPACIO]`** (para solo al juntar las muestras y avanza al paso siguiente):
+El asistente configura solo la red, la etiqueta y el servo (`LASER:0` para pasos HC-SR04 y `LASER:SWEEP` para pasos de canicas, grabando `65` muestras = ~6.5 s para cubrir 1 barrido completo `-45°..+60°` ida y vuelta), detiene el robot si estaba corriendo, y en cada paso solo tenés que **colocar el auto como indica la pantalla y apretar `[ESPACIO]`**:
 
 | Paso | Red / Etiqueta | Servo | Pose a colocar en la pista | Meta |
 | :---: | :--- | :---: | :--- | :---: |
-| **1** | `ULTRASONICO:BLOQUEO` | `0°` | Frente del auto a **10 cm** de una pared recta | 25 |
-| **2** | `ULTRASONICO:BLOQUEO` | `0°` | Frente del auto a **18 cm** de una pared recta | 25 |
-| **3** | `ULTRASONICO:BLOQUEO` | `0°` | Cubo obstáculo `6×6 cm` centrado a **12 cm** | 25 |
-| **4** | `ULTRASONICO:ESPACIO_LIBRE` | `0°` | Apuntar al interior libre (**45–90 cm** hasta muro) | 25 |
-| **5** | `ULTRASONICO:SALIDA` | `0°` | Apuntar derecho a través de la salida `30 cm` (**> 130 cm**) | 25 |
-| **6** | `CANICAS:NINGUNA` | Barrido | Pista vacía sin canicas (`> 40 cm` libre) | 30 |
-| **7** | `CANICAS:NINGUNA` | Barrido | Auto en **diagonal (30–45°)** a **15–20 cm** de pared, sin canica | 30 |
-| **8** | `CANICAS:NINGUNA` | Barrido | Cubo `6×6 cm` cerca (**12–18 cm**), sin canica | 30 |
-| **9** | `CANICAS:LOBITO_CENTRO` | Barrido | Canica real de vidrio centrada a **~7 cm** (boca del picker) | 30 |
-| **10** | `CANICAS:LOBITO_CENTRO` | Barrido | Canica real de vidrio centrada a **~14 cm** | 30 |
-| **11** | `CANICAS:LOBITO_IZQ` | Barrido | Canica real a la izquierda (**10–15 cm**, `~4 cm` a izq.) | 30 |
-| **12** | `CANICAS:LOBITO_DER` | Barrido | Canica real a la derecha (**10–15 cm**, `~4 cm` a der.) | 30 |
+| **1** | `ULTRASONICO:BLOQUEO` | `0°` | Frente del auto muy cerca (**~5 cm**) de una pared recta | 25 |
+| **2** | `ULTRASONICO:BLOQUEO` | `0°` | Frente del auto a **12 cm** de una pared recta | 25 |
+| **3** | `ULTRASONICO:BLOQUEO` | `0°` | Frente del auto a **~20 cm** de una pared recta (límite bloqueo) | 25 |
+| **4** | `ULTRASONICO:BLOQUEO` | `0°` | Cubo obstáculo `6×6 cm` centrado a **12 cm** del sensor US | 25 |
+| **5** | `ULTRASONICO:ESPACIO_LIBRE` | `0°` | Frente mirando a pared a **~35 cm** (libre cercano) | 25 |
+| **6** | `ULTRASONICO:ESPACIO_LIBRE` | `0°` | Apuntar al interior libre (**~65–85 cm** hasta pared) | 25 |
+| **7** | `ULTRASONICO:ESPACIO_LIBRE` | `0°` | Apuntar a pared lejana a **~110–120 cm** (no es salida aún) | 25 |
+| **8** | `ULTRASONICO:SALIDA` | `0°` | Apuntar derecho por la salida abierta `30 cm` (**> 135 cm** o vacío) | 25 |
+| **9** | `CANICAS:NINGUNA` | Barrido | Pista vacía sin canicas (`> 50 cm` libre) | 65 |
+| **10** | `CANICAS:NINGUNA` | Barrido | Frente a pared recta a **~12 cm**, sin canica | 65 |
+| **11** | `CANICAS:NINGUNA` | Barrido | Auto en **diagonal hacia la IZQ (`~35°`, `12–20 cm`)**, sin canica | 65 |
+| **12** | `CANICAS:NINGUNA` | Barrido | Auto en **diagonal hacia la DER (`~35°`, `12–20 cm`)**, sin canica | 65 |
+| **13** | `CANICAS:NINGUNA` | Barrido | Frente a una **esquina** de dos paredes (`15–25 cm`), sin canica | 65 |
+| **14** | `CANICAS:NINGUNA` | Barrido | Cubo `6×6 cm` a **12–18 cm** delante, sin canica | 65 |
+| **15** | `CANICAS:LOBITO_CENTRO` | Barrido | Canica real de vidrio centrada a **~6 cm** (boca del picker) | 65 |
+| **16** | `CANICAS:LOBITO_CENTRO` | Barrido | Canica real centrada a **~13 cm** (con pared/pista atrás a `~45 cm`) | 65 |
+| **17** | `CANICAS:LOBITO_CENTRO` | Barrido | Canica real centrada lejos (**20–22 cm**, con fondo real de pista) | 65 |
+| **18** | `CANICAS:LOBITO_IZQ` | Barrido | Canica real a la izquierda (**8–12 cm** adelante, `~4 cm` a izq.) | 65 |
+| **19** | `CANICAS:LOBITO_IZQ` | Barrido | Canica real a la izquierda lejos (**16–20 cm** adelante, `~5 cm` izq.) | 65 |
+| **20** | `CANICAS:LOBITO_DER` | Barrido | Canica real a la derecha (**8–12 cm** adelante, `~4 cm` a der.) | 65 |
+| **21** | `CANICAS:LOBITO_DER` | Barrido | Canica real a la derecha lejos (**16–20 cm** adelante, `~5 cm` der.) | 65 |
 
-Al completar los 12 pasos, la TUI muestra **`ASISTENTE GUIADO [w] (12/12 COMPLETADO)`** y te pide apretar **`[t]`** para respaldar, reentrenar Neuroph 2.98 y activar las redes en vivo. (Podés usar **`[n]`** / **`[a]`** en cualquier momento para saltar o repetir un paso).
+Al completar los 21 pasos (`1045` muestras reales totales en ~2.5 min de operación), la TUI muestra **`ASISTENTE GUIADO [w] (21/21 COMPLETADO)`** y te pide apretar **`[t]`** para respaldar, reentrenar Neuroph 2.98 y activar las redes en vivo. (Podés usar **`[n]`** / **`[a]`** en cualquier momento para saltar o repetir un paso).
 
 ### 7.4 Captura Manual Libre (`[u]/[m]/[g]`) y Rollback de Modelos
 

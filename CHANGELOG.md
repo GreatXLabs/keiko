@@ -10,10 +10,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ### Added (Agregado)
 - **Asistente de Entrenamiento Guiado paso a paso en la TUI ([`AsistenteEntrenamientoGuiado.java`](keiko-server/src/main/java/com/orquitas/server/AsistenteEntrenamientoGuiado.java), [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):**
-  - Tecla **`[w]`** (`wizard`): detiene el robot por seguridad (`CMD:STOP`) y guía en 12 poses reales (pared a `10 cm` y `18 cm`, cubo `6×6 cm`, espacio libre, salida `> 130 cm`, pista vacía, **pared en diagonal `30–45°` como `NINGUNA`**, cubo cercano y canicas de vidrio IZQ/CENTRO/DER).
-  - Auto-selecciona la etiqueta objetivo (`ULTRASONICO` / `CANICAS`), envía automáticamente `LASER:0` para HC-SR04 o `LASER:SWEEP` para canicas, graba la ráfaga al pulsar **`[ESPACIO]`** (o `[g]`) con barra de progreso en vivo, detiene la captura y avanza al siguiente paso al completar la meta (`25`/`30` muestras).
-  - Soporta navegación manual (`[n]` siguiente, `[a]` anterior) y pantalla final `12/12 COMPLETADO` invitando a reentrenar con `[t]`.
-- **Wiki visual actualizada en [`keiko-server/README.md`](keiko-server/README.md):** captura ASCII `v2.0.4`, vista del Asistente Guiado `[w]` y tabla completa de los 12 pasos en pista.
+  - Tecla **`[w]`** (`wizard`): detiene el robot por seguridad (`CMD:STOP`) y guía en **21 poses reales** (`1045` muestras totales):
+    - Red 1 (`ULTRASONICO`, `LASER:0`, `25` muestras/paso): paredes a `~5`, `12`, `~20 cm`, cubo `6×6 cm`, libre corto `~35`, medio `~75`, largo `~115 cm` (frontera previa a salida) y salida `> 135 cm`.
+    - Red 2 (`CANICAS`, `LASER:SWEEP`, **`65` muestras/paso = ~6.5 s** para garantizar 1 barrido completo `-45°..+60°` ida y vuelta): pista vacía, pared recta `~12 cm`, diagonales izquierda y derecha (`~35°`, `12–20 cm`), esquina y cubo `6×6 cm` como `NINGUNA`; más canicas de vidrio `CENTRO` (`~6`, `~13`, `~21 cm`), `IZQ` (`8–12`, `16–20 cm`) y `DER` (`8–12`, `16–20 cm`).
+  - Auto-selecciona la etiqueta objetivo (`ULTRASONICO` / `CANICAS`), configura servos (`LASER:0` / `LASER:SWEEP`), graba al pulsar **`[ESPACIO]`** (o `[g]`) con barra de progreso en vivo, detiene la captura y avanza solo al llegar a la meta.
+  - Soporta navegación manual (`[n]` siguiente, `[a]` anterior) y pantalla final `21/21 COMPLETADO` invitando a reentrenar con `[t]`.
+- **Wiki visual actualizada en [`keiko-server/README.md`](keiko-server/README.md):** captura ASCII `v2.0.4`, vista del Asistente Guiado `[w]` y tabla completa de los 21 pasos en pista.
 - **Pruebas unitarias (`65` total):** `ConsolaTuiTest#testRenderizadoAsistenteEntrenamientoGuiadoAlineado` y `ServidorCentralControlTest#testModoEntrenamientoGuiadoWizardPasoAPaso`.
 
 ### Fixed (Corregido)
