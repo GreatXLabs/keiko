@@ -112,16 +112,67 @@ public class ServidorCentral implements OyenteAuditor {
 
     void procesarComandoConsola(String cmd) {
         if ("start".equals(cmd) || "k".equals(cmd)) {
+            monitorTui.setCorridaActiva(true);
+            enviarComandoControl(MensajeProtocolo.crearCmdPwm(monitorTui.getPwmMin(), monitorTui.getPwmMax()));
             enviarComandoControl(MensajeProtocolo.crearCmdStart());
             monitorTui.registrarComandoControl("CMD:START");
             if (consolaTui == null) {
                 System.out.println("[CONTROL] Enviado CMD:START a clientes conectados.");
             }
         } else if ("stop".equals(cmd) || "x".equals(cmd)) {
+            monitorTui.setCorridaActiva(false);
             enviarComandoControl(MensajeProtocolo.crearCmdStop());
             monitorTui.registrarComandoControl("CMD:STOP");
             if (consolaTui == null) {
                 System.out.println("[CONTROL] Enviado CMD:STOP a clientes conectados.");
+            }
+        } else if ("+".equals(cmd) || "-".equals(cmd) || cmd.startsWith("speed ") || cmd.startsWith("vel ")) {
+            // [SOLO PRUEBAS / DEBUG - ajuste de velocidad en vivo]
+            double actual = monitorTui.getEscalaVelocidad();
+            double nueva = actual;
+            if ("+".equals(cmd)) {
+                nueva = actual + 0.10;
+            } else if ("-".equals(cmd)) {
+                nueva = actual - 0.10;
+            } else {
+                String[] partes = cmd.split("\\s+");
+                if (partes.length >= 2) {
+                    try {
+                        double val = Double.parseDouble(partes[1].replace("%", ""));
+                        nueva = (val > 2.0) ? (val / 100.0) : val;
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+            monitorTui.setEscalaVelocidad(nueva);
+            int pct = (int) Math.round(monitorTui.getEscalaVelocidad() * 100.0);
+            monitorTui.registrarComandoControl("SPEED=" + pct + "%");
+            if (consolaTui == null) {
+                System.out.println("[CONTROL] Escala de velocidad ajustada a " + pct + "%.");
+            }
+        } else if (cmd.startsWith("pwm ")) {
+            // [SOLO PRUEBAS / DEBUG - ajuste de PWM_ZONA_MUERTA y tope en Mega]
+            String[] partes = cmd.split("\\s+");
+            if (partes.length >= 2) {
+                try {
+                    int minPwm = Integer.parseInt(partes[1]);
+                    int maxPwm = (partes.length >= 3) ? Integer.parseInt(partes[2]) : monitorTui.getPwmMax();
+                    monitorTui.setRangoPwm(minPwm, maxPwm);
+                    enviarComandoControl(MensajeProtocolo.crearCmdPwm(monitorTui.getPwmMin(), monitorTui.getPwmMax()));
+                    monitorTui.registrarComandoControl("CMD:PWM:" + monitorTui.getPwmMin() + "," + monitorTui.getPwmMax());
+                    if (consolaTui == null) {
+                        System.out.printf("[CONTROL] Enviado CMD:PWM:%d,%d%n", monitorTui.getPwmMin(), monitorTui.getPwmMax());
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+        } else if ("sweep".equals(cmd) || "hold".equals(cmd)) {
+            // [SOLO PRUEBAS / DEBUG - activar o pausar barrido servo en reposo]
+            boolean sweep = "sweep".equals(cmd);
+            monitorTui.setBarridoEnReposo(sweep);
+            String modo = sweep ? "SWEEP" : "HOLD";
+            enviarComandoControl(MensajeProtocolo.crearCmdLaser(modo));
+            monitorTui.registrarComandoControl("LASER:" + modo);
+            if (consolaTui == null) {
+                System.out.println("[CONTROL] Enviado LASER:" + modo);
             }
         } else if ("reset".equals(cmd)) {
             gestorEstomago.vaciarEstomago();

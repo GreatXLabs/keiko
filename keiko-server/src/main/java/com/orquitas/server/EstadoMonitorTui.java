@@ -87,6 +87,16 @@ public class EstadoMonitorTui {
     private volatile List<RegistroCaptura> registrosEstomago = Collections.emptyList();
     private volatile boolean modoEscapeActivo = false;
     private volatile EstadoRobot estadoFsmActual = EstadoRobot.BUSQUEDA;
+    // [SOLO PRUEBAS / DEBUG - calibracion viva en pista y monitoreo pasivo en reposo]
+    private volatile double escalaVelocidad;
+    private volatile int pwmMin;
+    private volatile int pwmMax;
+    private volatile boolean corridaActiva;
+    private volatile boolean barridoEnReposo = false;
+    private volatile int estomagoMm = -1;
+    private volatile int estomagoBaseMm = -1;
+    private volatile int estomagoDetector = -1;
+    private volatile int estomagoCambios = 0;
 
     public EstadoMonitorTui(ConfiguracionServidor cfg,
                             ClasificadorNeuroph clasificador,
@@ -96,6 +106,10 @@ public class EstadoMonitorTui {
         this.rig = ConfiguracionServidor.RIG_HARDWARE;
         this.puertoSerie = cfg.getPuertoSerie();
         this.baudiosSerie = cfg.getBaudiosSerie();
+        this.escalaVelocidad = cfg.getEscalaVelocidad();
+        this.pwmMin = cfg.getPwmMin();
+        this.pwmMax = cfg.getPwmMax();
+        this.corridaActiva = cfg.isAutoStartSolicitado();
         this.rutaEstomago = cfg.getArchivoEstomago().getPath();
         this.capturasRequeridas = cfg.getCapturasRequeridasEscape();
         this.redUltrasonicoCargada = clasificador != null && clasificador.isRedUltrasonicoCargada();
@@ -252,11 +266,41 @@ public class EstadoMonitorTui {
 
     public synchronized void registrarDebugCliente(String lineaDbg) {
         this.ultimoPaqueteMs = System.currentTimeMillis();
-        if (lineaDbg != null && lineaDbg.contains("estomago=")) {
+        MensajeProtocolo.InfoDbgEstomago parsed = MensajeProtocolo.parsearDbgEstomago(lineaDbg);
+        if (parsed != null) {
+            this.estomagoMm = parsed.estomagoMm();
+            this.estomagoBaseMm = parsed.baseMm();
+            this.estomagoDetector = parsed.detector();
+            this.estomagoCambios = parsed.cambios();
+            this.ultimoDbgEstomago = lineaDbg.substring(MensajeProtocolo.PREFIX_DBG.length()).trim();
+        } else if (lineaDbg != null && lineaDbg.contains("estomago=")) {
             this.ultimoDbgEstomago = lineaDbg.substring(MensajeProtocolo.PREFIX_DBG.length()).trim();
         } else {
             agregarLog("DBG", lineaDbg);
         }
+        marcarCambio();
+    }
+
+    public synchronized void setEscalaVelocidad(double escala) {
+        this.escalaVelocidad = ConfiguracionServidor.acotarEscala(escala);
+        marcarCambio();
+    }
+
+    public synchronized void setRangoPwm(int min, int max) {
+        int cMin = Math.max(0, Math.min(255, min));
+        int cMax = Math.max(cMin, Math.min(255, max));
+        this.pwmMin = cMin;
+        this.pwmMax = cMax;
+        marcarCambio();
+    }
+
+    public synchronized void setCorridaActiva(boolean activa) {
+        this.corridaActiva = activa;
+        marcarCambio();
+    }
+
+    public synchronized void setBarridoEnReposo(boolean activo) {
+        this.barridoEnReposo = activo;
         marcarCambio();
     }
 
@@ -345,4 +389,17 @@ public class EstadoMonitorTui {
     public List<RegistroCaptura> getRegistrosEstomago() { return registrosEstomago; }
     public boolean isModoEscapeActivo() { return modoEscapeActivo; }
     public EstadoRobot getEstadoFsmActual() { return estadoFsmActual; }
+    public double getEscalaVelocidad() { return escalaVelocidad; }
+    public int getPwmMin() { return pwmMin; }
+    public int getPwmMax() { return pwmMax; }
+    public boolean isCorridaActiva() { return corridaActiva; }
+    public boolean isBarridoEnReposo() { return barridoEnReposo; }
+    public int getEstomagoMm() { return estomagoMm; }
+    public int getEstomagoBaseMm() { return estomagoBaseMm; }
+    public int getEstomagoDetector() { return estomagoDetector; }
+    public int getEstomagoCambios() { return estomagoCambios; }
+    public String getUltimaClaseCanica() {
+        SnapshotTelemetria snap = ultimaTelemetria;
+        return (snap != null && snap.claseCanica() != null) ? snap.claseCanica() : "NINGUNA";
+    }
 }

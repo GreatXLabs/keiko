@@ -76,4 +76,24 @@ public class ConfiguracionServidorTest {
         assertEquals(false, noTuiCfg.resolverModoTui(true));
         assertEquals(true, forceTuiCfg.resolverModoTui(false));
     }
+
+    @Test
+    public void testParametrosVelocidadYPwmConAcotado() {
+        ConfiguracionServidor defaultCfg = ConfiguracionServidor.desdeArgumentos(new String[]{});
+        assertEquals(1.0, defaultCfg.getEscalaVelocidad(), 1e-4);
+        assertEquals(105, defaultCfg.getPwmMin());
+        assertEquals(255, defaultCfg.getPwmMax());
+
+        ConfiguracionServidor customCfg = ConfiguracionServidor.desdeArgumentos(
+                new String[]{"--speed-scale", "0.55", "--pwm-min", "80", "--pwm-max", "210"});
+        assertEquals(0.55, customCfg.getEscalaVelocidad(), 1e-4);
+        assertEquals(80, customCfg.getPwmMin());
+        assertEquals(210, customCfg.getPwmMax());
+
+        ConfiguracionServidor clampedCfg = ConfiguracionServidor.desdeArgumentos(
+                new String[]{"--speed-scale", "0.05", "--pwm-min", "220", "--pwm-max", "180"});
+        assertEquals(0.20, clampedCfg.getEscalaVelocidad(), 1e-4);
+        assertEquals(220, clampedCfg.getPwmMin());
+        assertEquals(220, clampedCfg.getPwmMax());
+    }
 }

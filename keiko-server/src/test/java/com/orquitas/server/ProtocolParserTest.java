@@ -104,5 +104,17 @@ public class ProtocolParserTest {
         assertEquals("CMD:START\n", MensajeProtocolo.crearCmdStart());
         assertEquals("CMD:STOP\n", MensajeProtocolo.crearCmdStop());
         assertEquals("DBG:", MensajeProtocolo.PREFIX_DBG);
+        assertEquals("CMD:PWM:85,200\n", MensajeProtocolo.crearCmdPwm(85, 200));
+        assertEquals("CMD:PWM:0,255\n", MensajeProtocolo.crearCmdPwm(-10, 300));
+        assertEquals("LASER:SWEEP\n", MensajeProtocolo.crearCmdLaser("SWEEP"));
+
+        MensajeProtocolo.InfoDbgEstomago dbg =
+                MensajeProtocolo.parsearDbgEstomago("DBG:estomago=42 base=45 det=2 cambios=1");
+        assertNotNull(dbg);
+        assertEquals(42, dbg.estomagoMm());
+        assertEquals(45, dbg.baseMm());
+        assertEquals(2, dbg.detector());
+        assertEquals(1, dbg.cambios());
+        assertNull(MensajeProtocolo.parsearDbgEstomago("DBG:otro=1"));
     }
 }
