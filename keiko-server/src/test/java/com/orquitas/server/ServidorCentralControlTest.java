@@ -116,9 +116,10 @@ public class ServidorCentralControlTest {
         servidor.procesarComandoConsola("w");
         assertFalse(monitor.isCorridaActiva(), "El wizard debe pasar el robot a REPOSO");
         assertTrue(wizard.isActivo());
-        assertEquals(23, wizard.getTotalPasos());
+        assertEquals(32, wizard.getTotalPasos());
         assertEquals(1, monitor.getEstadoWizard().pasoActual());
         assertEquals("BLOQUEO", grabador.getEtiquetaActiva());
+        assertEquals(GrabadorDatasetReal.CanalUs.CEN, grabador.getCanalUsActivo());
         assertFalse(monitor.isBarridoEnReposo(), "Los pasos HC-SR04 deben centrar servos en 0 deg");
         assertFalse(grabador.isFiltroImpactoCanicaActivo());
 
@@ -140,27 +141,47 @@ public class ServidorCentralControlTest {
         assertFalse(monitor.getEstadoWizard().capturando());
         assertEquals(25, grabador.obtenerConteosPorClase().get("BLOQUEO"));
 
-        // Navegar adelante (n) hasta Paso 9 (NINGUNA 65 muestras sin filtro) y volver al 8
+        // Navegar adelante (n) hasta Paso 9 (US-IZQ angulado, 25 muestras) y validar lectura de canal IZQ
         for (int i = 0; i < 7; i++) {
             servidor.procesarComandoConsola("n");
         }
         assertEquals(9, monitor.getEstadoWizard().pasoActual());
-        assertEquals(65, monitor.getEstadoWizard().metaPaso());
+        assertEquals("ULTRASONICO", monitor.getEstadoWizard().red());
+        assertEquals("BLOQUEO", grabador.getEtiquetaActiva());
+        assertEquals(GrabadorDatasetReal.CanalUs.IZQ, grabador.getCanalUsActivo());
+        servidor.procesarComandoConsola("space");
+        VectorSensores sDiagIzq = new VectorSensores(new double[]{11.5, 999.0, 88.0, 40.0, 41.0, 0.0}, 1500L);
+        assertTrue(grabador.registrarTelemetria(sDiagIzq));
+        servidor.procesarComandoConsola("space");
+        try {
+            String csvUs = java.nio.file.Files.readString(grabador.getArchivoUltrasonico().toPath());
+            assertTrue(csvUs.contains("11.50,BLOQUEO"), "Paso US-IZQ debe grabar usLeft y no usCenter");
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Navegar adelante hasta Paso 13 (NINGUNA 50 muestras sin filtro) y volver al 12 (US-DER libre)
+        for (int i = 0; i < 4; i++) {
+            servidor.procesarComandoConsola("n");
+        }
+        assertEquals(13, monitor.getEstadoWizard().pasoActual());
+        assertEquals(50, monitor.getEstadoWizard().metaPaso());
         assertEquals("CANICAS", monitor.getEstadoWizard().red());
         assertEquals("NINGUNA", grabador.getEtiquetaActiva());
         assertFalse(grabador.isFiltroImpactoCanicaActivo());
         assertTrue(monitor.isBarridoEnReposo(), "Los pasos de canicas deben activar barrido espejo");
 
         servidor.procesarComandoConsola("a");
-        assertEquals(8, monitor.getEstadoWizard().pasoActual());
-        assertEquals("SALIDA", grabador.getEtiquetaActiva());
+        assertEquals(12, monitor.getEstadoWizard().pasoActual());
+        assertEquals("ESPACIO_LIBRE", grabador.getEtiquetaActiva());
+        assertEquals(GrabadorDatasetReal.CanalUs.DER, grabador.getCanalUsActivo());
         assertFalse(monitor.isBarridoEnReposo());
 
-        // Avanzar hasta Paso 18 (LOBITO_CENTRO, filtro activo, meta 12 impactos)
-        for (int i = 0; i < 10; i++) {
+        // Avanzar hasta Paso 27 (LOBITO_CENTRO, filtro activo, meta 12 impactos)
+        for (int i = 0; i < 15; i++) {
             servidor.procesarComandoConsola("n");
         }
-        assertEquals(18, monitor.getEstadoWizard().pasoActual());
+        assertEquals(27, monitor.getEstadoWizard().pasoActual());
         assertEquals("LOBITO_CENTRO", grabador.getEtiquetaActiva());
         assertEquals(12, monitor.getEstadoWizard().metaPaso());
         assertTrue(grabador.isFiltroImpactoCanicaActivo());
@@ -179,11 +200,11 @@ public class ServidorCentralControlTest {
         for (int i = 0; i < 12; i++) {
             assertTrue(grabador.registrarTelemetria(sImpacto));
         }
-        assertFalse(grabador.isGrabando(), "Al juntar 12 impactos reales debe frenar y pasar al Paso 19");
-        assertEquals(19, monitor.getEstadoWizard().pasoActual());
+        assertFalse(grabador.isGrabando(), "Al juntar 12 impactos reales debe frenar y pasar al Paso 28");
+        assertEquals(28, monitor.getEstadoWizard().pasoActual());
         assertEquals(12, grabador.obtenerConteosPorClase().get("LOBITO_CENTRO"));
 
-        // Avanzar hasta finalizar los 23 pasos -> entra en estado completado
+        // Avanzar hasta finalizar los 32 pasos -> entra en estado completado
         for (int i = 0; i < 5; i++) {
             servidor.procesarComandoConsola("n");
         }

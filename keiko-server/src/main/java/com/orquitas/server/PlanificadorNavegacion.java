@@ -13,7 +13,16 @@ public class PlanificadorNavegacion {
     private static final int HORIZONTE_OLVIDO_OSCILACIONES = 150;
     private static final int TAM_HISTORIAL_LADOS = 6;
     private static final int UMBRAL_EPISODIOS_MISMO_LADO = 3;
-    private static final int PERSISTENCIA_LOBITO_CICLOS = 10;
+    private static final int PERSISTENCIA_LOBITO_CICLOS = 12;
+    private static final int CICLOS_AVANCE_BUSQUEDA = 4;
+    private static final int CICLOS_PAUSA_BUSQUEDA = 6;
+    private static final int CICLOS_PIVOT_LOBITO = 2;
+    private static final int CICLOS_PAUSA_PIVOT_LOBITO = 4;
+    private static final int CICLOS_AVANCE_CENTRO_LOBITO = 3;
+    private static final int CICLOS_PAUSA_CENTRO_LOBITO = 3;
+    private static final int MAX_CICLOS_CENTRADO_SIN_CENTRO = 26;
+    private static final int COOLDOWN_FALSO_LOBITO_CICLOS = 25;
+    private static final int PASOS_GIRO_DESPEGUE_FALSO_LOBITO = 6;
     private static final int[] DURACIONES_GIRO_ASIMETRICO = {13, 17, 21};
     private static final double VEL_ARCO_EXT = 4.8;
     private static final double VEL_ARCO_INT = 2.0;
@@ -43,6 +52,10 @@ public class PlanificadorNavegacion {
     private int entradasHistorialLados = 0;
     private int ciclosPersistenciaLobito = 0;
     private String ultimoLobito = null;
+    private int ciclosCentradoSinCentro = 0;
+    private int ciclosCooldownFalsoLobito = 0;
+    private int fasePulsoBusqueda = 0;
+    private int fasePulsoAproximacion = 0;
     private int ciclosSinSalidaEscape = 0;
     // [SOLO PRUEBAS / DEBUG - permite forzar CAPTURA para validar picker en pista]
     private volatile boolean modoCapturaForzado = false;
@@ -137,12 +150,17 @@ public class PlanificadorNavegacion {
         boolean bIzq = "BLOQUEO".equals(izq), bCen = "BLOQUEO".equals(cen), bDer = "BLOQUEO".equals(der);
         boolean hayBloqueo = bIzq || bCen || bDer;
         boolean haySalida = "SALIDA".equals(izq) || "SALIDA".equals(cen) || "SALIDA".equals(der);
+        if (ciclosCooldownFalsoLobito > 0) {
+            ciclosCooldownFalsoLobito--;
+        }
+        boolean lobitoPermitido = (ciclosCooldownFalsoLobito == 0);
 
         if (hayBloqueo || haySalida) {
-            ciclosPersistenciaLobito = 0;
-            ultimoLobito = null;
-        } else if (lIzq || lCen || lDer) {
+            resetEstadoLobito();
+            fasePulsoBusqueda = 0;
+        } else if (lobitoPermitido && (lIzq || lCen || lDer)) {
             cancelarGiroYAvance();
+            fasePulsoBusqueda = 0;
         }
         if (giroSoloSalidaActivo && (bCen || (bIzq && bDer))) {
             pasosGiroComprometido = 0;
@@ -150,6 +168,7 @@ public class PlanificadorNavegacion {
         }
         ComandoRobot comprometido = ejecutarManiobraComprometida(EstadoRobot.BUSQUEDA);
         if (comprometido != null) {
+            fasePulsoBusqueda = 0;
             return comprometido;
         }
 
@@ -197,13 +216,20 @@ public class PlanificadorNavegacion {
             return evasion;
         }
 
-        ComandoRobot lobitoCmd = evaluarLobito(lIzq, lCen, lDer);
-        if (lobitoCmd != null) {
-            return lobitoCmd;
+        if (lobitoPermitido) {
+            ComandoRobot lobitoCmd = evaluarLobito(lIzq, lCen, lDer);
+            if (lobitoCmd != null) {
+                return lobitoCmd;
+            }
         }
 
         if (ciclosDesdeUltimoBloqueo > HORIZONTE_OLVIDO_OSCILACIONES) {
             reiniciarMemoriaOscilaciones();
+        }
+        int fase = fasePulsoBusqueda;
+        fasePulsoBusqueda = (fasePulsoBusqueda + 1) % (CICLOS_AVANCE_BUSQUEDA + CICLOS_PAUSA_BUSQUEDA);
+        if (fase >= CICLOS_AVANCE_BUSQUEDA) {
+            return new ComandoRobot(0.0, 0.0, EstadoRobot.BUSQUEDA);
         }
         double sweep = ((contadorCiclos / 22) % 2 == 0) ? 0.25 : -0.25;
         return new ComandoRobot(4.8 + sweep, 4.8 - sweep, EstadoRobot.BUSQUEDA);
@@ -211,27 +237,74 @@ public class PlanificadorNavegacion {
 
     private ComandoRobot evaluarLobito(boolean lIzq, boolean lCen, boolean lDer) {
         if (lCen) {
+            if (!"CEN".equals(ultimoLobito)) {
+                fasePulsoAproximacion = 0;
+            }
+            ciclosCentradoSinCentro = 0;
             ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
             ultimoLobito = "CEN";
-            return new ComandoRobot(2.8, 2.8, EstadoRobot.APROXIMACION);
+            int fase = fasePulsoAproximacion;
+            fasePulsoAproximacion = (fasePulsoAproximacion + 1) % (CICLOS_AVANCE_CENTRO_LOBITO + CICLOS_PAUSA_CENTRO_LOBITO);
+            if (fase >= CICLOS_AVANCE_CENTRO_LOBITO) {
+                return new ComandoRobot(0.0, 0.0, EstadoRobot.APROXIMACION);
+            }
+            return new ComandoRobot(2.6, 2.6, EstadoRobot.APROXIMACION);
         }
-        if (lIzq) {
+        if (lIzq || lDer) {
+            String lado = lIzq ? "IZQ" : "DER";
+            if (!lado.equals(ultimoLobito)) {
+                fasePulsoAproximacion = 0;
+            }
+            ciclosCentradoSinCentro++;
+            if (ciclosCentradoSinCentro >= MAX_CICLOS_CENTRADO_SIN_CENTRO) {
+                return activarDespegueFalsoLobito(lado);
+            }
             ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
-            ultimoLobito = "IZQ";
-            return new ComandoRobot(1.8, 3.0, EstadoRobot.APROXIMACION);
-        }
-        if (lDer) {
-            ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
-            ultimoLobito = "DER";
-            return new ComandoRobot(3.0, 1.8, EstadoRobot.APROXIMACION);
+            ultimoLobito = lado;
+            int fase = fasePulsoAproximacion;
+            fasePulsoAproximacion = (fasePulsoAproximacion + 1) % (CICLOS_PIVOT_LOBITO + CICLOS_PAUSA_PIVOT_LOBITO);
+            if (fase >= CICLOS_PIVOT_LOBITO) {
+                return new ComandoRobot(0.0, 0.0, EstadoRobot.APROXIMACION);
+            }
+            return lIzq
+                    ? new ComandoRobot(-2.4, 2.4, EstadoRobot.APROXIMACION)
+                    : new ComandoRobot(2.4, -2.4, EstadoRobot.APROXIMACION);
         }
         if (ciclosPersistenciaLobito > 0) {
             ciclosPersistenciaLobito--;
-            if ("IZQ".equals(ultimoLobito)) return new ComandoRobot(1.8, 2.8, EstadoRobot.APROXIMACION);
-            if ("DER".equals(ultimoLobito)) return new ComandoRobot(2.8, 1.8, EstadoRobot.APROXIMACION);
-            return new ComandoRobot(2.6, 2.6, EstadoRobot.APROXIMACION);
+            if (!"CEN".equals(ultimoLobito)) {
+                ciclosCentradoSinCentro++;
+                if (ciclosCentradoSinCentro >= MAX_CICLOS_CENTRADO_SIN_CENTRO) {
+                    return activarDespegueFalsoLobito(ultimoLobito);
+                }
+                return new ComandoRobot(0.0, 0.0, EstadoRobot.APROXIMACION);
+            }
+            int fase = fasePulsoAproximacion;
+            fasePulsoAproximacion = (fasePulsoAproximacion + 1) % 4;
+            return (fase == 0)
+                    ? new ComandoRobot(2.2, 2.2, EstadoRobot.APROXIMACION)
+                    : new ComandoRobot(0.0, 0.0, EstadoRobot.APROXIMACION);
         }
+        ultimoLobito = null;
+        ciclosCentradoSinCentro = 0;
+        fasePulsoAproximacion = 0;
         return null;
+    }
+
+    private ComandoRobot activarDespegueFalsoLobito(String ladoSospechoso) {
+        resetEstadoLobito();
+        fasePulsoBusqueda = 0;
+        ciclosCooldownFalsoLobito = COOLDOWN_FALSO_LOBITO_CICLOS;
+        int dirAlejarse = "IZQ".equals(ladoSospechoso) ? 1 : ("DER".equals(ladoSospechoso) ? -1 : ultimoSentidoGiroSalida);
+        iniciarGiro(dirAlejarse, PASOS_GIRO_DESPEGUE_FALSO_LOBITO - 1);
+        return new ComandoRobot(velGiroIzq, velGiroDer, EstadoRobot.BUSQUEDA);
+    }
+
+    private void resetEstadoLobito() {
+        ciclosPersistenciaLobito = 0;
+        ultimoLobito = null;
+        ciclosCentradoSinCentro = 0;
+        fasePulsoAproximacion = 0;
     }
 
     private void cancelarGiroYAvance() {
@@ -387,8 +460,9 @@ public class PlanificadorNavegacion {
 
     /** Registra captura simbolica ejecutando un breve impulso de avance y giro de despeje. */
     public synchronized void notificarCaptura() {
-        ciclosPersistenciaLobito = 0;
-        ultimoLobito = null;
+        resetEstadoLobito();
+        ciclosCooldownFalsoLobito = 0;
+        fasePulsoBusqueda = 0;
         pasosRetrocesoRestantes = 3;
         velRetrocesoIzq = 2.8;
         velRetrocesoDer = 2.8;
@@ -403,8 +477,9 @@ public class PlanificadorNavegacion {
         this.estado = EstadoRobot.ESCAPE;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
-        this.ciclosPersistenciaLobito = 0;
-        this.ultimoLobito = null;
+        resetEstadoLobito();
+        this.ciclosCooldownFalsoLobito = 0;
+        this.fasePulsoBusqueda = 0;
         this.ciclosSinSalidaEscape = 0;
         LOGGER.info("MUTACION CONDUCTUAL ACTIVADA: Modo ESCAPE.");
     }
@@ -415,8 +490,9 @@ public class PlanificadorNavegacion {
         this.estado = EstadoRobot.FINALIZACION;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
-        this.ciclosPersistenciaLobito = 0;
-        this.ultimoLobito = null;
+        resetEstadoLobito();
+        this.ciclosCooldownFalsoLobito = 0;
+        this.fasePulsoBusqueda = 0;
     }
 
     public EstadoRobot getEstado() { return estado; }
@@ -444,8 +520,9 @@ public class PlanificadorNavegacion {
         this.estado = EstadoRobot.BUSQUEDA;
         this.pasosRetrocesoRestantes = 0;
         this.pasosGiroComprometido = 0;
-        this.ciclosPersistenciaLobito = 0;
-        this.ultimoLobito = null;
+        resetEstadoLobito();
+        this.ciclosCooldownFalsoLobito = 0;
+        this.fasePulsoBusqueda = 0;
         LOGGER.info("[PRUEBA] Modo forzado: BUSQUEDA.");
     }
 
@@ -485,8 +562,9 @@ public class PlanificadorNavegacion {
         this.contadorReversosConsecutivos = 0;
         this.ciclosDesdeUltimoReverso = 200;
         this.ciclosDesdeUltimoBloqueo = HORIZONTE_OLVIDO_OSCILACIONES;
-        this.ciclosPersistenciaLobito = 0;
-        this.ultimoLobito = null;
+        resetEstadoLobito();
+        this.ciclosCooldownFalsoLobito = 0;
+        this.fasePulsoBusqueda = 0;
         this.ciclosSinSalidaEscape = 0;
         reiniciarMemoriaOscilaciones();
         LOGGER.info("[PRUEBA] Planificador reiniciado a modo BUSQUEDA.");

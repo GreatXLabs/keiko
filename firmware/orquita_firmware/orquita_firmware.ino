@@ -34,7 +34,7 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <VL53L0X.h>
 
-#define KEIKO_VERSION "2.0.8"
+#define KEIKO_VERSION "2.0.9"
 #define KEIKO_RIG     "mega-3us-2laser"
 
 #define PERMITIR_MANUAL 1       // [SOLO PRUEBAS / DEBUG - poner en 0 en codigo final de competencia]
@@ -61,9 +61,9 @@ const uint8_t DIR_PCA = 0x40;
 const uint8_t LASER_CANAL[2] = {0, 1};
 const int8_t LASER_SENTIDO[2] = {-1, 1};                 // validado fisicamente: -45 al centro, +60 afuera
 const uint16_t SERVO_US_0 = 500, SERVO_US_180 = 2400;
-const int8_t BARRIDO_MIN = -45, BARRIDO_MAX = 60, BARRIDO_PASO = 1;  // 1° por paso sincronizado con VL53L0X
-const unsigned long BARRIDO_PASO_MS = 30;
-const unsigned long LASER_ASENTAR_MS = 10;               // espera tras mover antes de medir
+const int8_t BARRIDO_MIN = -45, BARRIDO_MAX = 60, BARRIDO_PASO = 2;  // 2° por paso (~1.5 s por barrido) sincronizado con VL53L0X
+const unsigned long BARRIDO_PASO_MS = 28;
+const unsigned long LASER_ASENTAR_MS = 8;                // espera tras mover antes de medir
 
 const uint8_t PICKER_CANAL[2] = {2, 3};
 const uint16_t PICKER_NEUTRO[2] = {1485, 1500};          // validado
@@ -79,7 +79,7 @@ const uint8_t XSHUT[3] = {A8, A9, A10};                  // izq, der, estómago
 const uint8_t DIRECCION[3] = {0x30, 0x31, 0x32};
 const char *NOMBRE_TOF[3] = {"LASER_IZQ", "LASER_DER", "ESTOMAGO"};
 const uint32_t TOF_PRESUPUESTO_US = 30000;
-const unsigned long TOF_PERIODO_MS = 30;
+const unsigned long TOF_PERIODO_MS = 25;
 // Estómago (detector de canicas): el sensor no acepta menos de 18 ms; mide cada ~17,5 ms
 const uint32_t TOF_ESTOMAGO_PRESUPUESTO_US = 20000;
 const uint16_t TOF_SIN_ECO_MM = 8000;
