@@ -338,16 +338,60 @@ public class HardwareSerialAndCaptureTest {
             assertEquals(0, planificador.getContadorCiclos(), "En reposo no debe avanzar el planificador");
             assertEquals(0.0, monitor.getUltimaTelemetria().comando().getVLeft(), 1e-4);
 
-            // 2. Al activar corrida: emite COMMAND escalado al 50% (3.8 -> 1.90)
+            // 2. Al activar corrida: emite COMMAND escalado al 50% (2.8 -> 1.40)
             monitor.setCorridaActiva(true);
             toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1100\n");
             toServer.flush();
 
             String cmdLine = leerHastaPrefijo(fromServer, "COMMAND:");
             String[] partes = cmdLine.substring("COMMAND:".length()).split(",");
-            assertEquals(1.90, Double.parseDouble(partes[0]), 0.05);
-            assertEquals(1.90, Double.parseDouble(partes[1]), 0.05);
+            assertEquals(1.40, Double.parseDouble(partes[0]), 0.05);
+            assertEquals(1.40, Double.parseDouble(partes[1]), 0.05);
             assertEquals(1, planificador.getContadorCiclos());
+        } finally {
+            sesion.cerrar();
+            toServer.close();
+            fromServer.close();
+            serverThread.join(1000);
+        }
+    }
+
+    @Test
+    public void testStartManualSuprimeAutoStartDuplicadoYBackoffFantasma() throws Exception {
+        assertEquals(1500L, ReceptorSerie.calcularBackoffFantasmaMs(1));
+        assertEquals(3000L, ReceptorSerie.calcularBackoffFantasmaMs(2));
+        assertEquals(5000L, ReceptorSerie.calcularBackoffFantasmaMs(3));
+        assertEquals(5000L, ReceptorSerie.calcularBackoffFantasmaMs(5));
+
+        PipedOutputStream clientTx = new PipedOutputStream();
+        PipedInputStream serverRx = new PipedInputStream(clientTx);
+        PipedOutputStream serverTx = new PipedOutputStream();
+        PipedInputStream clientRx = new PipedInputStream(serverTx);
+
+        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(new String[0]);
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(cfg.resolverArchivoModelo());
+        PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
+        ManejadorCliente sesion = new ManejadorCliente(
+                serverRx, serverTx, "Test-ManualStart", null,
+                gestorEstomago, clasificador, planificador, 180L, 5000L, true, null, false);
+
+        Thread serverThread = new Thread(sesion, "Test-ManualStart");
+        serverThread.start();
+
+        BufferedWriter toServer = new BufferedWriter(new OutputStreamWriter(clientTx, StandardCharsets.UTF_8));
+        BufferedReader fromServer = new BufferedReader(new InputStreamReader(clientRx, StandardCharsets.UTF_8));
+
+        try {
+            sesion.marcarStartManual();
+            toServer.write("HELLO:" + ConfiguracionServidor.VERSION_SISTEMA + "," + ConfiguracionServidor.RIG_HARDWARE + "\n");
+            toServer.write("TELEMETRY:90.0,95.0,85.0,999.0,999.0,0.0,1200\n");
+            toServer.flush();
+
+            String primeraLinea = fromServer.readLine();
+            assertNotNull(primeraLinea);
+            assertFalse(primeraLinea.startsWith("CMD:START"),
+                    "No debe emitir CMD:START automatico si ya hubo start manual");
+            assertEquals(2, sesion.getTotalTramasValidas());
         } finally {
             sesion.cerrar();
             toServer.close();

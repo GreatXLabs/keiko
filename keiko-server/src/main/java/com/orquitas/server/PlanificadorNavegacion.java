@@ -12,9 +12,9 @@ public class PlanificadorNavegacion {
 
     private static final int HORIZONTE_OLVIDO_OSCILACIONES = 150;
     private static final int TAM_HISTORIAL_LADOS = 6;
-    private static final int UMBRAL_EPISODIOS_MISMO_LADO = 4;
-    private static final int PERSISTENCIA_LOBITO_CICLOS = 5;
-    private static final int[] DURACIONES_GIRO_ASIMETRICO = {8, 11, 14};
+    private static final int UMBRAL_EPISODIOS_MISMO_LADO = 3;
+    private static final int PERSISTENCIA_LOBITO_CICLOS = 10;
+    private static final int[] DURACIONES_GIRO_ASIMETRICO = {13, 17, 21};
     private static final double VEL_ARCO_EXT = 4.8;
     private static final double VEL_ARCO_INT = 2.0;
 
@@ -180,7 +180,7 @@ public class PlanificadorNavegacion {
                 return iniciarRetrocesoYPivote(1, 14, EstadoRobot.BUSQUEDA);
             }
             if (!bDer) {
-                return new ComandoRobot(3.8, 2.2, EstadoRobot.BUSQUEDA);
+                return new ComandoRobot(3.8, -2.2, EstadoRobot.BUSQUEDA);
             }
         }
         if ("SALIDA".equals(der)) {
@@ -188,7 +188,7 @@ public class PlanificadorNavegacion {
                 return iniciarRetrocesoYPivote(-1, 14, EstadoRobot.BUSQUEDA);
             }
             if (!bIzq) {
-                return new ComandoRobot(2.2, 3.8, EstadoRobot.BUSQUEDA);
+                return new ComandoRobot(-2.2, 3.8, EstadoRobot.BUSQUEDA);
             }
         }
 
@@ -205,7 +205,7 @@ public class PlanificadorNavegacion {
         if (ciclosDesdeUltimoBloqueo > HORIZONTE_OLVIDO_OSCILACIONES) {
             reiniciarMemoriaOscilaciones();
         }
-        double sweep = ((contadorCiclos / 75) % 2 == 0) ? 0.45 : -0.45;
+        double sweep = ((contadorCiclos / 22) % 2 == 0) ? 0.25 : -0.25;
         return new ComandoRobot(4.8 + sweep, 4.8 - sweep, EstadoRobot.BUSQUEDA);
     }
 
@@ -213,23 +213,23 @@ public class PlanificadorNavegacion {
         if (lCen) {
             ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
             ultimoLobito = "CEN";
-            return new ComandoRobot(3.8, 3.8, EstadoRobot.APROXIMACION);
+            return new ComandoRobot(2.8, 2.8, EstadoRobot.APROXIMACION);
         }
         if (lIzq) {
             ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
             ultimoLobito = "IZQ";
-            return new ComandoRobot(1.8, 3.8, EstadoRobot.APROXIMACION);
+            return new ComandoRobot(1.8, 3.0, EstadoRobot.APROXIMACION);
         }
         if (lDer) {
             ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
             ultimoLobito = "DER";
-            return new ComandoRobot(3.8, 1.8, EstadoRobot.APROXIMACION);
+            return new ComandoRobot(3.0, 1.8, EstadoRobot.APROXIMACION);
         }
         if (ciclosPersistenciaLobito > 0) {
             ciclosPersistenciaLobito--;
-            if ("IZQ".equals(ultimoLobito)) return new ComandoRobot(1.8, 3.4, EstadoRobot.APROXIMACION);
-            if ("DER".equals(ultimoLobito)) return new ComandoRobot(3.4, 1.8, EstadoRobot.APROXIMACION);
-            return new ComandoRobot(3.0, 3.0, EstadoRobot.APROXIMACION);
+            if ("IZQ".equals(ultimoLobito)) return new ComandoRobot(1.8, 2.8, EstadoRobot.APROXIMACION);
+            if ("DER".equals(ultimoLobito)) return new ComandoRobot(2.8, 1.8, EstadoRobot.APROXIMACION);
+            return new ComandoRobot(2.6, 2.6, EstadoRobot.APROXIMACION);
         }
         return null;
     }

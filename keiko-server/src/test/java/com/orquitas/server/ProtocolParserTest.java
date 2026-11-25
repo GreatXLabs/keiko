@@ -116,10 +116,20 @@ public class ProtocolParserTest {
         MensajeProtocolo.InfoDbgEstomago dbg =
                 MensajeProtocolo.parsearDbgEstomago("DBG:estomago=42 base=45 det=2 cambios=1");
         assertNotNull(dbg);
+        assertFalse(dbg.modoSenal());
         assertEquals(42, dbg.estomagoMm());
         assertEquals(45, dbg.baseMm());
         assertEquals(2, dbg.detector());
         assertEquals(1, dbg.cambios());
+
+        MensajeProtocolo.InfoDbgEstomago dbgSenal =
+                MensajeProtocolo.parsearDbgEstomago("DBG:senal=14.5 base=15.0 det=2 cambios=1");
+        assertNotNull(dbgSenal);
+        assertTrue(dbgSenal.modoSenal());
+        assertEquals(14.5, dbgSenal.senalMcps(), 1e-6);
+        assertEquals(15.0, dbgSenal.baseMcps(), 1e-6);
+        assertEquals(2, dbgSenal.detector());
+        assertEquals(1, dbgSenal.cambios());
         assertNull(MensajeProtocolo.parsearDbgEstomago("DBG:otro=1"));
 
         // Trama truncada a 6 campos (faltando 1 sensor) debe rechazarse en validacion estricta mega-3us-2laser

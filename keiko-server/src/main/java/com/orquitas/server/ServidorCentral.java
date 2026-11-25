@@ -1,10 +1,15 @@
 package com.orquitas.server;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.logging.FileHandler;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 /**
  * Punto de entrada oficial del Servidor Central (Cerebro de la Orquita).
@@ -25,6 +30,8 @@ public class ServidorCentral implements OyenteAuditor {
     private final GrabadorDatasetReal grabadorDataset;
     private final GestorModelosYEntrenamiento gestorModelos;
     private final AsistenteEntrenamientoGuiado asistenteGuiado = new AsistenteEntrenamientoGuiado();
+    private volatile FileHandler fileHandlerLogs;
+    private volatile String rutaLogArchivo;
 
     public ServidorCentral(ConfiguracionServidor configuracion) {
         this.configuracion = configuracion;
@@ -65,6 +72,7 @@ public class ServidorCentral implements OyenteAuditor {
     }
 
     public void iniciar() {
+        configurarLogArchivo();
         List<String> puertos = ReceptorSerie.listarPuertosDisponibles();
         monitorTui.actualizarPuertosSerie(puertos);
 
@@ -79,10 +87,16 @@ public class ServidorCentral implements OyenteAuditor {
                     configuracion.getArchivoEstomago().getName(), iniciales, configuracion.getCapturasRequeridasEscape()));
             monitorTui.agregarLog("INFO", String.format("Bluetooth SPP: %s @ %d bps",
                     configuracion.getPuertoSerie(), configuracion.getBaudiosSerie()));
+            if (rutaLogArchivo != null) {
+                monitorTui.agregarLog("INFO", "Log de corrida: " + rutaLogArchivo);
+            }
             monitorTui.agregarLog("OK", "Servidor listo esperando telemetria de la Orquita por Bluetooth.");
         } else {
             imprimirBanner();
             imprimirPuertosSerie(puertos);
+            if (rutaLogArchivo != null) {
+                System.out.println("[LOG] Guardando corrida en: " + rutaLogArchivo);
+            }
             System.out.printf("[PERSISTENCIA] Archivo: %s | Capturas fisicas recuperadas: %d/%d%n",
                     configuracion.getArchivoEstomago().getAbsolutePath(), iniciales, configuracion.getCapturasRequeridasEscape());
             if (iniciales >= configuracion.getCapturasRequeridasEscape()) {
@@ -103,10 +117,41 @@ public class ServidorCentral implements OyenteAuditor {
             System.out.println("\n[SHUTDOWN] Deteniendo componentes concurrentes...");
             auditor.detener();
             receptorSerie.detener();
+            cerrarLogArchivo();
             System.out.println("[SHUTDOWN] Servidor Central detenido limpiamente.");
         }));
 
         iniciarConsolaControl();
+    }
+
+    private void configurarLogArchivo() {
+        try {
+            File dirLogs = new File("logs");
+            if (!dirLogs.exists() && !dirLogs.mkdirs()) {
+                return;
+            }
+            String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            File archivo = new File(dirLogs, "corrida_" + ts + ".log");
+            FileHandler fh = new FileHandler(archivo.getPath(), false);
+            fh.setFormatter(new SimpleFormatter());
+            Logger.getLogger("").addHandler(fh);
+            this.fileHandlerLogs = fh;
+            this.rutaLogArchivo = archivo.getPath();
+        } catch (Exception e) {
+            LOGGER.warning("[LOG] No se pudo habilitar archivo automatico de corrida: " + e.getMessage());
+        }
+    }
+
+    private void cerrarLogArchivo() {
+        FileHandler fh = this.fileHandlerLogs;
+        if (fh != null) {
+            try {
+                Logger.getLogger("").removeHandler(fh);
+                fh.close();
+            } catch (Exception ignored) {
+            }
+            this.fileHandlerLogs = null;
+        }
     }
 
     private void iniciarConsolaControl() {
@@ -193,6 +238,7 @@ public class ServidorCentral implements OyenteAuditor {
             return;
         }
         if ("start".equals(cmd) || "k".equals(cmd)) {
+            receptorSerie.marcarStartManual();
             monitorTui.setCorridaActiva(true);
             enviarComandoControl(MensajeProtocolo.crearCmdPwm(monitorTui.getPwmMin(), monitorTui.getPwmMax()));
             enviarComandoControl(MensajeProtocolo.crearCmdStart());

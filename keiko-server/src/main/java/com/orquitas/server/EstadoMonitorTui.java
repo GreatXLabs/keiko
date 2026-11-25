@@ -117,6 +117,9 @@ public class EstadoMonitorTui {
     private volatile boolean pickerManualActivo = false;
     private volatile int estomagoMm = -1;
     private volatile int estomagoBaseMm = -1;
+    private volatile double estomagoSenalMcps = -1.0;
+    private volatile double estomagoBaseMcps = -1.0;
+    private volatile boolean estomagoModoSenal = false;
     private volatile int estomagoDetector = -1;
     private volatile int estomagoCambios = 0;
     // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion de datasets reales y reentrenamiento en caliente]
@@ -299,12 +302,15 @@ public class EstadoMonitorTui {
         this.ultimoPaqueteMs = System.currentTimeMillis();
         MensajeProtocolo.InfoDbgEstomago parsed = MensajeProtocolo.parsearDbgEstomago(lineaDbg);
         if (parsed != null) {
+            this.estomagoModoSenal = parsed.modoSenal();
+            this.estomagoSenalMcps = parsed.senalMcps();
+            this.estomagoBaseMcps = parsed.baseMcps();
             this.estomagoMm = parsed.estomagoMm();
             this.estomagoBaseMm = parsed.baseMm();
             this.estomagoDetector = parsed.detector();
             this.estomagoCambios = parsed.cambios();
             this.ultimoDbgEstomago = lineaDbg.substring(MensajeProtocolo.PREFIX_DBG.length()).trim();
-        } else if (lineaDbg != null && lineaDbg.contains("estomago=")) {
+        } else if (lineaDbg != null && (lineaDbg.contains("estomago=") || lineaDbg.contains("senal="))) {
             this.ultimoDbgEstomago = lineaDbg.substring(MensajeProtocolo.PREFIX_DBG.length()).trim();
         } else {
             agregarLog("DBG", lineaDbg);
@@ -479,6 +485,9 @@ public class EstadoMonitorTui {
     public boolean isPickerManualActivo() { return pickerManualActivo; }
     public int getEstomagoMm() { return estomagoMm; }
     public int getEstomagoBaseMm() { return estomagoBaseMm; }
+    public double getEstomagoSenalMcps() { return estomagoSenalMcps; }
+    public double getEstomagoBaseMcps() { return estomagoBaseMcps; }
+    public boolean isEstomagoModoSenal() { return estomagoModoSenal; }
     public int getEstomagoDetector() { return estomagoDetector; }
     public int getEstomagoCambios() { return estomagoCambios; }
     public boolean isGrabacionActiva() { return grabacionActiva; }

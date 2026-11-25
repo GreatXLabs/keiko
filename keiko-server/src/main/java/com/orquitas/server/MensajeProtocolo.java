@@ -24,7 +24,12 @@ public class MensajeProtocolo {
 
     public record InfoHandshake(String version, String rig) {}
 
-    public record InfoDbgEstomago(int estomagoMm, int baseMm, int detector, int cambios) {}
+    public record InfoDbgEstomago(int estomagoMm, int baseMm, int detector, int cambios,
+                                  double senalMcps, double baseMcps, boolean modoSenal) {
+        public InfoDbgEstomago(int estomagoMm, int baseMm, int detector, int cambios) {
+            this(estomagoMm, baseMm, detector, cambios, -1.0, -1.0, false);
+        }
+    }
 
     public static InfoHandshake parsearHello(String linea) {
         if (linea == null || !linea.startsWith(PREFIX_HELLO)) {
@@ -161,14 +166,18 @@ public class MensajeProtocolo {
         return (encender ? MSG_PICKER_ON : MSG_PICKER_OFF) + "\n";
     }
 
-    /** Parsea tramas DBG:estomago=<mm> base=<mm> det=<0|1|2> cambios=<n> enviadas por el Mega. */
+    /**
+     * Parsea tramas DBG:estomago=<mm> base=<mm> ... (legacy) o DBG:senal=<mcps> base=<mcps> ... (v2.0.7).
+     */
     public static InfoDbgEstomago parsearDbgEstomago(String linea) {
         if (linea == null || !linea.startsWith(PREFIX_DBG)) {
             return null;
         }
         String cuerpo = linea.substring(PREFIX_DBG.length()).trim();
         Integer estomago = null;
-        int base = 0;
+        int baseMm = 0;
+        Double senalMcps = null;
+        double baseMcps = 0.0;
         int det = -1;
         int cambios = 0;
         for (String token : cuerpo.split("\\s+")) {
@@ -181,7 +190,15 @@ public class MensajeProtocolo {
             try {
                 switch (clave) {
                     case "estomago" -> estomago = Integer.parseInt(valor);
-                    case "base" -> base = Integer.parseInt(valor);
+                    case "senal" -> senalMcps = Double.parseDouble(valor);
+                    case "base" -> {
+                        if (senalMcps != null || valor.contains(".")) {
+                            baseMcps = Double.parseDouble(valor);
+                        } else {
+                            baseMm = Integer.parseInt(valor);
+                            baseMcps = baseMm;
+                        }
+                    }
                     case "det" -> det = Integer.parseInt(valor);
                     case "cambios" -> cambios = Integer.parseInt(valor);
                     default -> {}
@@ -190,6 +207,9 @@ public class MensajeProtocolo {
                 return null;
             }
         }
-        return (estomago != null) ? new InfoDbgEstomago(estomago, base, det, cambios) : null;
+        if (senalMcps != null) {
+            return new InfoDbgEstomago(-1, -1, det, cambios, senalMcps, baseMcps, true);
+        }
+        return (estomago != null) ? new InfoDbgEstomago(estomago, baseMm, det, cambios) : null;
     }
 }
