@@ -6,6 +6,36 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
+## [2.0.7] — 2026-11-25
+
+### Changed / Improved
+- **Detector de estómago no bloqueante por señal de retorno VL53L0X ([`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino)):**
+  - Reemplaza las lecturas bloqueantes en mm por lectura directa del registro `0x14` (`estomagoSenal()`, tasa de retorno en MCPS cada `~20 ms`, sin bloquear el `loop()`).
+  - La canica de vidrio casi no desplaza la distancia medida pero produce una variación de `30–60%` en la señal de retorno respecto de la línea base (`MUESTRAS_BASE = 10`, `UMBRAL_SENAL_PCT = 20`, `LECTURAS_CONFIRMAR = 1`, cooldown `3000 ms`), resolviendo omisiones y dobles conteos en pista.
+  - Emite `DBG:senal=<mcps> base=<mcps> det=<n> cambios=<c>` y reduce `PICKER_EXTRA_MS` de `4000` a **`2500 ms`** para evitar acumular `PICKER_TOPE_10S` en aproximaciones consecutivas.
+  - Agrega guarda `if (corrida) return;` en `empezarCorrida()` para evitar reinicios de estado si llega un `CMD:START` duplicado.
+- **Soporte de `DBG:senal=` y ajuste de ancho de TUI a `106` columnas ([`MensajeProtocolo.java`](keiko-server/src/main/java/com/orquitas/server/MensajeProtocolo.java), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java), [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java)):**
+  - `parsearDbgEstomago()` y la TUI soportan tanto `DBG:senal=<mcps> base=<mcps>` (`LSR-EST : 14.5mcp (b:15.0 d:1) [ARM]`) como el formato heredado `DBG:estomago=<mm>`.
+  - Reducido `ANCHO_DETALLADO` de `112` a **`106` columnas** (`64 + 1 + 41`) para encajar sin recortes en paneles divididos (~108 cols) manteniendo todas las métricas y barras adaptativas; `detectarTamanoTerminal()` consulta `stty size </dev/tty` antes de `stty size` / `tput` / `$COLUMNS`.
+- **Ajustes de navegación en pista real ([`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java)):**
+  - Acortado el barrido de exploración `(contadorCiclos / 22) ± 0.25` (antes `/ 75 ± 0.45`) para cruzar el centro de la Bahía en lugar de orbitar muros.
+  - Aumentado `DURACIONES_GIRO_ASIMETRICO` a `{13, 17, 21}` ciclos y reducido `UMBRAL_EPISODIOS_MISMO_LADO` de `4` a **`3`** para despegarse antes y con mayor ángulo cuando roza paredes en ángulos agudos.
+  - Endurecida la evasión de `SALIDA` lateral en `BUSQUEDA` con pivote firme `(3.8, -2.2)` / `(-2.2, 3.8)` (antes arco suave `3.8, 2.2`) para evitar enganches en el cartón de salida y egresos accidentales.
+  - Aumentada `PERSISTENCIA_LOBITO_CICLOS` de `5` a **`10` ciclos (`1.0 s`)** y suavizadas las velocidades de `APROXIMACION` (`(2.8, 2.8)`, `(1.8, 3.0)`, `(3.0, 1.8)`) para reducir empuje accidental de canicas manteniendo intactas Red 1 (solo 1 entrada ultrasónica) y la prioridad `SALIDA > BLOQUEO > LOBITO`.
+- **Robustez Bluetooth SPP y trazabilidad automática de corridas ([`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java), [`ReceptorSerie.java`](keiko-server/src/main/java/com/orquitas/server/ReceptorSerie.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):**
+  - `marcarStartManual()` suprime un `CMD:START (auto)` redundante si el operador ya arrancó manualmente con `[k]`/`start`.
+  - `ReceptorSerie` aplica backoff (`1500 -> 3000 -> 5000 ms`) cuando un puerto `/dev/rfcomm0` fantasma abre y cierra con `0` tramas válidas.
+  - `ServidorCentral.iniciar()` registra automáticamente los logs de la sesión en `logs/corrida_<timestamp>.log`.
+
+### Tests Run (Evidencia `2.0.7` — 2026-11-25)
+- `cd keiko-server && mvn clean test`: **67/67 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `python3 -m unittest discover -s keiko-sim/tests -v`: **33/33 OK** (`8.375 s`, incluye carga headless Webots).
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.7 | mega-3us-2laser`).
+- Firmware `.ino`: `arduino-cli` no está instalado en el host actual; requiere verificación/flasheo en Arduino IDE antes de pista.
+
+---
+
 ## [2.0.6] — 2026-11-24
 
 ### Fixed (Corregido — Paso C: Prioridad de Evasión sobre Persecución)
