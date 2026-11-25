@@ -8,11 +8,18 @@ import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 /**
@@ -36,6 +43,10 @@ public class GrabadorDatasetReal {
     public static final List<String> ETIQUETAS_US = List.of("BLOQUEO", "ESPACIO_LIBRE", "SALIDA");
     public static final List<String> ETIQUETAS_CANICAS = List.of("LOBITO_IZQ", "LOBITO_CENTRO", "LOBITO_DER", "NINGUNA");
 
+    private static final DateTimeFormatter FORMATO_ARCHIVO =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneId.systemDefault());
+    private static final AtomicInteger SEQ_ARCHIVO = new AtomicInteger(0);
+
     private final File directorioSalida;
     private final File archivoUltrasonico;
     private final File archivoCanicas;
@@ -47,7 +58,9 @@ public class GrabadorDatasetReal {
     private int idxEtiquetaCanica = 0;
     private volatile boolean grabando = false;
     private volatile int muestrasEnRafaga = 0;
-    private volatile Runnable onMuestraRegistrada = null;
+    private volatile boolean filtroImpactoCanicaActivo = false;
+    private volatile int muestrasDescartadasFiltro = 0;
+    private volatile Consumer<Boolean> onMuestraProcesada = null;
 
     public GrabadorDatasetReal(File directorioSalida) {
         this.directorioSalida = directorioSalida;
@@ -175,7 +188,91 @@ public class GrabadorDatasetReal {
     }
 
     public void setOnMuestraRegistrada(Runnable callback) {
-        this.onMuestraRegistrada = callback;
+        this.onMuestraProcesada = (callback == null) ? null : (guardada) -> {
+            if (Boolean.TRUE.equals(guardada)) {
+                callback.run();
+            }
+        };
+    }
+
+    public void setOnMuestraProcesada(Consumer<Boolean> callback) {
+        this.onMuestraProcesada = callback;
+    }
+
+    public synchronized void setFiltroImpactoCanicaActivo(boolean activo) {
+        this.filtroImpactoCanicaActivo = activo;
+        this.muestrasDescartadasFiltro = 0;
+    }
+
+    public boolean isFiltroImpactoCanicaActivo() {
+        return filtroImpactoCanicaActivo;
+    }
+
+    public int getMuestrasDescartadasFiltro() {
+        return muestrasDescartadasFiltro;
+    }
+
+    /**
+     * Archiva los CSV reales previos en data/real/archivo/<id>/ y reinicia conteos en 0
+     * para iniciar una sesion limpia del asistente guiado sin mezclar grabaciones viejas.
+     */
+    public String archivarYReiniciarSiTieneDatos() {
+        synchronized (bloqueo) {
+            synchronized (this) {
+                grabando = false;
+                muestrasEnRafaga = 0;
+                muestrasDescartadasFiltro = 0;
+                if (getTotalMuestrasUs() == 0 && getTotalMuestrasCanicas() == 0
+                        && !archivoUltrasonico.exists() && !archivoCanicas.exists()) {
+                    return null;
+                }
+                File raizArchivo = new File(directorioSalida, "archivo");
+                String id = FORMATO_ARCHIVO.format(Instant.now());
+                File destinoDir = new File(raizArchivo, id);
+                if (destinoDir.exists()) {
+                    destinoDir = new File(raizArchivo, id + "-" + SEQ_ARCHIVO.incrementAndGet());
+                }
+                if (!destinoDir.exists()) {
+                    destinoDir.mkdirs();
+                }
+                try {
+                    if (archivoUltrasonico.exists()) {
+                        Files.move(archivoUltrasonico.toPath(),
+                                new File(destinoDir, archivoUltrasonico.getName()).toPath(),
+                                StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    if (archivoCanicas.exists()) {
+                        Files.move(archivoCanicas.toPath(),
+                                new File(destinoDir, archivoCanicas.getName()).toPath(),
+                                StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } catch (Exception e) {
+                    LOGGER.warning("[GRABADOR] No se pudo archivar sesion previa: " + e.getMessage());
+                }
+                inicializarConteos();
+                return destinoDir.getName();
+            }
+        }
+    }
+
+    /**
+     * Filtro exclusivo para grabacion guiada de pasos LOBITO_*: descarta angulos del barrido
+     * donde el laser mira al fondo vacio sin caer sobre la canica real, evitando falsos positivos.
+     */
+    static boolean esImpactoCanicaEntrenamiento(VectorSensores s, String etiqueta) {
+        if (s == null || etiqueta == null || "NINGUNA".equals(etiqueta)) {
+            return true;
+        }
+        double usMin = Math.min(s.getUsLeft(), Math.min(s.getUsCenter(), s.getUsRight()));
+        double fondoUs = (usMin >= 900.0) ? 55.0 : usMin;
+        double umbral = Math.min(fondoUs - 5.0, 37.0);
+        double ang = s.getAnguloServo();
+        return switch (etiqueta) {
+            case "LOBITO_IZQ" -> s.getLaserLeft() < umbral && ang <= 25.0;
+            case "LOBITO_DER" -> s.getLaserRight() < umbral && ang <= 25.0;
+            case "LOBITO_CENTRO" -> (s.getLaserLeft() < umbral || s.getLaserRight() < umbral) && ang <= 10.0;
+            default -> true;
+        };
     }
 
     /**
@@ -187,53 +284,63 @@ public class GrabadorDatasetReal {
             return false;
         }
         boolean escrita = false;
+        boolean descartadaPorFiltro = false;
         synchronized (bloqueo) {
             RedObjetivo modo;
             String etiqueta;
+            boolean filtrarCanica;
             synchronized (this) {
                 modo = this.redObjetivo;
                 etiqueta = getEtiquetaActiva();
+                filtrarCanica = this.filtroImpactoCanicaActivo && modo == RedObjetivo.CANICAS;
             }
-            File destino = (modo == RedObjetivo.ULTRASONICO) ? archivoUltrasonico : archivoCanicas;
-            String header = (modo == RedObjetivo.ULTRASONICO) ? HEADER_US : HEADER_CANICAS;
-            boolean escribirHeader = !destino.exists() || destino.length() == 0L;
-
-            String fila;
-            if (modo == RedObjetivo.ULTRASONICO) {
-                fila = String.format(Locale.US, "%.2f,%s", sensores.getUsCenter(), etiqueta);
-            } else {
-                fila = String.format(Locale.US, "%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%s",
-                        sensores.getUsLeft(),
-                        sensores.getUsCenter(),
-                        sensores.getUsRight(),
-                        sensores.getLaserLeft(),
-                        sensores.getLaserRight(),
-                        sensores.getAnguloServo(),
-                        etiqueta);
-            }
-
-            try (BufferedWriter bw = new BufferedWriter(
-                    new OutputStreamWriter(new FileOutputStream(destino, true), StandardCharsets.UTF_8))) {
-                if (escribirHeader) {
-                    bw.write(header);
-                    bw.newLine();
-                }
-                bw.write(fila);
-                bw.newLine();
-                bw.flush();
+            if (filtrarCanica && !esImpactoCanicaEntrenamiento(sensores, etiqueta)) {
                 synchronized (this) {
-                    conteos.merge(etiqueta, 1, Integer::sum);
-                    muestrasEnRafaga++;
+                    muestrasDescartadasFiltro++;
                 }
-                escrita = true;
-            } catch (Exception e) {
-                LOGGER.warning("[GRABADOR] Error escribiendo muestra real: " + e.getMessage());
-                return false;
+                descartadaPorFiltro = true;
+            } else {
+                File destino = (modo == RedObjetivo.ULTRASONICO) ? archivoUltrasonico : archivoCanicas;
+                String header = (modo == RedObjetivo.ULTRASONICO) ? HEADER_US : HEADER_CANICAS;
+                boolean escribirHeader = !destino.exists() || destino.length() == 0L;
+
+                String fila;
+                if (modo == RedObjetivo.ULTRASONICO) {
+                    fila = String.format(Locale.US, "%.2f,%s", sensores.getUsCenter(), etiqueta);
+                } else {
+                    fila = String.format(Locale.US, "%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%s",
+                            sensores.getUsLeft(),
+                            sensores.getUsCenter(),
+                            sensores.getUsRight(),
+                            sensores.getLaserLeft(),
+                            sensores.getLaserRight(),
+                            sensores.getAnguloServo(),
+                            etiqueta);
+                }
+
+                try (BufferedWriter bw = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(destino, true), StandardCharsets.UTF_8))) {
+                    if (escribirHeader) {
+                        bw.write(header);
+                        bw.newLine();
+                    }
+                    bw.write(fila);
+                    bw.newLine();
+                    bw.flush();
+                    synchronized (this) {
+                        conteos.merge(etiqueta, 1, Integer::sum);
+                        muestrasEnRafaga++;
+                    }
+                    escrita = true;
+                } catch (Exception e) {
+                    LOGGER.warning("[GRABADOR] Error escribiendo muestra real: " + e.getMessage());
+                    return false;
+                }
             }
         }
-        Runnable cb = onMuestraRegistrada;
-        if (escrita && cb != null) {
-            cb.run();
+        Consumer<Boolean> cb = onMuestraProcesada;
+        if (cb != null && (escrita || descartadaPorFiltro)) {
+            cb.accept(escrita);
         }
         return escrita;
     }

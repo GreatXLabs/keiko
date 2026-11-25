@@ -208,17 +208,17 @@ public class ConsolaTuiTest {
                 1,
                 5000L);
         estado.actualizarWizard(new EstadoMonitorTui.EstadoWizardSnapshot(
-                true, false, 1, 21,
-                "ULTRASONICO", "BLOQUEO", false, true,
-                12, 25, 0,
-                "Pared pegada ~5 cm",
-                "Pone el frente del auto muy cerca (~5 cm) de una PARED recta. Listo -> [ESPACIO]"));
+                true, false, 18, 23,
+                "CANICAS", "LOBITO_CENTRO", true, true, true,
+                5, 12, 14, 17,
+                "Canica CENTRO ~9 cm",
+                "1 CANICA centrada a ~9-11 cm (fondo libre >35 cm; filtra vacio). -> [ESPACIO]"));
 
         String detallado = ConsolaTui.renderizarFrame(estado, 5040L, false);
         String plano = detallado.replaceAll("\033\\[[0-9;]*m", "");
-        assertTrue(plano.contains("ASISTENTE GUIADO [w] (Paso 1/21: Pared pegada ~5 cm)"));
-        assertTrue(plano.contains("Pone el frente del auto muy cerca (~5 cm) de una PARED recta"));
-        assertTrue(plano.contains("12/25"));
+        assertTrue(plano.contains("ASISTENTE GUIADO [w] (Paso 18/23: Canica CENTRO ~9 cm)"));
+        assertTrue(plano.contains("1 CANICA centrada a ~9-11 cm"));
+        assertTrue(plano.contains("5/12 (vacio:14)"));
         assertTrue(plano.contains("Asistente:"));
         String[] lineas = detallado.split("\n");
         for (int i = 18; i < lineas.length - 1; i++) {
@@ -228,14 +228,14 @@ public class ConsolaTuiTest {
 
         // Vista completada en modo compacto y verificacion sin desbordes
         estado.actualizarWizard(new EstadoMonitorTui.EstadoWizardSnapshot(
-                true, true, 21, 21,
-                "CANICAS", "LOBITO_DER", true, false,
-                0, 65, 21,
-                "Canica DER ~16-20 cm",
+                true, true, 23, 23,
+                "CANICAS", "LOBITO_DER", true, true, false,
+                0, 12, 0, 23,
+                "Canica DER ~13 cm",
                 ""));
         String compacto = ConsolaTui.renderizarFrame(estado, 5040L, true);
         String planoComp = compacto.replaceAll("\033\\[[0-9;]*m", "");
-        assertTrue(planoComp.contains("ASISTENTE GUIADO [w] (21/21 COMPLETADO)"));
+        assertTrue(planoComp.contains("ASISTENTE GUIADO [w] (23/23 COMPLETADO)"));
         assertTrue(planoComp.contains("Apreta [t] para REENTRENAR"));
         String[] lineasComp = compacto.split("\n");
         for (int i = 0; i < lineasComp.length - 1; i++) {
