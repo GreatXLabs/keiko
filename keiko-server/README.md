@@ -1,6 +1,6 @@
 # Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.5` | `mega-3us-2laser`)**.
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.6` | `mega-3us-2laser`)**.
 
 ---
 
@@ -63,9 +63,9 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **11 clases de prueba (65 tests JUnit 5)**:
+Ejecuta las **11 clases de prueba (66 tests JUnit 5)**:
 - `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `STATE_CHANGE:`, `PICKER:ON/OFF`, `DBG:estomago=...` y rechazo de tramas corruptas.
-- `PlanificadorNavegacionTest` (17 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, pivote sin reversa frente a `SALIDA`, pasos de reversa ajustables (`0..15`), anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
+- `PlanificadorNavegacionTest` (18 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, prioridad estricta `SALIDA > BLOQUEO > LOBITO`, persistencia corta (`5` ciclos), pivote sin reversa frente a `SALIDA`, pasos de reversa ajustables (`0..15`), anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
 - `RealDatasetAndRetrainTest` (4 tests): captura de datasets reales en marcha y en reposo (preservando `999.0` sin eco), aprendizaje fiel de canica real en `~25 cm`, reentrenamiento Neuroph 2.98, historial inmutable (`models/historial/`) y rollback en caliente.
 - `ServidorCentralControlTest` (2 tests): controles 1-tecla (`k`, `1`, `2`, `3`, `p`, `b`, `+`/`=`, `-`/`_`, `[`/`]`, `r`), modos forzados y flujo completo del Asistente Guiado `[w]` (`ESPACIO`, `n`, `a`, auto-stop por meta).
 - `ConsolaTuiTest` (6 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) incluyendo el Asistente Guiado `[w]`, `Vel`/`PWM`, `LSR-EST`, barras adaptativas y parseo `stty size`, cálculo de Hz, Fail-Safe `< 500 ms` y reset.

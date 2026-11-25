@@ -17,7 +17,7 @@ Especificación técnica de ingeniería, enrutador de documentación y reglas op
 
 ## 1. Regla Obligatoria de Versionado y Changelog
 
-- **Fuente única de verdad:** el archivo raíz [`VERSION`](VERSION) define la versión activa del ecosistema (actualmente `2.0.5`, rig `mega-3us-2laser`).
+- **Fuente única de verdad:** el archivo raíz [`VERSION`](VERSION) define la versión activa del ecosistema (actualmente `2.0.6`, rig `mega-3us-2laser`).
 - **Sincronización obligatoria entre módulos:** cualquier cambio en código, modelos `.nnet`, protocolo serie/TCP o parámetros de simulación debe mantener sincronizados `VERSION`, `keiko-server/pom.xml`, `ConfiguracionServidor.java`, `orquita_firmware.ino`, `keiko-sim/config/simulation_params.json` y `robot_client.py`.
 - **Validación automática:** antes de finalizar cambios o abrir PR, ejecutar:
   ```bash
@@ -36,7 +36,7 @@ Los agentes deben consultar únicamente los archivos vigentes de esta tabla (los
 
 | Información Buscada | Archivo / Directorio de Referencia | Contenido Principal |
 | :--- | :--- | :--- |
-| **Versión y Compatibilidad** | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), [`scripts/check_versions.sh`](scripts/check_versions.sh) | Versión activa (`2.0.5`), matriz de compatibilidad y verificador cruzado de 9 puntos. |
+| **Versión y Compatibilidad** | [`VERSION`](VERSION), [`CHANGELOG.md`](CHANGELOG.md), [`scripts/check_versions.sh`](scripts/check_versions.sh) | Versión activa (`2.0.6`), matriz de compatibilidad y verificador cruzado de 9 puntos. |
 | **Auditoría de Consolidación y Resolución Fase B** | [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md) | Auditoría histórica Fase A y cierre `v2.0.0` (`SIM-01..13`, `HRD-01..14`, `COMP-01..05` resueltos), hashes `.nnet` y evidencia de pruebas. |
 | **Reglamento, Pista y Puntuación** | [`docs/consignas/La Competencia.md`](docs/consignas/La%20Competencia.md) | Geometría de la Bahía (~1.80 m base, ~1.20 m profundidad, ~1.70 m²), salida de 30 cm, 2 obstáculos 3D (6×6 cm, alt. mín. 6 cm), 3 canicas (1.6 cm), etapas y puntuación. |
 | **Consigna General e Hitos** | [`docs/consignas/Consigna y Alcances.md`](docs/consignas/Consigna%20y%20Alcances.md) | Alcance integral del proyecto (PSR + DS), metodología SCRUM y criterios globales de evaluación. |

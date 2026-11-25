@@ -6,7 +6,25 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [2.0.5] — 2026-11-24
+## [2.0.6] — 2026-11-24
+
+### Fixed (Corregido — Paso C: Prioridad de Evasión sobre Persecución)
+- **Prioridad estricta `SALIDA > BLOQUEO > LOBITO` en [`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java):**
+  - En `BUSQUEDA`, evalúa resguardos de `SALIDA` y evasión de `BLOQUEO` (frontal o lateral) **antes** que `evaluarLobito()`, evitando que el robot atropelle muros frontales/laterales cuando otro sector detecta una canica.
+  - Cualquier detección de `BLOQUEO` o `SALIDA` limpia de inmediato `ciclosPersistenciaLobito` y evita que `LOBITO` aborte maniobras comprometidas de retroceso/giro.
+  - Reducida la persistencia sin visión directa de canica de `12` (`1.2 s`) a **`5` ciclos (`0.5 s`)**.
+  - Mantiene intacta Red 1 (`modelo_ultrasonico.nnet`, `1` entrada HC-SR04 sin mezcla láser).
+- **Prueba unitaria agregada ([`PlanificadorNavegacionTest.java`](keiko-server/src/test/java/com/orquitas/server/PlanificadorNavegacionTest.java)):** `testBloqueoYSalidaSuperanALobitoYPersistenciaEsCorta` (`66` tests Java en total).
+
+### Tests Run (Evidencia `2.0.6` — 2026-11-24)
+- `cd keiko-server && mvn clean test`: **66/66 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `python3 -m unittest discover -s keiko-sim/tests -v`: **33/33 OK**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.6 | mega-3us-2laser`).
+
+---
+
+## [2.0.5] — 2026-11-24 (`#28`, Mergeado en `main`)
 
 ### Fixed (Corregido — Paso B: Calidad de Datos y Captura Guiada)
 - **Sesión limpia al iniciar `[w]` ([`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):** `archivarYReiniciarSiTieneDatos()` mueve automáticamente los CSV previos a `data/real/archivo/<timestamp>/` y reinicia conteos en `0` antes de comenzar una pasada del asistente, evitando mezclar grabaciones viejas/corruptas.
