@@ -10,8 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Conector concurrente de puerto serie para enlace Bluetooth RFCOMM/SPP (HC-05: COMx / /dev/rfcomm0)
- * o cable USB directo (/dev/ttyACM0, /dev/ttyUSB0), con reconexion automatica ante cortes de enlace.
+ * Conector concurrente Bluetooth RFCOMM/SPP (jSerialComm) con reconexion automatica.
  */
 public class ReceptorSerie implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ReceptorSerie.class.getName());
@@ -27,7 +26,6 @@ public class ReceptorSerie implements Runnable {
     private final long intervaloHeartbeatMs;
     private final boolean autoStartEnHello;
     private final EstadoMonitorTui monitorTui;
-    private volatile GrabadorDatasetReal grabadorDataset;
 
     private volatile boolean corriendo = false;
     private volatile ManejadorCliente sesionActiva;
@@ -42,7 +40,7 @@ public class ReceptorSerie implements Runnable {
                          long cooldownCapturaMs,
                          long intervaloHeartbeatMs) {
         this(nombrePuerto, baudios, gestorEstomago, clasificador, planificador,
-                cooldownCapturaMs, intervaloHeartbeatMs, false);
+                cooldownCapturaMs, intervaloHeartbeatMs, false, null);
     }
 
     public ReceptorSerie(String nombrePuerto,
@@ -75,10 +73,6 @@ public class ReceptorSerie implements Runnable {
         this.intervaloHeartbeatMs = intervaloHeartbeatMs;
         this.autoStartEnHello = autoStartEnHello;
         this.monitorTui = monitorTui;
-    }
-
-    public void setGrabadorDataset(GrabadorDatasetReal grabadorDataset) {
-        this.grabadorDataset = grabadorDataset;
     }
 
     public static List<String> listarPuertosDisponibles() {
@@ -136,7 +130,7 @@ public class ReceptorSerie implements Runnable {
                 ManejadorCliente manejador = new ManejadorCliente(
                         in, out, origenSerie,
                         port::closePort, gestorEstomago, clasificador, planificador,
-                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, true, grabadorDataset);
+                        cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, true);
                 sesionActiva = manejador;
                 manejador.run();
                 huboTramasValidas = manejador.getTotalTramasValidas() > 0;
@@ -196,7 +190,7 @@ public class ReceptorSerie implements Runnable {
         corriendo = false;
         ManejadorCliente activa = sesionActiva;
         if (activa != null) {
-            activa.cerrar();
+            activa.cerrarControlado();
         }
         SerialPort port = puertoActivo;
         if (port != null && port.isOpen()) {

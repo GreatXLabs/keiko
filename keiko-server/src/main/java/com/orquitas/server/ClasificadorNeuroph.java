@@ -5,15 +5,13 @@ import java.io.File;
 import java.util.logging.Logger;
 
 /**
- * Clasificador del entorno de la Bahía de Caza mediante Redes Neuronales Neuroph 2.98.
- * Implementa la arquitectura de 2 redes especializadas:
+ * Clasificador del entorno mediante Redes Neuronales Neuroph 2.98 (Cerebro - Actor A-02, RF-02).
+ * Arquitectura dual especializada:
  * 1. Red 1 (modelo_ultrasonico.nnet): 1 entrada normalizada -> 3 salidas {BLOQUEO, ESPACIO_LIBRE, SALIDA}.
  *    Se ejecuta 3 veces por ciclo (us_left, us_center, us_right) para armar el vector base [IZQ, CEN, DER].
  * 2. Red 2 (modelo_canicas.nnet): 6 entradas [us_izq, us_cen, us_der, laser_izq, laser_der, angulo_servo]
  *    -> 4 salidas {LOBITO_CENTRO, LOBITO_DER, LOBITO_IZQ, NINGUNA}.
- *    Se ejecuta 1 vez por ciclo. Si detecta canica, pisa el sector correspondiente del vector base con LOBITO.
- * 
- * También mantiene compatibilidad con modelos legacy (.nnet de 2, 4, 6, 8 o 10 entradas).
+ *    Se ejecuta 1 vez por ciclo en busqueda. Si detecta canica, integra su sector como LOBITO.
  */
 public class ClasificadorNeuroph {
     private static final Logger LOGGER = Logger.getLogger(ClasificadorNeuroph.class.getName());

@@ -8,15 +8,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Almacen concurrente del estado en vivo del Servidor Central para renderizado TUI.
- * Centraliza telemetria, inferencias de Neuroph, estado FSM, persistencia y logs recientes
- * sin bloquear el lazo de control ni la recepcion de tramas.
+ * Almacen concurrente de solo lectura operativa para renderizado TUI durante competencia.
+ * Centraliza telemetria, inferencias Neuroph, estado FSM, persistencia en estomago.txt y logs.
  */
 public class EstadoMonitorTui {
     public static final long FAILSAFE_TIMEOUT_MS = 500L;
@@ -51,24 +48,6 @@ public class EstadoMonitorTui {
         }
     }
 
-    public record EstadoWizardSnapshot(
-            boolean activo,
-            boolean completado,
-            int pasoActual,
-            int totalPasos,
-            String red,
-            String etiqueta,
-            boolean barridoLaser,
-            boolean filtroImpacto,
-            boolean capturando,
-            int muestrasPaso,
-            int metaPaso,
-            int descartadasPaso,
-            int pasosHechos,
-            String titulo,
-            String instruccion
-    ) {}
-
     private final String version;
     private final String rig;
     private final String puertoSerie;
@@ -99,7 +78,6 @@ public class EstadoMonitorTui {
     private volatile long totalTelemetrias = 0L;
     private volatile long totalErroresCliente = 0L;
     private volatile String ultimoErrorCliente = "---";
-    private volatile String ultimoDbgEstomago = "---";
     private volatile String ultimoComandoControl = "---";
 
     private volatile SnapshotTelemetria ultimaTelemetria = null;
@@ -107,29 +85,7 @@ public class EstadoMonitorTui {
     private volatile List<RegistroCaptura> registrosEstomago = Collections.emptyList();
     private volatile boolean modoEscapeActivo = false;
     private volatile EstadoRobot estadoFsmActual = EstadoRobot.BUSQUEDA;
-    // [SOLO PRUEBAS / DEBUG - calibracion viva en pista y monitoreo pasivo en reposo]
-    private volatile double escalaVelocidad;
-    private volatile int pwmMin;
-    private volatile int pwmMax;
-    private volatile int pasosReversa;
     private volatile boolean corridaActiva;
-    private volatile boolean barridoEnReposo = false;
-    private volatile boolean pickerManualActivo = false;
-    private volatile int estomagoMm = -1;
-    private volatile int estomagoBaseMm = -1;
-    private volatile double estomagoSenalMcps = -1.0;
-    private volatile double estomagoBaseMcps = -1.0;
-    private volatile boolean estomagoModoSenal = false;
-    private volatile int estomagoDetector = -1;
-    private volatile int estomagoCambios = 0;
-    // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion de datasets reales y reentrenamiento en caliente]
-    private volatile boolean grabacionActiva = false;
-    private volatile String grabacionRed = "CANICAS";
-    private volatile String grabacionEtiqueta = "LOBITO_IZQ";
-    private volatile Map<String, Integer> grabacionConteos = Collections.emptyMap();
-    private volatile boolean reentrenando = false;
-    private volatile String ultimoResumenEntrenamiento = "---";
-    private volatile EstadoWizardSnapshot estadoWizard = null;
 
     public EstadoMonitorTui(ConfiguracionServidor cfg,
                             ClasificadorNeuroph clasificador,
@@ -139,10 +95,6 @@ public class EstadoMonitorTui {
         this.rig = ConfiguracionServidor.RIG_HARDWARE;
         this.puertoSerie = cfg.getPuertoSerie();
         this.baudiosSerie = cfg.getBaudiosSerie();
-        this.escalaVelocidad = cfg.getEscalaVelocidad();
-        this.pwmMin = cfg.getPwmMin();
-        this.pwmMax = cfg.getPwmMax();
-        this.pasosReversa = cfg.getPasosReversa();
         this.corridaActiva = cfg.isAutoStartSolicitado();
         this.rutaEstomago = cfg.getArchivoEstomago().getPath();
         this.capturasRequeridas = cfg.getCapturasRequeridasEscape();
@@ -173,15 +125,7 @@ public class EstadoMonitorTui {
         marcarCambio();
     }
 
-    public synchronized void actualizarCantidadClientes(int totalConectados) {
-        this.clientesConectados = Math.max(0, totalConectados);
-        if (this.clientesConectados == 0) {
-            this.clienteActivo = "---";
-        }
-        marcarCambio();
-    }
-
-    public synchronized void registrarDesconexionCliente(String origen) {
+    public synchronized void registrarDesconexionCliente(String origen, boolean enErrorSeguro) {
         if (this.clientesConectados > 0) {
             this.clientesConectados--;
         }
@@ -192,8 +136,17 @@ public class EstadoMonitorTui {
             this.handshakeVersion = "---";
             this.handshakeRig = "---";
         }
-        agregarLog("INFO", "Cliente desconectado: " + origen);
+        if (enErrorSeguro) {
+            this.estadoFsmActual = EstadoRobot.ERROR_SEGURO;
+            agregarLog("WARN", "Enlace perdido en corrida -> ERROR_SEGURO: " + origen);
+        } else {
+            agregarLog("INFO", "Cliente desconectado: " + origen);
+        }
         marcarCambio();
+    }
+
+    public synchronized void registrarDesconexionCliente(String origen) {
+        registrarDesconexionCliente(origen, false);
     }
 
     public synchronized void registrarHandshake(String origen, String versionCliente, String rigCliente, boolean compatible) {
@@ -298,62 +251,12 @@ public class EstadoMonitorTui {
         marcarCambio();
     }
 
-    public synchronized void registrarDebugCliente(String lineaDbg) {
-        this.ultimoPaqueteMs = System.currentTimeMillis();
-        MensajeProtocolo.InfoDbgEstomago parsed = MensajeProtocolo.parsearDbgEstomago(lineaDbg);
-        if (parsed != null) {
-            this.estomagoModoSenal = parsed.modoSenal();
-            this.estomagoSenalMcps = parsed.senalMcps();
-            this.estomagoBaseMcps = parsed.baseMcps();
-            this.estomagoMm = parsed.estomagoMm();
-            this.estomagoBaseMm = parsed.baseMm();
-            this.estomagoDetector = parsed.detector();
-            this.estomagoCambios = parsed.cambios();
-            this.ultimoDbgEstomago = lineaDbg.substring(MensajeProtocolo.PREFIX_DBG.length()).trim();
-        } else if (lineaDbg != null && (lineaDbg.contains("estomago=") || lineaDbg.contains("senal="))) {
-            this.ultimoDbgEstomago = lineaDbg.substring(MensajeProtocolo.PREFIX_DBG.length()).trim();
-        } else {
-            agregarLog("DBG", lineaDbg);
-        }
-        marcarCambio();
-    }
-
-    public synchronized void setEscalaVelocidad(double escala) {
-        this.escalaVelocidad = ConfiguracionServidor.acotarEscala(escala);
-        marcarCambio();
-    }
-
-    public synchronized void setRangoPwm(int min, int max) {
-        int cMin = Math.max(0, Math.min(255, min));
-        int cMax = Math.max(cMin, Math.min(255, max));
-        this.pwmMin = cMin;
-        this.pwmMax = cMax;
-        marcarCambio();
-    }
-
-    /** // [SOLO PRUEBAS / DEBUG - ajustar cantidad de pasos en reversa desde TUI] */
-    public synchronized void setPasosReversa(int pasos) {
-        this.pasosReversa = ConfiguracionServidor.acotarPasosReversa(pasos);
-        marcarCambio();
-    }
-
     public synchronized void setCorridaActiva(boolean activa) {
         this.corridaActiva = activa;
         marcarCambio();
     }
 
-    public synchronized void setBarridoEnReposo(boolean activo) {
-        this.barridoEnReposo = activo;
-        marcarCambio();
-    }
-
-    public synchronized void setPickerManualActivo(boolean activo) {
-        this.pickerManualActivo = activo;
-        marcarCambio();
-    }
-
-    /** // [SOLO PRUEBAS / DEBUG - reflejar modo forzado en TUI antes del siguiente tick] */
-    public synchronized void setEstadoFsmActual(EstadoRobot estado) {
+    public synchronized void sincronizarEstadoFsm(EstadoRobot estado) {
         if (estado != null) {
             this.estadoFsmActual = estado;
             this.modoEscapeActivo = (estado == EstadoRobot.ESCAPE);
@@ -377,7 +280,7 @@ public class EstadoMonitorTui {
         marcarCambio();
     }
 
-    public synchronized void registrarResetPrueba() {
+    public synchronized void registrarReset() {
         this.capturasEstomago = 0;
         this.registrosEstomago = Collections.emptyList();
         this.modoEscapeActivo = false;
@@ -385,37 +288,7 @@ public class EstadoMonitorTui {
         this.ultimaTelemetria = null;
         this.cantVentanaHz = 0;
         this.idxVentanaHz = 0;
-        agregarLog("CTRL", "Estomago y FSM reiniciados para prueba.");
-        marcarCambio();
-    }
-
-    public synchronized void actualizarGrabacionDataset(boolean activa,
-                                                        String redObjetivo,
-                                                        String etiquetaActiva,
-                                                        Map<String, Integer> conteos) {
-        this.grabacionActiva = activa;
-        if (redObjetivo != null) {
-            this.grabacionRed = redObjetivo;
-        }
-        if (etiquetaActiva != null) {
-            this.grabacionEtiqueta = etiquetaActiva;
-        }
-        this.grabacionConteos = conteos != null
-                ? Collections.unmodifiableMap(new LinkedHashMap<>(conteos))
-                : Collections.emptyMap();
-        marcarCambio();
-    }
-
-    public synchronized void registrarEstadoEntrenamiento(boolean enCurso, String resumen) {
-        this.reentrenando = enCurso;
-        if (resumen != null && !resumen.isBlank()) {
-            this.ultimoResumenEntrenamiento = resumen;
-        }
-        marcarCambio();
-    }
-
-    public synchronized void actualizarWizard(EstadoWizardSnapshot wizard) {
-        this.estadoWizard = wizard;
+        agregarLog("CTRL", "Estomago y FSM reiniciados antes de la corrida.");
         marcarCambio();
     }
 
@@ -469,34 +342,17 @@ public class EstadoMonitorTui {
     public long getTotalTelemetrias() { return totalTelemetrias; }
     public long getTotalErroresCliente() { return totalErroresCliente; }
     public String getUltimoErrorCliente() { return ultimoErrorCliente; }
-    public String getUltimoDbgEstomago() { return ultimoDbgEstomago; }
     public String getUltimoComandoControl() { return ultimoComandoControl; }
     public SnapshotTelemetria getUltimaTelemetria() { return ultimaTelemetria; }
     public int getCapturasEstomago() { return capturasEstomago; }
     public List<RegistroCaptura> getRegistrosEstomago() { return registrosEstomago; }
     public boolean isModoEscapeActivo() { return modoEscapeActivo; }
     public EstadoRobot getEstadoFsmActual() { return estadoFsmActual; }
-    public double getEscalaVelocidad() { return escalaVelocidad; }
-    public int getPwmMin() { return pwmMin; }
-    public int getPwmMax() { return pwmMax; }
-    public int getPasosReversa() { return pasosReversa; }
+    public double getEscalaVelocidad() { return ConfiguracionServidor.ESCALA_VELOCIDAD_FIJA; }
+    public int getPwmMin() { return ConfiguracionServidor.PWM_MIN_FIJO; }
+    public int getPwmMax() { return ConfiguracionServidor.PWM_MAX_FIJO; }
+    public int getPasosReversa() { return ConfiguracionServidor.PASOS_REVERSA_FIJO; }
     public boolean isCorridaActiva() { return corridaActiva; }
-    public boolean isBarridoEnReposo() { return barridoEnReposo; }
-    public boolean isPickerManualActivo() { return pickerManualActivo; }
-    public int getEstomagoMm() { return estomagoMm; }
-    public int getEstomagoBaseMm() { return estomagoBaseMm; }
-    public double getEstomagoSenalMcps() { return estomagoSenalMcps; }
-    public double getEstomagoBaseMcps() { return estomagoBaseMcps; }
-    public boolean isEstomagoModoSenal() { return estomagoModoSenal; }
-    public int getEstomagoDetector() { return estomagoDetector; }
-    public int getEstomagoCambios() { return estomagoCambios; }
-    public boolean isGrabacionActiva() { return grabacionActiva; }
-    public String getGrabacionRed() { return grabacionRed; }
-    public String getGrabacionEtiqueta() { return grabacionEtiqueta; }
-    public Map<String, Integer> getGrabacionConteos() { return grabacionConteos; }
-    public boolean isReentrenando() { return reentrenando; }
-    public String getUltimoResumenEntrenamiento() { return ultimoResumenEntrenamiento; }
-    public EstadoWizardSnapshot getEstadoWizard() { return estadoWizard; }
     public String getUltimaClaseCanica() {
         SnapshotTelemetria snap = ultimaTelemetria;
         return (snap != null && snap.claseCanica() != null) ? snap.claseCanica() : "NINGUNA";

@@ -6,10 +6,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 /**
- * Hilo Auditor Independiente ("La Linareada").
- * 
- * Sondea periodicamente estomago.txt de manera concurrente.
- * Al validar la presencia de 3 registros fisicos en disco, activa la transicion al Modo Escape.
+ * Hilo Auditor Independiente ("La Linareada" - Actor A-04 Hilo Lector, RF-07 / RF-08).
+ * Sondea periodicamente estomago.txt en seccion protegida. Al confirmar 3 capturas fisicas
+ * validas en disco, dispara la transicion al Modo Escape (STATE_CHANGE:ESCAPE).
  */
 public class AuditorEstomago extends Thread {
     private static final Logger LOGGER = Logger.getLogger(AuditorEstomago.class.getName());

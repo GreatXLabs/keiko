@@ -95,11 +95,11 @@ public class PlanificadorNavegacionTest {
     @Test
     public void testCenterBlockedBacksUpDefaultStepsBeforePivoting() {
         assertPasosRetrocesoYPivote(new String[]{"BLOQUEO", "BLOQUEO", "ESPACIO_LIBRE"}, 1,
-                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+                ConfiguracionServidor.PASOS_REVERSA_FIJO);
         assertPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "BLOQUEO"}, -1,
-                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+                ConfiguracionServidor.PASOS_REVERSA_FIJO);
         assertPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"}, 1,
-                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+                ConfiguracionServidor.PASOS_REVERSA_FIJO);
     }
 
     @Test
@@ -307,9 +307,9 @@ public class PlanificadorNavegacionTest {
     @Test
     public void testSearchModeLateralSalidaWithCenterBloqueoBacksUpAndPivotsAway() {
         assertPasosRetrocesoYPivote(new String[]{"SALIDA", "BLOQUEO", "ESPACIO_LIBRE"}, 1,
-                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+                ConfiguracionServidor.PASOS_REVERSA_FIJO);
         assertPasosRetrocesoYPivote(new String[]{"ESPACIO_LIBRE", "BLOQUEO", "SALIDA"}, -1,
-                ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+                ConfiguracionServidor.PASOS_REVERSA_FIJO);
 
         PlanificadorNavegacion libreDer = new PlanificadorNavegacion(null);
         ComandoRobot pivoteIzq = libreDer.evaluarPares(null, SALIDA_IZQ);
@@ -432,8 +432,7 @@ public class PlanificadorNavegacionTest {
         assertTrue(pivDirecto.getVLeft() * pivDirecto.getVRight() < 0.0,
                 "Con 0 pasos de reversa debe pivotar directamente");
 
-        PlanificadorNavegacion sieteRev = new PlanificadorNavegacion(null);
-        sieteRev.setPasosReversa(7);
+        PlanificadorNavegacion sieteRev = new PlanificadorNavegacion(null, 7);
         for (int i = 0; i < 7; i++) {
             ComandoRobot rev = sieteRev.evaluarPares(null, new String[]{"ESPACIO_LIBRE", "BLOQUEO", "ESPACIO_LIBRE"});
             assertEquals(-3.6, rev.getVLeft(), 1e-9);
@@ -450,29 +449,26 @@ public class PlanificadorNavegacionTest {
     }
 
     @Test
-    public void testModosForzadosBusquedaEscapeYCaptura() {
-        PlanificadorNavegacion p = new PlanificadorNavegacion(null);
+    public void testErrorSeguroDetieneYRestauraEstadoDesdeDisco() throws Exception {
+        java.io.File estTmp = java.io.File.createTempFile("estomago_err_seguro_", ".txt");
+        estTmp.deleteOnExit();
+        if (estTmp.exists()) estTmp.delete();
+        GestorEstomago gestor = new GestorEstomago(estTmp);
+        PlanificadorNavegacion p = new PlanificadorNavegacion(gestor);
 
-        // Forzar CAPTURA mantiene el estado CAPTURA aunque no haya deteccion neuronal de canica
-        p.forzarModoCaptura();
-        assertEquals(EstadoRobot.CAPTURA, p.getEstado());
-        assertTrue(p.isModoCapturaForzado());
-        ComandoRobot cmdCap = p.evaluarPares(null, LIBRE);
-        assertEquals(EstadoRobot.CAPTURA, cmdCap.getEstado());
-        assertTrue(cmdCap.getVLeft() > 0.0 && cmdCap.getVRight() > 0.0);
+        p.activarErrorSeguro();
+        assertEquals(EstadoRobot.ERROR_SEGURO, p.getEstado());
+        ComandoRobot detenido = p.evaluarPares(null, LIBRE);
+        assertEquals(EstadoRobot.ERROR_SEGURO, detenido.getEstado());
+        assertEquals(0.0, detenido.getVLeft(), 1e-9);
+        assertEquals(0.0, detenido.getVRight(), 1e-9);
 
-        // Forzar ESCAPE limpia modo captura forzado y activa ESCAPE
-        p.forzarModoEscape();
-        assertEquals(EstadoRobot.ESCAPE, p.getEstado());
-        assertFalse(p.isModoCapturaForzado());
-        ComandoRobot cmdEsc = p.evaluarPares(null, LIBRE);
-        assertEquals(EstadoRobot.ESCAPE, cmdEsc.getEstado());
-
-        // Forzar BUSQUEDA vuelve limpiamente a BUSQUEDA
-        p.forzarModoBusqueda();
-        assertEquals(EstadoRobot.BUSQUEDA, p.getEstado());
-        ComandoRobot cmdBusq = p.evaluarPares(null, LIBRE);
-        assertEquals(EstadoRobot.BUSQUEDA, cmdBusq.getEstado());
+        assertEquals(EstadoRobot.BUSQUEDA, p.restaurarTrasErrorSeguro(gestor));
+        gestor.registrarCaptura("CAPTURA_1");
+        gestor.registrarCaptura("CAPTURA_2");
+        gestor.registrarCaptura("CAPTURA_3");
+        p.activarErrorSeguro();
+        assertEquals(EstadoRobot.ESCAPE, p.restaurarTrasErrorSeguro(gestor));
     }
 
     @Test

@@ -221,13 +221,13 @@ public class HardwareSerialAndCaptureTest {
 
         try {
             toServer.write("HELLO:" + ConfiguracionServidor.VERSION_SISTEMA + "," + ConfiguracionServidor.RIG_HARDWARE + "\n");
-            toServer.write("DBG:estomago=42 base=42 det=2 cambios=0\n");
+            toServer.write("HEARTBEAT\n");
             toServer.flush();
 
             String startLine = leerHastaPrefijo(fromServer, "CMD:START");
             assertEquals("CMD:START", startLine);
             assertFalse(logs.stream().anyMatch(m -> m.contains("[PROTOCOLO] Mensaje no reconocido")),
-                    "DBG: no debe tratarse como mensaje no reconocido");
+                    "HELLO y HEARTBEAT no deben tratarse como mensajes no reconocidos");
         } finally {
             handlerLogger.removeHandler(captureHandler);
             sesion.cerrar();
@@ -304,8 +304,7 @@ public class HardwareSerialAndCaptureTest {
         PipedOutputStream serverTx = new PipedOutputStream();
         PipedInputStream clientRx = new PipedInputStream(serverTx);
 
-        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(
-                new String[]{"--speed-scale", "0.50", "--pwm-min", "90", "--pwm-max", "210"});
+        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(new String[0]);
         ClasificadorNeuroph clasificador = new ClasificadorNeuroph(cfg.resolverArchivoModelo());
         PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
         EstadoMonitorTui monitor = new EstadoMonitorTui(cfg, clasificador, 0, List.of());
@@ -323,7 +322,6 @@ public class HardwareSerialAndCaptureTest {
         try {
             // 1. En reposo (!corrida): actualiza TUI y clasifica Red 1/2 pero no avanza FSM ni emite COMMAND
             toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1000\n");
-            toServer.write("DBG:estomago=42 base=45 det=2 cambios=1\n");
             toServer.flush();
 
             long deadline = System.currentTimeMillis() + 1000L;
@@ -332,27 +330,85 @@ public class HardwareSerialAndCaptureTest {
             }
             assertNotNull(monitor.getUltimaTelemetria(), "La TUI debe recibir telemetria aun en reposo");
             assertEquals("LOBITO_CENTRO", monitor.getUltimaClaseCanica());
-            assertEquals(42, monitor.getEstomagoMm());
-            assertEquals(45, monitor.getEstomagoBaseMm());
-            assertEquals(2, monitor.getEstomagoDetector());
             assertEquals(0, planificador.getContadorCiclos(), "En reposo no debe avanzar el planificador");
             assertEquals(0.0, monitor.getUltimaTelemetria().comando().getVLeft(), 1e-4);
 
-            // 2. Al activar corrida: emite COMMAND escalado al 50% (2.6 -> 1.30)
+            // 2. Al activar corrida: emite COMMAND escalado a ESCALA_VELOCIDAD_FIJA=0.40 (2.6 -> 1.04)
             monitor.setCorridaActiva(true);
             toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1100\n");
             toServer.flush();
 
             String cmdLine = leerHastaPrefijo(fromServer, "COMMAND:");
             String[] partes = cmdLine.substring("COMMAND:".length()).split(",");
-            assertEquals(1.30, Double.parseDouble(partes[0]), 0.05);
-            assertEquals(1.30, Double.parseDouble(partes[1]), 0.05);
+            assertEquals(1.04, Double.parseDouble(partes[0]), 0.05);
+            assertEquals(1.04, Double.parseDouble(partes[1]), 0.05);
             assertEquals(1, planificador.getContadorCiclos());
         } finally {
-            sesion.cerrar();
+            sesion.cerrarControlado();
             toServer.close();
             fromServer.close();
             serverThread.join(1000);
+        }
+    }
+
+    @Test
+    public void testDesconexionInesperadaActivaErrorSeguroYReconexionRestaura() throws Exception {
+        PipedOutputStream clientTx1 = new PipedOutputStream();
+        PipedInputStream serverRx1 = new PipedInputStream(clientTx1);
+        PipedOutputStream serverTx1 = new PipedOutputStream();
+        PipedInputStream clientRx1 = new PipedInputStream(serverTx1);
+
+        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(new String[0]);
+        ClasificadorNeuroph clasificador = new ClasificadorNeuroph(cfg.resolverArchivoModelo());
+        PlanificadorNavegacion planificador = new PlanificadorNavegacion(gestorEstomago);
+        EstadoMonitorTui monitor = new EstadoMonitorTui(cfg, clasificador, 0, List.of());
+        monitor.setCorridaActiva(true);
+
+        ManejadorCliente sesion1 = new ManejadorCliente(
+                serverRx1, serverTx1, "Serie:/dev/rfcomm0@9600", () -> {},
+                gestorEstomago, clasificador, planificador, 180L, 5000L, false, monitor, true);
+        Thread t1 = new Thread(sesion1, "Test-Drop1");
+        t1.start();
+
+        BufferedWriter toServer1 = new BufferedWriter(new OutputStreamWriter(clientTx1, StandardCharsets.UTF_8));
+        BufferedReader fromServer1 = new BufferedReader(new InputStreamReader(clientRx1, StandardCharsets.UTF_8));
+        toServer1.write("HELLO:" + ConfiguracionServidor.VERSION_SISTEMA + "," + ConfiguracionServidor.RIG_HARDWARE + "\n");
+        toServer1.flush();
+        long deadline = System.currentTimeMillis() + 1000L;
+        while (!monitor.isHandshakeRecibido() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(15);
+        }
+        // Arranca la corrida y luego se corta el enlace inesperadamente -> ERROR_SEGURO transitorio
+        monitor.setCorridaActiva(true);
+        toServer1.close();
+        fromServer1.close();
+        t1.join(1000);
+        assertEquals(EstadoRobot.ERROR_SEGURO, planificador.getEstado());
+        assertEquals(EstadoRobot.ERROR_SEGURO, monitor.getEstadoFsmActual());
+
+        // Al reconectar con HELLO tras haber capturado 3 canicas en disco -> restaura ESCAPE
+        gestorEstomago.registrarCaptura("CAP_1");
+        gestorEstomago.registrarCaptura("CAP_2");
+        gestorEstomago.registrarCaptura("CAP_3");
+        PipedOutputStream clientTx2 = new PipedOutputStream();
+        PipedInputStream serverRx2 = new PipedInputStream(clientTx2);
+        PipedOutputStream serverTx2 = new PipedOutputStream();
+        PipedInputStream clientRx2 = new PipedInputStream(serverTx2);
+        ManejadorCliente sesion2 = new ManejadorCliente(
+                serverRx2, serverTx2, "Serie:/dev/rfcomm0@9600", () -> {},
+                gestorEstomago, clasificador, planificador, 180L, 5000L, true, monitor, true);
+        Thread t2 = new Thread(sesion2, "Test-Reconnect");
+        t2.start();
+        try (BufferedWriter toServer2 = new BufferedWriter(new OutputStreamWriter(clientTx2, StandardCharsets.UTF_8));
+             BufferedReader fromServer2 = new BufferedReader(new InputStreamReader(clientRx2, StandardCharsets.UTF_8))) {
+            toServer2.write("HELLO:" + ConfiguracionServidor.VERSION_SISTEMA + "," + ConfiguracionServidor.RIG_HARDWARE + "\n");
+            toServer2.flush();
+            String cmdStart = fromServer2.readLine();
+            assertEquals("CMD:START", cmdStart);
+            assertEquals(EstadoRobot.ESCAPE, planificador.getEstado());
+        } finally {
+            sesion2.cerrarControlado();
+            t2.join(1000);
         }
     }
 

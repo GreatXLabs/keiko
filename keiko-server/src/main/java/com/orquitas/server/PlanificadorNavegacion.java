@@ -3,9 +3,10 @@ package com.orquitas.server;
 import java.util.logging.Logger;
 
 /**
- * Planificador y maquina de estados finita (FSM) puramente simbolica de la Orquita.
+ * Planificador y maquina de estados finita (FSM) puramente simbolica (Cerebro - Actor A-02, RF-03).
  * Decide comandos diferenciales exclusivamente a partir de la terna neuronal [IZQ, CEN, DER]
- * emitida por Neuroph 2.98, el estado de mision y la memoria simbolica de pasos/oscilaciones.
+ * emitida por Neuroph 2.98, el estado de mision (BUSQUEDA, APROXIMACION, CAPTURA, ESCAPE,
+ * FINALIZACION, ERROR_SEGURO) y la memoria simbolica de pasos/oscilaciones.
  */
 public class PlanificadorNavegacion {
     private static final Logger LOGGER = Logger.getLogger(PlanificadorNavegacion.class.getName());
@@ -28,8 +29,7 @@ public class PlanificadorNavegacion {
     private static final double VEL_ARCO_INT = 2.0;
 
     private volatile EstadoRobot estado = EstadoRobot.BUSQUEDA;
-    // [SOLO PRUEBAS / DEBUG - cantidad de pasos en reversa ajustable en vivo desde TUI]
-    private volatile int pasosReversa = ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO;
+    private final int pasosReversa;
     private int pasosRetrocesoRestantes = 0;
     private double velRetrocesoIzq = 0.0;
     private double velRetrocesoDer = 0.0;
@@ -57,15 +57,13 @@ public class PlanificadorNavegacion {
     private int fasePulsoBusqueda = 0;
     private int fasePulsoAproximacion = 0;
     private int ciclosSinSalidaEscape = 0;
-    // [SOLO PRUEBAS / DEBUG - permite forzar CAPTURA para validar picker en pista]
-    private volatile boolean modoCapturaForzado = false;
 
     public PlanificadorNavegacion(GestorEstomago gestorEstomago) {
-        this(gestorEstomago, ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
+        this(gestorEstomago, ConfiguracionServidor.PASOS_REVERSA_FIJO);
     }
 
     public PlanificadorNavegacion(GestorEstomago gestorEstomago, int pasosReversa) {
-        this.pasosReversa = ConfiguracionServidor.acotarPasosReversa(pasosReversa);
+        this.pasosReversa = Math.max(0, Math.min(15, pasosReversa));
         if (gestorEstomago != null
                 && gestorEstomago.contarCapturasValidas() >= ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE) {
             this.estado = EstadoRobot.ESCAPE;
@@ -86,11 +84,6 @@ public class PlanificadorNavegacion {
         ciclosDesdeUltimoReverso++;
         if (ciclosDesdeUltimoReverso > 100) {
             contadorReversosConsecutivos = 0;
-        }
-
-        if (modoCapturaForzado) {
-            this.estado = EstadoRobot.CAPTURA;
-            return new ComandoRobot(2.4, 2.4, EstadoRobot.CAPTURA);
         }
 
         String izq = pares[0] != null ? pares[0] : "ESPACIO_LIBRE";
@@ -384,7 +377,7 @@ public class PlanificadorNavegacion {
         reiniciarMemoriaOscilaciones();
         ciclosDesdeUltimoReverso = 0;
         giroSoloSalidaActivo = false;
-        int revAnti = (pasosReversa > 0) ? Math.min(ConfiguracionServidor.PASOS_REVERSA_MAX, pasosReversa + 2) : 0;
+        int revAnti = (pasosReversa > 0) ? Math.min(15, pasosReversa + 2) : 0;
         if (revAnti <= 0) {
             pasosRetrocesoRestantes = 0;
             iniciarGiro(dir, 15);
@@ -472,7 +465,6 @@ public class PlanificadorNavegacion {
     }
 
     public synchronized void activarModoEscape() {
-        this.modoCapturaForzado = false;
         this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.ESCAPE;
         this.pasosRetrocesoRestantes = 0;
@@ -484,8 +476,36 @@ public class PlanificadorNavegacion {
         LOGGER.info("MUTACION CONDUCTUAL ACTIVADA: Modo ESCAPE.");
     }
 
+    /** Pasa transitoriamente a ERROR_SEGURO ante perdida inesperada de enlace Bluetooth. */
+    public synchronized void activarErrorSeguro() {
+        this.giroSoloSalidaActivo = false;
+        this.estado = EstadoRobot.ERROR_SEGURO;
+        this.pasosRetrocesoRestantes = 0;
+        this.pasosGiroComprometido = 0;
+        resetEstadoLobito();
+        this.ciclosCooldownFalsoLobito = 0;
+        this.fasePulsoBusqueda = 0;
+        LOGGER.warning("[FSM] Enlace perdido durante corrida: estado ERROR_SEGURO.");
+    }
+
+    /** Al reconectar, restaura ESCAPE o BUSQUEDA consultando exclusivamente estomago.txt en disco. */
+    public synchronized EstadoRobot restaurarTrasErrorSeguro(GestorEstomago gestorEstomago) {
+        if (this.estado != EstadoRobot.ERROR_SEGURO) {
+            return this.estado;
+        }
+        boolean panzaLlena = gestorEstomago != null
+                && gestorEstomago.contarCapturasValidas() >= ConfiguracionServidor.CAPTURAS_REQUERIDAS_ESCAPE;
+        this.estado = panzaLlena ? EstadoRobot.ESCAPE : EstadoRobot.BUSQUEDA;
+        this.pasosRetrocesoRestantes = 0;
+        this.pasosGiroComprometido = 0;
+        resetEstadoLobito();
+        this.ciclosCooldownFalsoLobito = 0;
+        this.fasePulsoBusqueda = 0;
+        LOGGER.info("[FSM] Enlace recuperado desde ERROR_SEGURO -> " + this.estado);
+        return this.estado;
+    }
+
     public synchronized void finalizar() {
-        this.modoCapturaForzado = false;
         this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.FINALIZACION;
         this.pasosRetrocesoRestantes = 0;
@@ -499,13 +519,7 @@ public class PlanificadorNavegacion {
 
     public synchronized int getPasosReversa() { return pasosReversa; }
 
-    /** // [SOLO PRUEBAS / DEBUG - ajustar cantidad de pasos en reversa desde TUI] */
-    public synchronized void setPasosReversa(int pasosReversa) {
-        this.pasosReversa = ConfiguracionServidor.acotarPasosReversa(pasosReversa);
-    }
-
     public synchronized void setEstado(EstadoRobot nuevoEstado) {
-        this.modoCapturaForzado = false;
         this.giroSoloSalidaActivo = false;
         this.estado = nuevoEstado;
         if (nuevoEstado == EstadoRobot.ESCAPE) {
@@ -513,43 +527,12 @@ public class PlanificadorNavegacion {
         }
     }
 
-    // [SOLO PRUEBAS / DEBUG - metodos para forzar estados individuales desde TUI]
-    public synchronized void forzarModoBusqueda() {
-        this.modoCapturaForzado = false;
-        this.giroSoloSalidaActivo = false;
-        this.estado = EstadoRobot.BUSQUEDA;
-        this.pasosRetrocesoRestantes = 0;
-        this.pasosGiroComprometido = 0;
-        resetEstadoLobito();
-        this.ciclosCooldownFalsoLobito = 0;
-        this.fasePulsoBusqueda = 0;
-        LOGGER.info("[PRUEBA] Modo forzado: BUSQUEDA.");
-    }
-
-    public synchronized void forzarModoEscape() {
-        activarModoEscape();
-    }
-
-    public synchronized void forzarModoCaptura() {
-        this.modoCapturaForzado = true;
-        this.giroSoloSalidaActivo = false;
-        this.estado = EstadoRobot.CAPTURA;
-        this.pasosRetrocesoRestantes = 0;
-        this.pasosGiroComprometido = 0;
-        LOGGER.info("[PRUEBA] Modo forzado: CAPTURA (prueba de picker).");
-    }
-
-    public synchronized boolean isModoCapturaForzado() {
-        return modoCapturaForzado;
-    }
-
     public synchronized int getCiclosSinSalidaEscape() { return ciclosSinSalidaEscape; }
 
     public synchronized int getContadorCiclos() { return contadorCiclos; }
 
-    /** Reinicia el estado conductual de navegacion a BUSQUEDA para pruebas tras resetear el estomago. */
-    public synchronized void reiniciarParaPrueba() {
-        this.modoCapturaForzado = false;
+    /** Reinicia el estado conductual de navegacion a BUSQUEDA antes de iniciar una corrida oficial. */
+    public synchronized void reiniciarEstado() {
         this.giroSoloSalidaActivo = false;
         this.estado = EstadoRobot.BUSQUEDA;
         this.pasosRetrocesoRestantes = 0;
@@ -567,6 +550,6 @@ public class PlanificadorNavegacion {
         this.fasePulsoBusqueda = 0;
         this.ciclosSinSalidaEscape = 0;
         reiniciarMemoriaOscilaciones();
-        LOGGER.info("[PRUEBA] Planificador reiniciado a modo BUSQUEDA.");
+        LOGGER.info("[FSM] Planificador reiniciado a modo BUSQUEDA.");
     }
 }

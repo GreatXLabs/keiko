@@ -1,13 +1,22 @@
 package com.orquitas.server;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Manejador concurrente de una sesion Bluetooth RFCOMM/SPP sobre streams serie.
+ * Hilo de atencion de sesion del robot cliente (RF-01, RF-05, RF-08).
+ * Lee telemetria y eventos de captura, coordina la inferencia Neuroph y la FSM,
+ * delega las capturas fisicas al Hilo Escritor (GestorEstomago) y gestiona ERROR_SEGURO.
  */
 public class ManejadorCliente implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ManejadorCliente.class.getName());
@@ -25,9 +34,9 @@ public class ManejadorCliente implements Runnable {
     private final boolean autoStartEnHello;
     private final EstadoMonitorTui monitorTui;
     private final boolean monitoreoPasivoEnReposo;
-    private final GrabadorDatasetReal grabadorDataset;
     private final AtomicBoolean conectado = new AtomicBoolean(true);
     private final AtomicBoolean autoStartEnviado = new AtomicBoolean(false);
+    private final AtomicBoolean cierreControlado = new AtomicBoolean(false);
     private volatile boolean exigirTelemetria7Campos;
     private volatile int totalTramasValidas = 0;
 
@@ -47,7 +56,7 @@ public class ManejadorCliente implements Runnable {
                             long intervaloHeartbeatMs) {
         this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
                 gestorEstomago, clasificador, planificador,
-                cooldownCapturaMs, intervaloHeartbeatMs, false, null);
+                cooldownCapturaMs, intervaloHeartbeatMs, false, null, false);
     }
 
     public ManejadorCliente(InputStream flujoEntrada,
@@ -62,7 +71,7 @@ public class ManejadorCliente implements Runnable {
                             boolean autoStartEnHello) {
         this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
                 gestorEstomago, clasificador, planificador,
-                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null);
+                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, null, false);
     }
 
     public ManejadorCliente(InputStream flujoEntrada,
@@ -93,24 +102,6 @@ public class ManejadorCliente implements Runnable {
                             boolean autoStartEnHello,
                             EstadoMonitorTui monitorTui,
                             boolean monitoreoPasivoEnReposo) {
-        this(flujoEntrada, flujoSalida, descripcionOrigen, recursoCierre,
-                gestorEstomago, clasificador, planificador,
-                cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, monitoreoPasivoEnReposo, null);
-    }
-
-    public ManejadorCliente(InputStream flujoEntrada,
-                            OutputStream flujoSalida,
-                            String descripcionOrigen,
-                            Closeable recursoCierre,
-                            GestorEstomago gestorEstomago,
-                            ClasificadorNeuroph clasificador,
-                            PlanificadorNavegacion planificador,
-                            long cooldownCapturaMs,
-                            long intervaloHeartbeatMs,
-                            boolean autoStartEnHello,
-                            EstadoMonitorTui monitorTui,
-                            boolean monitoreoPasivoEnReposo,
-                            GrabadorDatasetReal grabadorDataset) {
         this.flujoEntrada = flujoEntrada;
         this.flujoSalida = flujoSalida;
         this.descripcionOrigen = descripcionOrigen;
@@ -123,7 +114,6 @@ public class ManejadorCliente implements Runnable {
         this.autoStartEnHello = autoStartEnHello;
         this.monitorTui = monitorTui;
         this.monitoreoPasivoEnReposo = monitoreoPasivoEnReposo;
-        this.grabadorDataset = grabadorDataset;
         this.exigirTelemetria7Campos = monitoreoPasivoEnReposo;
     }
 
@@ -182,10 +172,10 @@ public class ManejadorCliente implements Runnable {
 
     private Thread iniciarHiloHeartbeat() {
         Thread t = new Thread(() -> {
-            long EsperaChequeo = Math.max(25L, intervaloHeartbeatMs / 2L);
+            long esperaChequeo = Math.max(25L, intervaloHeartbeatMs / 2L);
             while (conectado.get() && !Thread.currentThread().isInterrupted()) {
                 try {
-                    Thread.sleep(EsperaChequeo);
+                    Thread.sleep(esperaChequeo);
                     if (conectado.get() && (System.currentTimeMillis() - ultimoEnvioMs) >= intervaloHeartbeatMs) {
                         enviarMensaje(MensajeProtocolo.crearHeartbeat());
                     }
@@ -216,12 +206,6 @@ public class ManejadorCliente implements Runnable {
                 monitorTui.registrarHeartbeat(System.currentTimeMillis());
             }
             enviarMensaje(MensajeProtocolo.crearHeartbeat());
-        } else if (linea.startsWith(MensajeProtocolo.PREFIX_DBG)) {
-            totalTramasValidas++;
-            if (monitorTui != null) {
-                monitorTui.registrarDebugCliente(linea);
-            }
-            LOGGER.fine("[DEBUG CLIENTE] " + linea);
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_ERROR)) {
             totalTramasValidas++;
             if (monitorTui != null) {
@@ -251,6 +235,14 @@ public class ManejadorCliente implements Runnable {
                         descripcionOrigen, hs.version(), hs.rig(),
                         ConfiguracionServidor.VERSION_SISTEMA, ConfiguracionServidor.RIG_HARDWARE));
             }
+
+            if (planificador != null && planificador.getEstado() == EstadoRobot.ERROR_SEGURO) {
+                EstadoRobot restaurado = planificador.restaurarTrasErrorSeguro(gestorEstomago);
+                if (monitorTui != null) {
+                    monitorTui.sincronizarEstadoFsm(restaurado);
+                }
+            }
+
             if (monitorTui != null) {
                 monitorTui.registrarHandshake(descripcionOrigen, hs.version(), hs.rig(), versionOk && rigOk);
             }
@@ -259,24 +251,17 @@ public class ManejadorCliente implements Runnable {
                 if (monitorTui != null) {
                     monitorTui.setCorridaActiva(true);
                     monitorTui.registrarComandoControl("CMD:START (auto)");
-                    if (monitorTui.getPwmMin() != ConfiguracionServidor.PWM_MIN_PREDETERMINADO
-                            || monitorTui.getPwmMax() != ConfiguracionServidor.PWM_MAX_PREDETERMINADO) {
-                        enviarMensaje(MensajeProtocolo.crearCmdPwm(monitorTui.getPwmMin(), monitorTui.getPwmMax()));
-                    }
                 }
                 enviarMensaje(MensajeProtocolo.crearCmdStart());
             } else if (monitorTui != null && !autoStartEnHello && monitoreoPasivoEnReposo) {
                 monitorTui.setCorridaActiva(false);
-                if (monitorTui.getPwmMin() != ConfiguracionServidor.PWM_MIN_PREDETERMINADO
-                        || monitorTui.getPwmMax() != ConfiguracionServidor.PWM_MAX_PREDETERMINADO) {
-                    enviarMensaje(MensajeProtocolo.crearCmdPwm(monitorTui.getPwmMin(), monitorTui.getPwmMax()));
-                }
             }
         } catch (Exception e) {
             LOGGER.warning("[HANDSHAKE] Error al parsear HELLO: " + e.getMessage());
         }
     }
 
+    /** RF-01 / RF-02 / RF-03: Clasifica sensores con Neuroph y emite orden diferencial fija. */
     private void procesarTelemetria(String linea) {
         try {
             VectorSensores sensores = exigirTelemetria7Campos
@@ -286,16 +271,7 @@ public class ManejadorCliente implements Runnable {
                 LOGGER.warning("[TELEMETRIA] Vector fuera de rango fisico: " + linea);
                 return;
             }
-            if (grabadorDataset != null && grabadorDataset.isGrabando()) {
-                // [SOLO PRUEBAS / ENTRENAMIENTO] Captura muestra real en marcha o en reposo
-                if (grabadorDataset.registrarTelemetria(sensores) && monitorTui != null) {
-                    monitorTui.actualizarGrabacionDataset(
-                            grabadorDataset.isGrabando(),
-                            grabadorDataset.getRedObjetivo().name(),
-                            grabadorDataset.getEtiquetaActiva(),
-                            grabadorDataset.obtenerConteosPorClase());
-                }
-            }
+
             EstadoRobot estadoActual = planificador.getEstado();
             boolean evaluarCanicas = (estadoActual != EstadoRobot.ESCAPE && estadoActual != EstadoRobot.FINALIZACION);
             String[] pares = clasificador.clasificarPares(sensores, evaluarCanicas);
@@ -316,7 +292,7 @@ public class ManejadorCliente implements Runnable {
             }
 
             ComandoRobot baseCmd = planificador.evaluarPares(sensores, pares);
-            double escala = (monitorTui != null) ? monitorTui.getEscalaVelocidad() : 1.0;
+            double escala = ConfiguracionServidor.ESCALA_VELOCIDAD_FIJA;
             ComandoRobot cmd = (Math.abs(escala - 1.0) > 1e-4)
                     ? new ComandoRobot(baseCmd.getVLeft() * escala, baseCmd.getVRight() * escala, baseCmd.getEstado())
                     : baseCmd;
@@ -340,6 +316,7 @@ public class ManejadorCliente implements Runnable {
         }
     }
 
+    /** RF-05 / RF-06: Valida captura fisica en estado != ESCAPE y delega al Hilo Escritor. */
     private synchronized void procesarEvento(String linea) {
         try {
             String evento = linea.substring(MensajeProtocolo.PREFIX_EVENT.length()).trim();
@@ -398,13 +375,25 @@ public class ManejadorCliente implements Runnable {
         }
     }
 
+    /** Marca cierre intencional por apagado del servidor para no disparar ERROR_SEGURO. */
+    public void cerrarControlado() {
+        cierreControlado.set(true);
+        cerrar();
+    }
+
     public void cerrar() {
         if (conectado.compareAndSet(true, false)) {
+            boolean corridaEnCurso = monitorTui != null && monitorTui.isCorridaActiva();
+            boolean enErrorSeguro = corridaEnCurso && !cierreControlado.get() && totalTramasValidas > 0;
+            if (enErrorSeguro && planificador != null
+                    && planificador.getEstado() != EstadoRobot.FINALIZACION) {
+                planificador.activarErrorSeguro();
+            }
             try {
                 if (recursoCierre != null) recursoCierre.close();
             } catch (IOException ignored) {}
             if (monitorTui != null) {
-                monitorTui.registrarDesconexionCliente(descripcionOrigen);
+                monitorTui.registrarDesconexionCliente(descripcionOrigen, enErrorSeguro);
             }
             LOGGER.info("[CLIENT HANDLER] Sesion cerrada: " + descripcionOrigen);
         }
@@ -418,10 +407,7 @@ public class ManejadorCliente implements Runnable {
         return totalTramasValidas;
     }
 
-    /**
-     * Marca que el usuario ya envio CMD:START manualmente para evitar duplicar
-     * un auto-start posterior cuando llegue HELLO en la misma sesion.
-     */
+    /** Evita duplicar CMD:START automatico si el operador ya inicio manualmente con start/k. */
     public void marcarStartManual() {
         autoStartEnviado.set(true);
     }

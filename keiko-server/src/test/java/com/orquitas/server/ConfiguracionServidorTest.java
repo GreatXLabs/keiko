@@ -78,22 +78,13 @@ public class ConfiguracionServidorTest {
     }
 
     @Test
-    public void testParametrosVelocidadYPwmConAcotado() {
-        ConfiguracionServidor defaultCfg = ConfiguracionServidor.desdeArgumentos(new String[]{});
-        assertEquals(1.0, defaultCfg.getEscalaVelocidad(), 1e-4);
-        assertEquals(105, defaultCfg.getPwmMin());
-        assertEquals(255, defaultCfg.getPwmMax());
-
-        ConfiguracionServidor customCfg = ConfiguracionServidor.desdeArgumentos(
-                new String[]{"--speed-scale", "0.55", "--pwm-min", "80", "--pwm-max", "210"});
-        assertEquals(0.55, customCfg.getEscalaVelocidad(), 1e-4);
-        assertEquals(80, customCfg.getPwmMin());
-        assertEquals(210, customCfg.getPwmMax());
-
-        ConfiguracionServidor clampedCfg = ConfiguracionServidor.desdeArgumentos(
-                new String[]{"--speed-scale", "0.05", "--pwm-min", "220", "--pwm-max", "180"});
-        assertEquals(0.20, clampedCfg.getEscalaVelocidad(), 1e-4);
-        assertEquals(220, clampedCfg.getPwmMin());
-        assertEquals(220, clampedCfg.getPwmMax());
+    public void testConstantesOperativasFijasEnEntregaFinal() {
+        ConfiguracionServidor cfg = ConfiguracionServidor.desdeArgumentos(new String[]{});
+        assertEquals(0.40, ConfiguracionServidor.ESCALA_VELOCIDAD_FIJA, 1e-4);
+        assertEquals(105, ConfiguracionServidor.PWM_MIN_FIJO);
+        assertEquals(255, ConfiguracionServidor.PWM_MAX_FIJO);
+        assertEquals(4, ConfiguracionServidor.PASOS_REVERSA_FIJO);
+        assertEquals(25, cfg.getAuditorSondeoMs());
+        assertEquals(3, cfg.getCapturasRequeridasEscape());
     }
 }

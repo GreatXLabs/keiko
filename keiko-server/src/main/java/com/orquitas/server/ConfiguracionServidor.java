@@ -10,7 +10,8 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Parametros de configuracion del Servidor Central cargados desde CLI, archivo .env o variables de entorno.
+ * Configuracion centralizada del Servidor Central (Cerebro - Actor A-02).
+ * Carga parametros operativos desde variables de entorno, archivo .env y argumentos CLI.
  */
 public final class ConfiguracionServidor {
     private static final Logger LOGGER = Logger.getLogger(ConfiguracionServidor.class.getName());
@@ -27,14 +28,12 @@ public final class ConfiguracionServidor {
     public static final long COOLDOWN_CAPTURA_MS = 1500L;
     public static final long INTERVALO_HEARTBEAT_MS = 200L;
     public static final String RUTA_MODELO_PREDETERMINADA = "models/modelo_ultrasonico.nnet";
-    // [SOLO PRUEBAS / DEBUG - valores de calibracion viva en pista]
-    public static final double ESCALA_VELOCIDAD_MIN = 0.20;
-    public static final double ESCALA_VELOCIDAD_MAX = 1.20;
-    public static final int PWM_MIN_PREDETERMINADO = 105;
-    public static final int PWM_MAX_PREDETERMINADO = 255;
-    public static final int PASOS_REVERSA_MIN = 0;
-    public static final int PASOS_REVERSA_MAX = 15;
-    public static final int PASOS_REVERSA_PREDETERMINADO = 4;
+
+    /** Constantes operativas fijas tras calibracion en pista. */
+    public static final double ESCALA_VELOCIDAD_FIJA = 0.40;
+    public static final int PWM_MIN_FIJO = 105;
+    public static final int PWM_MAX_FIJO = 255;
+    public static final int PASOS_REVERSA_FIJO = 4;
 
     private String puertoSerie;
     private int baudiosSerie;
@@ -49,17 +48,7 @@ public final class ConfiguracionServidor {
     private boolean autoStartSolicitado;
     private boolean noTuiSolicitado;
     private boolean forzarTuiSolicitado;
-    private double escalaVelocidad;
-    private int pwmMin;
-    private int pwmMax;
-    private int pasosReversa;
     private String directorioBaseEnv;
-    // [SOLO PRUEBAS / ENTRENAMIENTO - grabacion y reentrenamiento en vivo]
-    private String rutaDatosReales = "data/real";
-    private boolean retrainRealSolicitado;
-    private boolean listarModelosSolicitado;
-    private String versionModeloSolicitada;
-    private String notaModelo;
 
     public ConfiguracionServidor() {
         Map<String, String> envMap = cargarArchivoEnv();
@@ -75,12 +64,6 @@ public final class ConfiguracionServidor {
         this.intervaloHeartbeatMs = obtenerLong(envMap, "HEARTBEAT_INTERVAL_MS", INTERVALO_HEARTBEAT_MS);
         this.autoStartSolicitado = Boolean.parseBoolean(obtenerString(envMap, "AUTO_START", "false"));
         this.noTuiSolicitado = Boolean.parseBoolean(obtenerString(envMap, "NO_TUI", "false"));
-        this.escalaVelocidad = acotarEscala(obtenerDouble(envMap, "SPEED_SCALE", 1.0));
-        int minP = Math.max(0, Math.min(255, obtenerInt(envMap, "PWM_MIN", PWM_MIN_PREDETERMINADO)));
-        int maxP = Math.max(minP, Math.min(255, obtenerInt(envMap, "PWM_MAX", PWM_MAX_PREDETERMINADO)));
-        this.pwmMin = minP;
-        this.pwmMax = maxP;
-        this.pasosReversa = acotarPasosReversa(obtenerInt(envMap, "REVERSE_STEPS", PASOS_REVERSA_PREDETERMINADO));
     }
 
     public static ConfiguracionServidor desdeArgumentos(String[] args) {
@@ -107,24 +90,6 @@ public final class ConfiguracionServidor {
                 cfg.setNoTuiSolicitado(true);
             } else if ("--tui".equalsIgnoreCase(arg)) {
                 cfg.setForzarTuiSolicitado(true);
-            } else if ("--speed-scale".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setEscalaVelocidad(Double.parseDouble(args[++i]));
-            } else if ("--pwm-min".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setRangoPwm(Integer.parseInt(args[++i]), cfg.getPwmMax());
-            } else if ("--pwm-max".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setRangoPwm(cfg.getPwmMin(), Integer.parseInt(args[++i]));
-            } else if ("--reverse-steps".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setPasosReversa(Integer.parseInt(args[++i]));
-            } else if ("--real-dir".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setRutaDatosReales(args[++i]);
-            } else if ("--retrain-real".equalsIgnoreCase(arg)) {
-                cfg.setRetrainRealSolicitado(true);
-            } else if ("--list-models".equalsIgnoreCase(arg)) {
-                cfg.setListarModelosSolicitado(true);
-            } else if ("--use-model".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setVersionModeloSolicitada(args[++i]);
-            } else if ("--note".equalsIgnoreCase(arg) && i + 1 < args.length) {
-                cfg.setNotaModelo(args[++i]);
             }
         }
         return cfg;
@@ -229,27 +194,6 @@ public final class ConfiguracionServidor {
         return defaultValue;
     }
 
-    private static double obtenerDouble(Map<String, String> envMap, String key, double defaultValue) {
-        String val = obtenerString(envMap, key, null);
-        if (val != null) {
-            try {
-                return Double.parseDouble(val.trim());
-            } catch (NumberFormatException ignored) {}
-        }
-        return defaultValue;
-    }
-
-    public static double acotarEscala(double escala) {
-        if (Double.isNaN(escala) || Double.isInfinite(escala)) {
-            return 1.0;
-        }
-        return Math.max(ESCALA_VELOCIDAD_MIN, Math.min(ESCALA_VELOCIDAD_MAX, escala));
-    }
-
-    public static int acotarPasosReversa(int pasos) {
-        return Math.max(PASOS_REVERSA_MIN, Math.min(PASOS_REVERSA_MAX, pasos));
-    }
-
     public static String obtenerPuertoSeriePorDefecto() {
         String os = System.getProperty("os.name", "").toLowerCase();
         return os.contains("win") ? PUERTO_SERIE_PREDETERMINADO_WINDOWS : PUERTO_SERIE_PREDETERMINADO_UNIX;
@@ -294,21 +238,6 @@ public final class ConfiguracionServidor {
     public boolean isForzarTuiSolicitado() { return forzarTuiSolicitado; }
     public void setForzarTuiSolicitado(boolean forzarTuiSolicitado) { this.forzarTuiSolicitado = forzarTuiSolicitado; }
 
-    public double getEscalaVelocidad() { return escalaVelocidad; }
-    public void setEscalaVelocidad(double escalaVelocidad) { this.escalaVelocidad = acotarEscala(escalaVelocidad); }
-
-    public int getPwmMin() { return pwmMin; }
-    public int getPwmMax() { return pwmMax; }
-    public void setRangoPwm(int min, int max) {
-        int cMin = Math.max(0, Math.min(255, min));
-        int cMax = Math.max(cMin, Math.min(255, max));
-        this.pwmMin = cMin;
-        this.pwmMax = cMax;
-    }
-
-    public int getPasosReversa() { return pasosReversa; }
-    public void setPasosReversa(int pasosReversa) { this.pasosReversa = acotarPasosReversa(pasosReversa); }
-
     /** Determina si la TUI ANSI debe activarse segun flags CLI/env y disponibilidad de consola interactiva. */
     public boolean resolverModoTui(boolean tieneConsolaInteractiva) {
         if (noTuiSolicitado) {
@@ -337,9 +266,7 @@ public final class ConfiguracionServidor {
         }
         String[] candidatos = {
             "models/modelo_ultrasonico.nnet",
-            "keiko-server/models/modelo_ultrasonico.nnet",
-            "../keiko-sim/data/models/modelo_ultrasonico.nnet",
-            "keiko-sim/data/models/modelo_ultrasonico.nnet"
+            "keiko-server/models/modelo_ultrasonico.nnet"
         };
         for (String c : candidatos) {
             File alt = new File(c);
@@ -347,33 +274,4 @@ public final class ConfiguracionServidor {
         }
         return file;
     }
-
-    public String getRutaDatosReales() { return rutaDatosReales; }
-    public void setRutaDatosReales(String rutaDatosReales) {
-        if (rutaDatosReales != null && !rutaDatosReales.isBlank()) this.rutaDatosReales = rutaDatosReales;
-    }
-
-    public File getDirectorioDatosReales() {
-        File ruta = new File(rutaDatosReales);
-        if (ruta.isAbsolute() || directorioBaseEnv == null) return ruta;
-        return new File(directorioBaseEnv, rutaDatosReales);
-    }
-
-    public File getDirectorioModelos() {
-        File padre = resolverArchivoModelo().getParentFile();
-        if (padre != null) return padre;
-        return (directorioBaseEnv != null) ? new File(directorioBaseEnv, "models") : new File("models");
-    }
-
-    public boolean isRetrainRealSolicitado() { return retrainRealSolicitado; }
-    public void setRetrainRealSolicitado(boolean retrainRealSolicitado) { this.retrainRealSolicitado = retrainRealSolicitado; }
-
-    public boolean isListarModelosSolicitado() { return listarModelosSolicitado; }
-    public void setListarModelosSolicitado(boolean listarModelosSolicitado) { this.listarModelosSolicitado = listarModelosSolicitado; }
-
-    public String getVersionModeloSolicitada() { return versionModeloSolicitada; }
-    public void setVersionModeloSolicitada(String versionModeloSolicitada) { this.versionModeloSolicitada = versionModeloSolicitada; }
-
-    public String getNotaModelo() { return notaModelo; }
-    public void setNotaModelo(String notaModelo) { this.notaModelo = notaModelo; }
 }

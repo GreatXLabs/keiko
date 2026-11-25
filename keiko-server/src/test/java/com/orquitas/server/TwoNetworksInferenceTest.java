@@ -19,8 +19,14 @@ public class TwoNetworksInferenceTest {
 
     @BeforeAll
     public static void setUp() {
-        File usModel = new File("../keiko-sim/data/models/modelo_ultrasonico.nnet");
-        File marbleModel = new File("../keiko-sim/data/models/modelo_canicas.nnet");
+        File usModel = new File("models/modelo_ultrasonico.nnet");
+        if (!usModel.exists()) {
+            usModel = new File("keiko-server/models/modelo_ultrasonico.nnet");
+        }
+        File marbleModel = new File("models/modelo_canicas.nnet");
+        if (!marbleModel.exists()) {
+            marbleModel = new File("keiko-server/models/modelo_canicas.nnet");
+        }
 
         assertTrue(usModel.exists(), "modelo_ultrasonico.nnet debe existir");
         assertTrue(marbleModel.exists(), "modelo_canicas.nnet debe existir");

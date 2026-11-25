@@ -9,12 +9,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Gestor de Persistencia Critica de la Orquita ("El Estomago").
- * 
- * Cumple estrictamente con las reglas no negociables de la catedra (PSR / DS 2026):
- * 1. Seccion Critica con bloque synchronized(bloqueoArchivo) sobre el recurso estomago.txt.
- * 2. Vaciado obligatorio a disco por hardware mediante flush() y FileDescriptor.sync().
- * 3. Prohibicion de estado volatil: las capturas se cuentan fisicamente desde el archivo.
+ * Gestor de Persistencia Critica ("El Estomago" - Actor A-03 Hilo Escritor, RF-06).
+ * 1. Seccion critica sincronizada mediante bloque synchronized(bloqueoArchivo) sobre estomago.txt.
+ * 2. Vaciado fisico a disco mediante flush() y FileDescriptor.sync().
+ * 3. Prohibicion de estado volatil: el conteo se lee directamente desde estomago.txt.
  */
 public class GestorEstomago {
 
