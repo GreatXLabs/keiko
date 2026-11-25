@@ -6,6 +6,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
+## [2.0.9-entrega-final] — 2026-11-25 (`release/entrega-final`)
+
+### Changed / Cleaned (Versión Limpia para Entrega Final / Competencia)
+- **Eliminación integral de scaffolding de pruebas, debug y entrenamiento en vivo (consigna PSR/DS + DCU):**
+  - **Firmware ([`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino)):** retirados `PERMITIR_MANUAL`, `DEPURAR_ESTOMAGO`, `ESPEJAR_USB`, `CMD:PWM`, `LASER:`, `PICKER:ON/OFF`, control manual `wasdkx` y mensajes `DBG:senal=`; congelados `PWM_ZONA_MUERTA = 105` y `PWM_TOPE = 255`.
+  - **Servidor Central (`keiko-server`):** eliminadas las clases `AsistenteEntrenamientoGuiado`, `GrabadorDatasetReal`, `GestorModelosYEntrenamiento` y su suite asociada; retirados todos los flags CLI y atajos interactivos de calibración/debug/entrenamiento (`1-3`, `p`, `b`, `+/-`, `[/]`, `</>`, `w`, `u/m/g`, `t`, `--speed-scale`, `--pwm-*`, `--reverse-steps`, `--retrain-real`, `--list-models`, `--use-model`).
+  - **Constantes operativas congeladas ([`ConfiguracionServidor.java`](keiko-server/src/main/java/com/orquitas/server/ConfiguracionServidor.java)):** `ESCALA_VELOCIDAD_FIJA = 0.40`, `PWM_MIN_FIJO = 105`, `PWM_MAX_FIJO = 255`, `PASOS_REVERSA_FIJO = 4`.
+  - **TUI de solo lectura operativa ([`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`EstadoMonitorTui.java`](keiko-server/src/main/java/com/orquitas/server/EstadoMonitorTui.java)):** retirado el panel de dataset/wizard y métricas `DBG`, conservando monitoreo en vivo (`SISTEMA & ENLACE`, `CEREBRO`, `ESTOMAGO` con `#1..#3`, `SENSORES` / Neuroph y logs) y controles mínimos de sesión (`[k]Start [x]Stop [r]Reset(rep) [v]Vista [c]Log [q]Salir`, bloqueando `reset` durante corrida activa).
+  - **Trazabilidad DCU (`RF-01..RF-08`) y estado `ERROR_SEGURO` ([`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java), [`ManejadorCliente.java`](keiko-server/src/main/java/com/orquitas/server/ManejadorCliente.java)):** ante corte inesperado de Bluetooth en corrida pasa transitoriamente a `ERROR_SEGURO` (`(0.0, 0.0)`) y al reconectar restaura `ESCAPE` o `BUSQUEDA` leyendo `estomago.txt`.
+  - **Limpieza de rama:** retirados `keiko-sim/`, `neuroph-train/`, `pruebas/` y `archive/` para entregar exclusivamente código fuente Java limpio, `.nnet`, firmware `.ino` y `docs/`.
+
+### Tests Run (Evidencia `release/entrega-final` — 2026-11-25)
+- `cd keiko-server && mvn clean test`: **58/58 OK** (`0 Failures, 0 Errors, 0 Skipped`; 9 clases JUnit 5).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `./scripts/check_versions.sh`: **5/5 `[OK]`** (`2.0.9 | mega-3us-2laser`).
+
+---
+
 ## [2.0.9] — 2026-11-25
 
 ### Changed / Improved

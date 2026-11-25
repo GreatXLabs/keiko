@@ -23,32 +23,20 @@ keiko/
 ├── CHANGELOG.md              <- Historial de cambios, matriz de compatibilidad y evidencia de tests
 ├── AGENTS.md                 <- Especificación técnica, reglas de arquitectura y enrutador
 ├── scripts/
-│   └── check_versions.sh     <- Validador de sincronización entre VERSION, Java, Mega y Webots (9 checks)
+│   └── check_versions.sh     <- Validador de sincronización entre VERSION, Java y Mega (5 checks)
 │
 ├── keiko-server/             <- Servidor Central Java 21 (Maven / Apache NetBeans)
 │   ├── pom.xml               <- Dependencias (Neuroph 2.98, jSerialComm 2.11.0, JUnit 5)
 │   ├── models/               <- Redes activas (.nnet): modelo_ultrasonico.nnet y modelo_canicas.nnet
-│   ├── src/main/java/        <- Servidor Bluetooth-only, TUI ANSI, protocolo, Neuroph dual, Estomago, Auditor y FSM
-│   ├── src/test/java/        <- Suite JUnit 5 (68 tests)
+│   ├── src/main/java/        <- 16 clases núcleo (Bluetooth SPP, TUI solo lectura, Neuroph dual, Estómago, Auditor y FSM)
+│   ├── src/test/java/        <- Suite JUnit 5 (58 tests)
 │   └── README.md             <- Manual de CLI, Bluetooth, TUI y Maven
-│
-├── keiko-sim/                <- Simulación Robótica 3D en Webots (3US + 2Laser)
-│   ├── config/               <- simulation_params.json (geometría, física y versión/rig)
-│   ├── worlds/               <- Escenas .wbt (bahia_de_caza_scen_1..14, circular, client, dataset)
-│   ├── controllers/          <- Controladores Python (robot_client, live_visualizer, dataset_collector, common)
-│   ├── data/                 <- Datasets CSV (datasets/) y modelos .nnet (models/)
-│   ├── scripts/              <- iniciar_simulacion.sh, iterar_simulacion.sh, build_worlds.py, etc.
-│   ├── tests/                <- Suite unittest de simulación
-│   └── README.md             <- Guía de simulación Webots
 │
 ├── firmware/
 │   └── orquita_firmware/     <- Sketch oficial Arduino Mega 2560 (orquita_firmware.ino)
 │
-├── neuroph-train/            <- Cliente/Servidor Swing para entrenamiento de redes Neuroph 2.98
 ├── modelos-3d/               <- Modelos CAD FreeCAD (.FCStd), STL exportados (Git LFS) y planos
-├── pruebas/                  <- Sketches de banco Mega, bitácoras, pinout y simulaciones Python
-├── docs/                     <- Consignas, informes técnicos y auditoría (AUDITORIA_CONSOLIDACION.md)
-└── archive/                  <- Código y documentos legacy (UNO, coaxial, Hito 2/3, experimentos)
+└── docs/                     <- Consignas, informes técnicos y auditoría (AUDITORIA_CONSOLIDACION.md)
 ```
 
 ---
