@@ -412,6 +412,7 @@ public class ServidorCentral implements OyenteAuditor {
                 asistenteGuiado.desactivar();
                 grabadorDataset.setGrabando(false);
                 grabadorDataset.setFiltroImpactoCanicaActivo(false);
+                grabadorDataset.setCanalUsActivo(GrabadorDatasetReal.CanalUs.CEN);
                 sincronizarEstadoGrabacionTui();
                 monitorTui.actualizarWizard(null);
                 monitorTui.registrarComandoControl("WIZARD:OFF");
@@ -482,6 +483,7 @@ public class ServidorCentral implements OyenteAuditor {
         } else if (cmd.startsWith("label ")) {
             // [SOLO PRUEBAS / ENTRENAMIENTO] Fijar etiqueta explicita por nombre
             if (grabadorDataset.seleccionarEtiqueta(cmd.substring(6))) {
+                grabadorDataset.setCanalUsActivo(GrabadorDatasetReal.CanalUs.CEN);
                 sincronizarEstadoGrabacionTui();
                 monitorTui.registrarComandoControl("Etiq=" + grabadorDataset.getEtiquetaActiva());
             }
@@ -545,6 +547,7 @@ public class ServidorCentral implements OyenteAuditor {
             return;
         }
         grabadorDataset.seleccionarEtiqueta(paso.etiqueta());
+        grabadorDataset.setCanalUsActivo(paso.canalUs());
         grabadorDataset.setFiltroImpactoCanicaActivo(paso.filtrarImpactosCanica());
         boolean sweep = paso.barridoLaser();
         monitorTui.setBarridoEnReposo(sweep);

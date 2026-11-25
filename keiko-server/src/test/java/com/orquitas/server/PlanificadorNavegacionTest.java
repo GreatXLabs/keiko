@@ -498,16 +498,16 @@ public class PlanificadorNavegacionTest {
         assertEquals(3.8, evitaSalida.getVLeft(), 1e-9);
         assertEquals(-2.2, evitaSalida.getVRight(), 1e-9);
 
-        // 4. Persistencia de LOBITO dura 10 ciclos (1.0 s) y se corta de inmediato si aparece BLOQUEO
+        // 4. Persistencia de LOBITO dura 12 ciclos (1.2 s) y se corta de inmediato si aparece BLOQUEO
         PlanificadorNavegacion p4 = new PlanificadorNavegacion(null);
         assertEquals(EstadoRobot.APROXIMACION,
                 p4.evaluarPares(null, new String[]{"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"}).getEstado());
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 12; i++) {
             assertEquals(EstadoRobot.APROXIMACION, p4.evaluarPares(null, LIBRE).getEstado(),
                     "Persistencia debe mantenerse en ciclo " + i);
         }
         assertEquals(EstadoRobot.BUSQUEDA, p4.evaluarPares(null, LIBRE).getEstado(),
-                "Tras 10 ciclos sin ver la canica debe volver a BUSQUEDA");
+                "Tras 12 ciclos sin ver la canica debe volver a BUSQUEDA");
 
         PlanificadorNavegacion p5 = new PlanificadorNavegacion(null);
         assertEquals(EstadoRobot.APROXIMACION,
@@ -516,5 +516,60 @@ public class PlanificadorNavegacionTest {
         assertEquals(EstadoRobot.BUSQUEDA, corte.getEstado());
         assertEquals(EstadoRobot.BUSQUEDA, p5.evaluarPares(null, LIBRE).getEstado(),
                 "Un BLOQUEO debe limpiar la persistencia de LOBITO de inmediato");
+    }
+
+    @Test
+    public void testAvancePulsadoYCentradoSuaveConCooldownFalsoLobito() {
+        // 1. En BUSQUEDA libre: 4 ciclos avanzando y 6 ciclos frenado (0.0, 0.0) para completar barrido laser
+        PlanificadorNavegacion pBusq = new PlanificadorNavegacion(null);
+        for (int i = 0; i < 4; i++) {
+            ComandoRobot c = pBusq.evaluarPares(null, LIBRE);
+            assertTrue(c.getVLeft() > 0.0 && c.getVRight() > 0.0, "Debe avanzar en ciclo " + i);
+        }
+        for (int i = 0; i < 6; i++) {
+            ComandoRobot c = pBusq.evaluarPares(null, LIBRE);
+            assertEquals(0.0, c.getVLeft(), 1e-9, "Debe pausar para barrido en ciclo " + i);
+            assertEquals(0.0, c.getVRight(), 1e-9);
+        }
+        ComandoRobot reanuda = pBusq.evaluarPares(null, LIBRE);
+        assertTrue(reanuda.getVLeft() > 0.0 && reanuda.getVRight() > 0.0);
+
+        // 2. En APROXIMACION: LOBITO_IZQ pivota suave en el lugar (-2.4, 2.4) pulsado, luego LOBITO_CENTRO avanza recto despacio
+        PlanificadorNavegacion pCent = new PlanificadorNavegacion(null);
+        String[] lobIzq = {"LOBITO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"};
+        String[] lobCen = {"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"};
+        ComandoRobot piv1 = pCent.evaluarPares(null, lobIzq);
+        assertAll(
+                () -> assertEquals(EstadoRobot.APROXIMACION, piv1.getEstado()),
+                () -> assertEquals(-2.4, piv1.getVLeft(), 1e-9),
+                () -> assertEquals(2.4, piv1.getVRight(), 1e-9)
+        );
+        pCent.evaluarPares(null, lobIzq); // segundo pulso pivot
+        ComandoRobot pausaPivot = pCent.evaluarPares(null, lobIzq);
+        assertEquals(0.0, pausaPivot.getVLeft(), 1e-9);
+        assertEquals(0.0, pausaPivot.getVRight(), 1e-9);
+
+        ComandoRobot centrado = pCent.evaluarPares(null, lobCen);
+        assertAll(
+                () -> assertEquals(EstadoRobot.APROXIMACION, centrado.getEstado()),
+                () -> assertEquals(2.6, centrado.getVLeft(), 1e-9),
+                () -> assertEquals(2.6, centrado.getVRight(), 1e-9)
+        );
+
+        // 3. Falso LOBITO lateral repetido sin lograr LOBITO_CENTRO: tras 26 ciclos despega alejandose y activa cooldown
+        PlanificadorNavegacion pFantasma = new PlanificadorNavegacion(null);
+        for (int i = 0; i < 25; i++) {
+            assertEquals(EstadoRobot.APROXIMACION, pFantasma.evaluarPares(null, lobIzq).getEstado());
+        }
+        ComandoRobot despegue = pFantasma.evaluarPares(null, lobIzq);
+        assertAll(
+                () -> assertEquals(EstadoRobot.BUSQUEDA, despegue.getEstado()),
+                () -> assertEquals(4.2, despegue.getVLeft(), 1e-9),
+                () -> assertEquals(-2.4, despegue.getVRight(), 1e-9)
+        );
+        // Durante el cooldown, sigue en BUSQUEDA sin volver a quedar atrapado por el mismo LOBITO_IZQ
+        for (int i = 0; i < 6; i++) {
+            assertEquals(EstadoRobot.BUSQUEDA, pFantasma.evaluarPares(null, lobIzq).getEstado());
+        }
     }
 }

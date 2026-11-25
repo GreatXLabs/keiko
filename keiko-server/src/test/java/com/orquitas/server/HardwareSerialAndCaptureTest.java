@@ -338,15 +338,15 @@ public class HardwareSerialAndCaptureTest {
             assertEquals(0, planificador.getContadorCiclos(), "En reposo no debe avanzar el planificador");
             assertEquals(0.0, monitor.getUltimaTelemetria().comando().getVLeft(), 1e-4);
 
-            // 2. Al activar corrida: emite COMMAND escalado al 50% (2.8 -> 1.40)
+            // 2. Al activar corrida: emite COMMAND escalado al 50% (2.6 -> 1.30)
             monitor.setCorridaActiva(true);
             toServer.write("TELEMETRY:90.0,95.0,85.0,12.0,12.0,0.0,1100\n");
             toServer.flush();
 
             String cmdLine = leerHastaPrefijo(fromServer, "COMMAND:");
             String[] partes = cmdLine.substring("COMMAND:".length()).split(",");
-            assertEquals(1.40, Double.parseDouble(partes[0]), 0.05);
-            assertEquals(1.40, Double.parseDouble(partes[1]), 0.05);
+            assertEquals(1.30, Double.parseDouble(partes[0]), 0.05);
+            assertEquals(1.30, Double.parseDouble(partes[1]), 0.05);
             assertEquals(1, planificador.getContadorCiclos());
         } finally {
             sesion.cerrar();

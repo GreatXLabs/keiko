@@ -37,6 +37,12 @@ public class GrabadorDatasetReal {
         CANICAS
     }
 
+    public enum CanalUs {
+        CEN,
+        IZQ,
+        DER
+    }
+
     public static final String HEADER_US = "dist_us,class_label";
     public static final String HEADER_CANICAS = "d_us_izq,d_us_cen,d_us_der,d_laser_izq,d_laser_der,angulo_servo,class_label";
 
@@ -54,6 +60,7 @@ public class GrabadorDatasetReal {
 
     private final Map<String, Integer> conteos = new LinkedHashMap<>();
     private RedObjetivo redObjetivo = RedObjetivo.CANICAS;
+    private CanalUs canalUsActivo = CanalUs.CEN;
     private int idxEtiquetaUs = 0;
     private int idxEtiquetaCanica = 0;
     private volatile boolean grabando = false;
@@ -116,8 +123,9 @@ public class GrabadorDatasetReal {
         }
     }
 
-    /** Alterna al modo Red 1 (HC-SR04 centro) y cicla BLOQUEO -> ESPACIO_LIBRE -> SALIDA. */
+    /** Alterna al modo Red 1 (HC-SR04) y cicla BLOQUEO -> ESPACIO_LIBRE -> SALIDA. */
     public synchronized String ciclarModoUs() {
+        canalUsActivo = CanalUs.CEN;
         if (redObjetivo != RedObjetivo.ULTRASONICO) {
             redObjetivo = RedObjetivo.ULTRASONICO;
         } else {
@@ -128,12 +136,21 @@ public class GrabadorDatasetReal {
 
     /** Alterna al modo Red 2 (Canicas) y cicla LOBITO_IZQ -> LOBITO_CENTRO -> LOBITO_DER -> NINGUNA. */
     public synchronized String ciclarModoCanicas() {
+        canalUsActivo = CanalUs.CEN;
         if (redObjetivo != RedObjetivo.CANICAS) {
             redObjetivo = RedObjetivo.CANICAS;
         } else {
             idxEtiquetaCanica = (idxEtiquetaCanica + 1) % ETIQUETAS_CANICAS.size();
         }
         return getEtiquetaActiva();
+    }
+
+    public synchronized void setCanalUsActivo(CanalUs canal) {
+        this.canalUsActivo = (canal != null) ? canal : CanalUs.CEN;
+    }
+
+    public synchronized CanalUs getCanalUsActivo() {
+        return canalUsActivo;
     }
 
     /** Selecciona explícitamente una etiqueta de Red 1 o Red 2 por nombre. */
@@ -287,10 +304,12 @@ public class GrabadorDatasetReal {
         boolean descartadaPorFiltro = false;
         synchronized (bloqueo) {
             RedObjetivo modo;
+            CanalUs canalUs;
             String etiqueta;
             boolean filtrarCanica;
             synchronized (this) {
                 modo = this.redObjetivo;
+                canalUs = this.canalUsActivo;
                 etiqueta = getEtiquetaActiva();
                 filtrarCanica = this.filtroImpactoCanicaActivo && modo == RedObjetivo.CANICAS;
             }
@@ -306,7 +325,12 @@ public class GrabadorDatasetReal {
 
                 String fila;
                 if (modo == RedObjetivo.ULTRASONICO) {
-                    fila = String.format(Locale.US, "%.2f,%s", sensores.getUsCenter(), etiqueta);
+                    double lecturaUs = switch (canalUs) {
+                        case IZQ -> sensores.getUsLeft();
+                        case DER -> sensores.getUsRight();
+                        case CEN -> sensores.getUsCenter();
+                    };
+                    fila = String.format(Locale.US, "%.2f,%s", lecturaUs, etiqueta);
                 } else {
                     fila = String.format(Locale.US, "%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%s",
                             sensores.getUsLeft(),
