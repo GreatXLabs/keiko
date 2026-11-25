@@ -6,6 +6,23 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
+## [2.0.8] — 2026-11-25
+
+### Fixed (Corregido)
+- **Log automático de sesión vacío con la TUI activa ([`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):**
+  - **Qué:** el `FileHandler` de `logs/corrida_<timestamp>.log` se registra en el logger del paquete `com.orquitas.server` en lugar del logger raíz.
+  - **Por qué:** `ConsolaTui` desactiva la propagación al raíz (`setUseParentHandlers(false)`) para pintar los logs en su panel, por lo que con TUI el archivo quedaba vacío salvo la línea de cierre. Ahora el archivo recibe todos los mensajes del servidor (incluido `[NAV]`) con o sin TUI.
+  - El archivo sigue siendo uno por sesión del servidor (abre al iniciar, cierra con `q`/Ctrl+C), no por corrida `[k]`→`[x]`.
+- Sin cambios de protocolo ni de firmware más allá del bump de versión (`2.0.7` y `2.0.8` son compatibles por `major.minor`).
+
+### Tests Run (Evidencia `2.0.8` — 2026-11-25)
+- `cd keiko-server && mvn test`: **67/67 OK** (0 Failures, 0 Errors, 0 Skipped).
+- `cd keiko-server && mvn package`: **`BUILD SUCCESS`**.
+- Prueba manual con TUI activa en pseudo-terminal (`script -qc "java -jar target/keiko-server.jar ..."`): `logs/corrida_*.log` registra `[HILO AUDITOR INICIADO]` y `[SERIE] Iniciando escucha...`, emitidos después de iniciar la TUI (en `2.0.7` el archivo solo contenía `[SERIE] Receptor serie detenido.`).
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.8 | mega-3us-2laser`).
+
+---
+
 ## [2.0.7] — 2026-11-25
 
 ### Changed / Improved

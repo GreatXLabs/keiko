@@ -33,7 +33,7 @@ try:
 except Exception:
     pass
 
-KEIKO_VERSION = "2.0.7"
+KEIKO_VERSION = "2.0.8"
 KEIKO_RIG = "mega-3us-2laser"
 
 DEFAULT_SWEEP_CONFIG = (-45.0, 60.0, 5.0)
