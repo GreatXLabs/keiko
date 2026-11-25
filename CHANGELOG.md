@@ -6,7 +6,22 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
-## [2.0.4] — 2026-11-24
+## [2.0.5] — 2026-11-24
+
+### Fixed (Corregido — Paso B: Calidad de Datos y Captura Guiada)
+- **Sesión limpia al iniciar `[w]` ([`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):** `archivarYReiniciarSiTieneDatos()` mueve automáticamente los CSV previos a `data/real/archivo/<timestamp>/` y reinicia conteos en `0` antes de comenzar una pasada del asistente, evitando mezclar grabaciones viejas/corruptas.
+- **Filtro anti-vacío exclusivo en captura guiada `LOBITO_*` ([`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java), [`AsistenteEntrenamientoGuiado.java`](keiko-server/src/main/java/com/orquitas/server/AsistenteEntrenamientoGuiado.java), [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java)):** durante los pasos `LOBITO_IZQ/CENTRO/DER`, el grabador CSV descarta los ángulos del barrido `-45°..+60°` que miran al fondo vacío sin caída láser (`< min(usFondo - 5, 37) cm` en el ángulo coherente), mostrando `(vacio:N)` en la TUI y guardando únicamente los `12` impactos reales sobre la canica. Corrige falsos positivos masivos (`78–80%` `LOBITO` en aire libre).
+- **Cobertura real ampliada a 23 pasos ([`AsistenteEntrenamientoGuiado.java`](keiko-server/src/main/java/com/orquitas/server/AsistenteEntrenamientoGuiado.java)):** agregados `Espacio abierto (~40 cm)`, `Pared paralela IZQ (~8 cm)` y `Pared paralela DER (~8 cm)` en `NINGUNA`, y ajustadas las 6 poses `LOBITO_*` al rango físico real efectivo de los VL53L0X (`8–15 cm` simétricos IZQ/CEN/DER).
+
+### Tests Run (Evidencia `2.0.5` — 2026-11-24)
+- `cd keiko-server && mvn clean test`: **65/65 OK** (0 Failures, 0 Errors, 0 Skipped; 11 clases JUnit 5, validando filtro anti-vacío y auto-archivo).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `python3 -m unittest discover -s keiko-sim/tests -v`: **33/33 OK**.
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.5 | mega-3us-2laser`).
+
+---
+
+## [2.0.4] — 2026-11-24 (`#27`, Mergeado en `main`)
 
 ### Added (Agregado)
 - **Asistente de Entrenamiento Guiado paso a paso en la TUI ([`AsistenteEntrenamientoGuiado.java`](keiko-server/src/main/java/com/orquitas/server/AsistenteEntrenamientoGuiado.java), [`ConsolaTui.java`](keiko-server/src/main/java/com/orquitas/server/ConsolaTui.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):**

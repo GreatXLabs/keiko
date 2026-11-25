@@ -669,13 +669,16 @@ public class ConsolaTui {
                 ? ROJO + BOLD + "[● GRAB]" + RESET
                 : CIAN + "[LISTO]" + RESET;
         String servoModo = wiz.barridoLaser() ? "Sweep" : "Servo 0°";
-        String prog = String.format(Locale.US, "%s [%s] %d/%d | %s:%s (%s) | Hechos:%d/%d",
-                estadoCap, barra, wiz.muestrasPaso(), wiz.metaPaso(),
+        String filtroTxt = (wiz.filtroImpacto() && wiz.descartadasPaso() > 0)
+                ? String.format(Locale.US, " (vacio:%d)", wiz.descartadasPaso())
+                : "";
+        String prog = String.format(Locale.US, "%s [%s] %d/%d%s | %s:%s (%s) | Hechos:%d/%d",
+                estadoCap, barra, wiz.muestrasPaso(), wiz.metaPaso(), filtroTxt,
                 CIAN + wiz.red() + RESET, AMARILLO + wiz.etiqueta() + RESET,
                 servoModo, wiz.pasosHechos(), wiz.totalPasos());
         if (longitudVisual(prog) > maxTxt) {
-            prog = String.format(Locale.US, "%s [%s] %d/%d | %s (%s)",
-                    estadoCap, barra, wiz.muestrasPaso(), wiz.metaPaso(), wiz.etiqueta(), servoModo);
+            prog = String.format(Locale.US, "%s [%s] %d/%d%s | %s (%s)",
+                    estadoCap, barra, wiz.muestrasPaso(), wiz.metaPaso(), filtroTxt, wiz.etiqueta(), servoModo);
         }
         lineas.add(filaCaja(prog, w));
     }

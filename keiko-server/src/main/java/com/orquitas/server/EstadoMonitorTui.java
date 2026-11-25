@@ -59,9 +59,11 @@ public class EstadoMonitorTui {
             String red,
             String etiqueta,
             boolean barridoLaser,
+            boolean filtroImpacto,
             boolean capturando,
             int muestrasPaso,
             int metaPaso,
+            int descartadasPaso,
             int pasosHechos,
             String titulo,
             String instruccion

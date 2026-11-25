@@ -56,7 +56,7 @@ public class ServidorCentral implements OyenteAuditor {
                 grabadorDataset.getRedObjetivo().name(),
                 grabadorDataset.getEtiquetaActiva(),
                 grabadorDataset.obtenerConteosPorClase());
-        this.grabadorDataset.setOnMuestraRegistrada(this::manejarMuestraWizardGrabada);
+        this.grabadorDataset.setOnMuestraProcesada(this::manejarMuestraWizardProcesada);
         this.receptorSerie.setGrabadorDataset(grabadorDataset);
 
         this.auditor = new AuditorEstomago(
@@ -351,6 +351,10 @@ public class ServidorCentral implements OyenteAuditor {
                     enviarComandoControl(MensajeProtocolo.crearCmdStop());
                 }
                 grabadorDataset.setGrabando(false);
+                String archivoPrevio = grabadorDataset.archivarYReiniciarSiTieneDatos();
+                if (archivoPrevio != null) {
+                    monitorTui.agregarLog("INFO", "[WIZARD] Sesion previa archivada en data/real/archivo/" + archivoPrevio + " (conteos en 0).");
+                }
                 AsistenteEntrenamientoGuiado.PasoWizard paso = asistenteGuiado.activar();
                 aplicarConfiguracionPasoWizard(paso);
                 monitorTui.registrarComandoControl("WIZARD:ON (Paso 1/" + asistenteGuiado.getTotalPasos() + ")");
@@ -358,6 +362,7 @@ public class ServidorCentral implements OyenteAuditor {
             } else {
                 asistenteGuiado.desactivar();
                 grabadorDataset.setGrabando(false);
+                grabadorDataset.setFiltroImpactoCanicaActivo(false);
                 sincronizarEstadoGrabacionTui();
                 monitorTui.actualizarWizard(null);
                 monitorTui.registrarComandoControl("WIZARD:OFF");
@@ -402,11 +407,13 @@ public class ServidorCentral implements OyenteAuditor {
             }
         } else if ("u".equals(cmd)) {
             // [SOLO PRUEBAS / ENTRENAMIENTO] Seleccionar modo US y ciclar etiqueta objetivo
+            grabadorDataset.setFiltroImpactoCanicaActivo(false);
             String etiqueta = grabadorDataset.ciclarModoUs();
             sincronizarEstadoGrabacionTui();
             monitorTui.registrarComandoControl("Etiq US=" + etiqueta);
         } else if ("m".equals(cmd)) {
             // [SOLO PRUEBAS / ENTRENAMIENTO] Seleccionar modo CANICAS y ciclar etiqueta objetivo
+            grabadorDataset.setFiltroImpactoCanicaActivo(false);
             String etiqueta = grabadorDataset.ciclarModoCanicas();
             sincronizarEstadoGrabacionTui();
             monitorTui.registrarComandoControl("Etiq CAN=" + etiqueta);
@@ -489,6 +496,7 @@ public class ServidorCentral implements OyenteAuditor {
             return;
         }
         grabadorDataset.seleccionarEtiqueta(paso.etiqueta());
+        grabadorDataset.setFiltroImpactoCanicaActivo(paso.filtrarImpactosCanica());
         boolean sweep = paso.barridoLaser();
         monitorTui.setBarridoEnReposo(sweep);
         enviarComandoControl(MensajeProtocolo.crearCmdLaser(sweep ? "SWEEP" : "0"));
@@ -496,8 +504,13 @@ public class ServidorCentral implements OyenteAuditor {
         monitorTui.actualizarWizard(asistenteGuiado.getSnapshot());
     }
 
-    private void manejarMuestraWizardGrabada() {
+    private void manejarMuestraWizardProcesada(Boolean guardada) {
         if (!asistenteGuiado.isActivo()) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(guardada)) {
+            asistenteGuiado.registrarDescartadaFiltro();
+            monitorTui.actualizarWizard(asistenteGuiado.getSnapshot());
             return;
         }
         AsistenteEntrenamientoGuiado.ResultadoMuestra res = asistenteGuiado.registrarMuestraCapturada();
@@ -515,6 +528,7 @@ public class ServidorCentral implements OyenteAuditor {
                         res.siguientePaso().titulo()));
                 return;
             }
+            grabadorDataset.setFiltroImpactoCanicaActivo(false);
             monitorTui.agregarLog("OK", String.format(java.util.Locale.US,
                     "[WIZARD] %d/%d poses completas! Apreta [t] para reentrenar y activar en vivo.",
                     asistenteGuiado.getTotalPasos(), asistenteGuiado.getTotalPasos()));
