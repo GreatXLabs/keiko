@@ -95,4 +95,5 @@ java -jar target/keiko-server.jar --serial /dev/rfcomm0 --baud 9600 --reset
 - **Pinout verificado, alimentación XL4015, picker y estómago:** [`pruebas/PICKER-ESTOMAGO-Y-ALIMENTACION.md`](pruebas/PICKER-ESTOMAGO-Y-ALIMENTACION.md)
 - **Índice de pruebas de banco y simulaciones físicas:** [`pruebas/README.md`](pruebas/README.md)
 - **Auditoría de consolidación y resolución `v2.0.0`:** [`docs/AUDITORIA_CONSOLIDACION.md`](docs/AUDITORIA_CONSOLIDACION.md)
+- **Informe de incidencias, pruebas y entrenamiento (Hito 3):** [`docs/INFORME_INCIDENCIAS_Y_PRUEBAS.md`](docs/INFORME_INCIDENCIAS_Y_PRUEBAS.md) ([`.docx`](docs/INFORME_INCIDENCIAS_Y_PRUEBAS.docx))
 - **Reglamento y especificaciones de arquitectura:** [`AGENTS.md`](AGENTS.md)
