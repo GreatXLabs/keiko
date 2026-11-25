@@ -22,10 +22,10 @@ import java.util.regex.Pattern;
  * persistencia en estomago.txt y buffer de logs sin dependencias externas.
  */
 public class ConsolaTui {
-    private static final int ANCHO_DETALLADO = 112;
+    private static final int ANCHO_DETALLADO = 106;
     private static final int ANCHO_COMPACTO = 92;
     private static final int ANCHO_ARTE = 64;
-    private static final int ANCHO_PANEL_DER = 46;
+    private static final int ANCHO_PANEL_DER = 41;
     private static final int COL_INICIO_KEIKO = 4;
     private static final int FILAS_LOGS_DETALLADO = 5;
     private static final int FILAS_LOGS_COMPACTO = 3;
@@ -214,8 +214,19 @@ public class ConsolaTui {
         if (os.contains("win")) {
             return null;
         }
-        String out = ejecutarSh("stty size </dev/tty 2>/dev/null");
-        return parsearTamanoStty(out);
+        int[] tam = parsearTamanoStty(ejecutarSh("stty size </dev/tty 2>/dev/null"));
+        if (tam != null) return tam;
+        tam = parsearTamanoStty(ejecutarSh("stty size 2>/dev/null"));
+        if (tam != null) return tam;
+        String tputOut = ejecutarSh("sh -c 'L=$(tput lines 2>/dev/null); C=$(tput cols 2>/dev/null); [ -n \"$L\" ] && [ -n \"$C\" ] && echo \"$L $C\"'");
+        tam = parsearTamanoStty(tputOut);
+        if (tam != null) return tam;
+        String colsEnv = System.getenv("COLUMNS");
+        String linesEnv = System.getenv("LINES");
+        if (colsEnv != null && linesEnv != null) {
+            return parsearTamanoStty(linesEnv + " " + colsEnv);
+        }
+        return null;
     }
 
     private void activarModoTeclaInstantanea() {
@@ -353,7 +364,7 @@ public class ConsolaTui {
 
     private static String renderizarModoDetallado(EstadoMonitorTui estado, long ahoraMs, int anchoTerm, int altoTerm) {
         int ancho = Math.max(ANCHO_DETALLADO, anchoTerm);
-        int anchoPanelDer = ancho - ANCHO_ARTE - 2;
+        int anchoPanelDer = ancho - ANCHO_ARTE - 1;
         int alto = Math.max(32, altoTerm);
 
         List<String> lineas = new ArrayList<>(alto);
@@ -362,7 +373,7 @@ public class ConsolaTui {
         for (int i = 0; i < BANNER_FUSIONADO_PLANO.length; i++) {
             String arteColoreado = colorearFilaBanner(i);
             String der = (i < panelDerecho.size()) ? panelDerecho.get(i) : "";
-            lineas.add(arteColoreado + "  " + der);
+            lineas.add(arteColoreado + " " + der);
         }
 
         agregarPanelSensoresDetallado(lineas, estado, ancho);
@@ -456,13 +467,13 @@ public class ConsolaTui {
         }
         String[] tokens = {
                 BOLD + "[k]" + RESET + "Run ",
-                BOLD + "[x]" + RESET + "Stop ",
-                BOLD + "[1-3]" + RESET + "Mod ",
+                BOLD + "[x]" + RESET + "Stp ",
+                BOLD + "[1-3]" + RESET + "M ",
                 BOLD + "[p]" + RESET + "Pck ",
                 BOLD + "[b]" + RESET + "Swp ",
-                BOLD + "[+/-]" + RESET + "Vel ",
-                BOLD + "[[/]]" + RESET + "PWM ",
-                BOLD + "[</>]" + RESET + "Rev ",
+                BOLD + "[+/-]" + RESET + "V ",
+                BOLD + "[[/]]" + RESET + "P ",
+                BOLD + "[</>]" + RESET + "R ",
                 BOLD + "[u/m]" + RESET + "Etq ",
                 BOLD + "[g]" + RESET + "Rec ",
                 CIAN + BOLD + "[w]" + RESET + "Wiz ",
@@ -503,15 +514,15 @@ public class ConsolaTui {
         String enlaceBt = String.format(Locale.US, "BT %s @ %d", puerto, estado.getBaudiosSerie());
         der.add(filaCaja("Enlace  : " + recortar(enlaceBt, w - 14), w));
         der.add(filaCaja(String.format("Cliente : %s (%d)",
-                recortar(estado.getClienteActivo(), 24 + extraPanel), estado.getClientesConectados()), w));
+                recortar(estado.getClienteActivo(), 21 + extraPanel), estado.getClientesConectados()), w));
 
         String badgeHello;
         if (!estado.isHandshakeRecibido()) {
             badgeHello = GRIS + "[ESPERANDO HELLO]" + RESET;
         } else if (estado.isHandshakeOk()) {
-            badgeHello = VERDE + "[OK]" + RESET + " v" + recortar(estado.getHandshakeVersion(), 14 + extraPanel);
+            badgeHello = VERDE + "[OK]" + RESET + " v" + recortar(estado.getHandshakeVersion(), 12 + extraPanel);
         } else {
-            badgeHello = ROJO + "[MISMATCH]" + RESET + " v" + recortar(estado.getHandshakeVersion(), 12 + extraPanel);
+            badgeHello = ROJO + "[MISMATCH]" + RESET + " v" + recortar(estado.getHandshakeVersion(), 10 + extraPanel);
         }
         der.add(filaCaja("Hello   : " + badgeHello, w));
 
@@ -538,10 +549,10 @@ public class ConsolaTui {
 
         double vl = (snap != null && snap.comando() != null) ? snap.comando().getVLeft() : 0.0;
         double vr = (snap != null && snap.comando() != null) ? snap.comando().getVRight() : 0.0;
-        der.add(filaCaja(String.format(Locale.US, "Vel: %d%% | PWM: %d..%d | Rev:%dp",
+        der.add(filaCaja(String.format(Locale.US, "Vel:%3d%% | PWM:%3d..%3d | Rev:%dp",
                 Math.round(estado.getEscalaVelocidad() * 100.0), estado.getPwmMin(), estado.getPwmMax(),
                 estado.getPasosReversa()), w));
-        int anchoBarraMotor = 12 + Math.min(20, extraPanel);
+        int anchoBarraMotor = 10 + Math.min(20, extraPanel);
         der.add(filaCaja("Motor L : " + barraMotor(vl, anchoBarraMotor), w));
         der.add(filaCaja("Motor R : " + barraMotor(vr, anchoBarraMotor), w));
 
@@ -554,8 +565,8 @@ public class ConsolaTui {
         der.add(filaCaja(formatearLineaCaptura(caps, 0, w - 4), w));
         der.add(filaCaja(formatearLaserEstomago(estado), w));
 
-        String dbg = String.format("DBG Mega: %-" + (18 + extraPanel) + "s | Errs:%d",
-                recortar(estado.getUltimoDbgEstomago(), 18 + extraPanel), estado.getTotalErroresCliente());
+        String dbg = String.format("DBG Mega: %-" + (14 + extraPanel) + "s | Errs:%d",
+                recortar(estado.getUltimoDbgEstomago(), 14 + extraPanel), estado.getTotalErroresCliente());
         der.add(filaCaja(dbg, w));
         der.add(cajaInferior(w));
         return der;
@@ -564,18 +575,18 @@ public class ConsolaTui {
     private static void agregarPanelSensoresDetallado(List<String> lineas, EstadoMonitorTui estado, int w) {
         int extra = Math.max(0, w - ANCHO_DETALLADO);
         int extraIzq = extra / 2;
-        int colUs = 55 + extraIzq;
-        int anchoBarraUs = 12 + Math.min(24, extraIzq);
+        int colUs = 49 + extraIzq;
+        int anchoBarraUs = 7 + Math.min(24, extraIzq);
         int maxResumenDer = 34 + (extra - extraIzq);
 
         lineas.add(cajaSuperior("SENSORES EN VIVO & INFERENCIA NEUROPH 2.98", w));
 
         EstadoMonitorTui.SnapshotTelemetria snap = estado.getUltimaTelemetria();
         if (snap == null || snap.sensores() == null) {
-            lineas.add(filaCaja(AMARILLO + "  [ESPERANDO TELEMETRIA]" + RESET
-                    + " Conecte Arduino Mega por Bluetooth HC-05 (TELEMETRY:usL,usC,usR,lsrL,lsrR,servo,ts).", w));
-            lineas.add(filaCaja("  Fila Superior : 3x HC-SR04 (IZQ, CEN, DER) -> Red 1 (BLOQUEO / ESPACIO_LIBRE / SALIDA)", w));
-            lineas.add(filaCaja("  Fila Inferior : 2x VL53L0X + Servo SG90 (-45°..+60°) -> Red 2 (LOBITO_IZQ/CEN/DER/NINGUNA)", w));
+            lineas.add(filaCaja(AMARILLO + " [ESPERANDO TELEMETRIA]" + RESET
+                    + " Conecta Mega por Bluetooth HC-05 (TELEMETRY:usL,usC,usR,lL,lR,servo,ts).", w));
+            lineas.add(filaCaja(" Fila Superior : 3x HC-SR04 (IZQ, CEN, DER) -> Red 1 (BLOQUEO / ESPACIO_LIBRE / SALIDA)", w));
+            lineas.add(filaCaja(" Fila Inferior : 2x VL53L0X + Servo (-45°..+60°) -> Red 2 (LOBITO_IZQ/CEN/DER/NINGUNA)", w));
             agregarPanelDatasetOWizard(lineas, estado, w, false);
             lineas.add(cajaInferior(w));
             return;
@@ -605,8 +616,8 @@ public class ConsolaTui {
         lineas.add(cajaSeparador("FILA INFERIOR (2x VL53L0X ToF + Servo SG90 -> Red 2 Canicas)", w));
 
         int extraLas = Math.min(18, extra / 3);
-        int anchoBarraLaser = 12 + extraLas;
-        int colLaser = 34 + extraLas;
+        int anchoBarraLaser = 9 + extraLas;
+        int colLaser = 31 + extraLas;
         String lsrIzq = String.format(Locale.US, "LSR-IZQ: %s %s",
                 padRightVisual(formatearDistanciaLaser(s.getLaserLeft()), 9),
                 barraLaser(s.getLaserLeft(), anchoBarraLaser));
@@ -735,7 +746,7 @@ public class ConsolaTui {
     private static String formatearFilaUltrasonido(String nombre, double distCm, String etiqueta, double conf, int anchoBarra) {
         String color = colorPorEtiqueta(etiqueta);
         String barra = barraDistancia(distCm, DISTANCIA_MAX_US_CM, anchoBarra, color);
-        return String.format(Locale.US, " %s │ %5.1fcm │ %s │ %-13s %2.0f%%",
+        return String.format(Locale.US, "%s │ %5.1fcm │ %s │ %-13s %2.0f%%",
                 nombre, distCm, barra, colorearEtiqueta(etiqueta), conf * 100.0);
     }
 
@@ -857,9 +868,10 @@ public class ConsolaTui {
     }
 
     private static String formatearLaserEstomago(EstadoMonitorTui estado) {
+        boolean modoSenal = estado.isEstomagoModoSenal();
         int mm = estado.getEstomagoMm();
-        if (mm < 0) {
-            return GRIS + "LSR-EST : --- mm (sin DBG)" + RESET;
+        if (!modoSenal && mm < 0) {
+            return GRIS + "LSR-EST : --- (sin DBG)" + RESET;
         }
         String detTxt = switch (estado.getEstomagoDetector()) {
             case 0 -> GRIS + "DES" + RESET;
@@ -867,7 +879,12 @@ public class ConsolaTui {
             case 2 -> (estado.getEstomagoCambios() > 0 ? VERDE + BOLD : VERDE) + "ARM" + RESET;
             default -> GRIS + "---" + RESET;
         };
-        return String.format(Locale.US, "LSR-EST : %3dmm (b:%3d d:%d) [%s]",
+        if (modoSenal) {
+            return String.format(Locale.US, "LSR-EST: %4.1fmcp (b:%4.1f d:%d) [%s]",
+                    estado.getEstomagoSenalMcps(), Math.max(0.0, estado.getEstomagoBaseMcps()),
+                    estado.getEstomagoCambios(), detTxt);
+        }
+        return String.format(Locale.US, "LSR-EST: %3dmm (b:%3d d:%d) [%s]",
                 mm, Math.max(0, estado.getEstomagoBaseMm()), estado.getEstomagoCambios(), detTxt);
     }
 

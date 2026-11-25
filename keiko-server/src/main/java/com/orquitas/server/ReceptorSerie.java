@@ -16,6 +16,7 @@ import java.util.logging.Logger;
 public class ReceptorSerie implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ReceptorSerie.class.getName());
     private static final long REINTENTO_CONEXION_MS = 1500L;
+    private static final long REINTENTO_FANTASMA_MAX_MS = 5000L;
 
     private final String nombrePuerto;
     private final int baudios;
@@ -103,6 +104,8 @@ public class ReceptorSerie implements Runnable {
         corriendo = true;
         LOGGER.info(() -> String.format("[SERIE] Iniciando escucha sobre %s a %d baudios (8N1)...", nombrePuerto, baudios));
 
+        int sesionesFantasmaConsecutivas = 0;
+
         while (corriendo && !Thread.currentThread().isInterrupted()) {
             SerialPort port = SerialPort.getCommPort(nombrePuerto);
             port.setComPortParameters(baudios, 8, SerialPort.ONE_STOP_BIT, SerialPort.NO_PARITY);
@@ -120,11 +123,14 @@ public class ReceptorSerie implements Runnable {
             String origenSerie = "Serie:" + nombrePuerto + "@" + baudios;
             if (monitorTui != null) {
                 monitorTui.registrarConexionCliente(origenSerie, 1);
-                monitorTui.agregarLog("OK", String.format("Enlace serie abierto en %s @ %d bps", nombrePuerto, baudios));
-            } else {
+                if (sesionesFantasmaConsecutivas == 0) {
+                    monitorTui.agregarLog("OK", String.format("Enlace serie abierto en %s @ %d bps", nombrePuerto, baudios));
+                }
+            } else if (sesionesFantasmaConsecutivas == 0) {
                 System.out.printf("[BLUETOOTH/SERIE CONECTADO] Enlace abierto en %s @ %d bps%n", nombrePuerto, baudios);
             }
 
+            boolean huboTramasValidas = false;
             try (InputStream in = port.getInputStream();
                  OutputStream out = port.getOutputStream()) {
                 ManejadorCliente manejador = new ManejadorCliente(
@@ -133,6 +139,7 @@ public class ReceptorSerie implements Runnable {
                         cooldownCapturaMs, intervaloHeartbeatMs, autoStartEnHello, monitorTui, true, grabadorDataset);
                 sesionActiva = manejador;
                 manejador.run();
+                huboTramasValidas = manejador.getTotalTramasValidas() > 0;
             } catch (Exception e) {
                 if (corriendo) {
                     LOGGER.log(Level.WARNING, "[SERIE] Conexion interrumpida en " + nombrePuerto + ": " + e.getMessage());
@@ -146,16 +153,42 @@ public class ReceptorSerie implements Runnable {
             }
 
             if (corriendo) {
-                dormirSilencioso(REINTENTO_CONEXION_MS);
+                if (huboTramasValidas) {
+                    sesionesFantasmaConsecutivas = 0;
+                    dormirSilencioso(REINTENTO_CONEXION_MS);
+                } else {
+                    sesionesFantasmaConsecutivas++;
+                    long esperaMs = calcularBackoffFantasmaMs(sesionesFantasmaConsecutivas);
+                    if (sesionesFantasmaConsecutivas == 2 && monitorTui != null) {
+                        monitorTui.agregarLog("WARN", String.format(
+                                "Puerto %s sin respuesta; reduciendo reintentos a %d ms", nombrePuerto, esperaMs));
+                    }
+                    dormirSilencioso(esperaMs);
+                }
             }
         }
         LOGGER.info("[SERIE] Receptor serie detenido.");
+    }
+
+    static long calcularBackoffFantasmaMs(int sesionesSinTramas) {
+        if (sesionesSinTramas <= 1) {
+            return REINTENTO_CONEXION_MS;
+        }
+        int shift = Math.min(2, sesionesSinTramas - 1);
+        return Math.min(REINTENTO_FANTASMA_MAX_MS, REINTENTO_CONEXION_MS * (1L << shift));
     }
 
     public void transmitirATodos(String mensaje) {
         ManejadorCliente activa = sesionActiva;
         if (activa != null && activa.isConectado()) {
             activa.enviarMensaje(mensaje);
+        }
+    }
+
+    public void marcarStartManual() {
+        ManejadorCliente activa = sesionActiva;
+        if (activa != null) {
+            activa.marcarStartManual();
         }
     }
 

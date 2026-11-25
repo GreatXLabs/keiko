@@ -105,12 +105,17 @@ public class ConsolaTuiTest {
         assertTrue(plano.contains("CAPTURA_LOBITO_1"));
         assertTrue(plano.contains("FS:OK"));
 
-        // Verificar que las lineas de las cajas inferiores tengan ancho visual consistente de 112 columnas
+        // Verificar que las lineas de las cajas inferiores tengan ancho visual consistente de 106 columnas
         String[] lineas = detallado.split("\n");
         for (int i = 18; i < lineas.length - 1; i++) {
-            assertEquals(112, ConsolaTui.longitudVisual(lineas[i]),
+            assertEquals(106, ConsolaTui.longitudVisual(lineas[i]),
                     "Ancho visual desalineado en linea " + i + ": " + lineas[i]);
         }
+
+        estado.registrarDebugCliente("DBG:senal=14.5 base=15.0 det=2 cambios=1");
+        String conSenalPlano = ConsolaTui.renderizarFrame(estado, 5040L, false).replaceAll("\033\\[[0-9;]*m", "");
+        assertTrue(conSenalPlano.contains("14.5mcp"), "Debe mostrar lectura MCPS en LSR-EST");
+        assertTrue(conSenalPlano.contains("b:15.0"), "Debe mostrar base MCPS en LSR-EST");
 
         String compacto = ConsolaTui.renderizarFrame(estado, 5040L, true);
         assertTrue(compacto.contains("KEIKO TUI (COMPACTA)"));
@@ -180,8 +185,8 @@ public class ConsolaTuiTest {
                     "Linea compacta expandida debe medir 136 cols en " + i);
         }
 
-        // Verificar que nunca desborda vertical ni horizontalmente (ej. 120x39 y terminal angosta 84x24)
-        for (int[] dim : new int[][]{{112, 34}, {120, 39}, {150, 44}, {95, 28}, {84, 24}}) {
+        // Verificar que nunca desborda vertical ni horizontalmente (ej. 106x34, 120x39 y terminal angosta 84x24)
+        for (int[] dim : new int[][]{{106, 34}, {120, 39}, {150, 44}, {95, 28}, {84, 24}}) {
             String f = ConsolaTui.renderizarFrame(estado, 5050L, false, dim[0], dim[1]);
             String[] rows = f.split("\n", -1);
             assertTrue(rows.length <= dim[1] - 1,
@@ -222,7 +227,7 @@ public class ConsolaTuiTest {
         assertTrue(plano.contains("Asistente:"));
         String[] lineas = detallado.split("\n");
         for (int i = 18; i < lineas.length - 1; i++) {
-            assertEquals(112, ConsolaTui.longitudVisual(lineas[i]),
+            assertEquals(106, ConsolaTui.longitudVisual(lineas[i]),
                     "Linea wizard detallada desalineada en " + i + ": " + lineas[i]);
         }
 
@@ -243,7 +248,7 @@ public class ConsolaTuiTest {
                     "Linea wizard compacta desalineada en " + i);
         }
 
-        for (int[] dim : new int[][]{{112, 34}, {120, 39}, {84, 24}}) {
+        for (int[] dim : new int[][]{{106, 34}, {120, 39}, {84, 24}}) {
             String f = ConsolaTui.renderizarFrame(estado, 5050L, false, dim[0], dim[1]);
             String[] rows = f.split("\n", -1);
             assertTrue(rows.length <= dim[1] - 1,

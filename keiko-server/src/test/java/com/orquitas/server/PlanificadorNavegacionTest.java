@@ -269,7 +269,7 @@ public class PlanificadorNavegacionTest {
     }
 
     @Test
-    public void testSameSidePerimeterLoopTriggersInwardBreakoutAfterFourEpisodes() {
+    public void testSameSidePerimeterLoopTriggersInwardBreakoutAfterThreeEpisodes() {
         assertSameSideBreakout(BLOQUEO_IZQ, 1);
         assertSameSideBreakout(BLOQUEO_DER, -1);
     }
@@ -290,7 +290,7 @@ public class PlanificadorNavegacionTest {
     @Test
     public void testSameSideEpisodeMemoryIsForgottenAfterHorizon() {
         PlanificadorNavegacion planner = new PlanificadorNavegacion(null);
-        for (int ep = 0; ep < 3; ep++) {
+        for (int ep = 0; ep < 2; ep++) {
             assertForwardArc(planner.evaluarPares(null, BLOQUEO_IZQ), "episodio previo " + ep);
             avanzarLibres(planner, 10);
         }
@@ -312,11 +312,19 @@ public class PlanificadorNavegacionTest {
                 ConfiguracionServidor.PASOS_REVERSA_PREDETERMINADO);
 
         PlanificadorNavegacion libreDer = new PlanificadorNavegacion(null);
-        ComandoRobot arcIzq = libreDer.evaluarPares(null, SALIDA_IZQ);
+        ComandoRobot pivoteIzq = libreDer.evaluarPares(null, SALIDA_IZQ);
         assertAll(
-                () -> assertEquals(EstadoRobot.BUSQUEDA, arcIzq.getEstado()),
-                () -> assertEquals(3.8, arcIzq.getVLeft(), 1e-9),
-                () -> assertEquals(2.2, arcIzq.getVRight(), 1e-9)
+                () -> assertEquals(EstadoRobot.BUSQUEDA, pivoteIzq.getEstado()),
+                () -> assertEquals(3.8, pivoteIzq.getVLeft(), 1e-9),
+                () -> assertEquals(-2.2, pivoteIzq.getVRight(), 1e-9)
+        );
+
+        PlanificadorNavegacion libreIzq = new PlanificadorNavegacion(null);
+        ComandoRobot pivoteDer = libreIzq.evaluarPares(null, new String[]{"ESPACIO_LIBRE", "ESPACIO_LIBRE", "SALIDA"});
+        assertAll(
+                () -> assertEquals(EstadoRobot.BUSQUEDA, pivoteDer.getEstado()),
+                () -> assertEquals(-2.2, pivoteDer.getVLeft(), 1e-9),
+                () -> assertEquals(3.8, pivoteDer.getVRight(), 1e-9)
         );
 
         PlanificadorNavegacion bloqueadoDer = new PlanificadorNavegacion(null);
@@ -333,7 +341,7 @@ public class PlanificadorNavegacionTest {
         PlanificadorNavegacion conSensores = new PlanificadorNavegacion(null);
         VectorSensores dummyCerca = new VectorSensores(new double[]{2.5, 2.5, 2.5, 2.5, 2.5, 0.0}, 100L);
 
-        for (int ep = 0; ep < 3; ep++) {
+        for (int ep = 0; ep < 2; ep++) {
             ComandoRobot c1 = planner.evaluarPares(null, bloqueoLateral);
             ComandoRobot c2 = conSensores.evaluarPares(dummyCerca, bloqueoLateral);
             assertForwardArc(c1, "episodio " + (ep + 1));
@@ -342,7 +350,7 @@ public class PlanificadorNavegacionTest {
             avanzarLibres(conSensores, 10);
         }
 
-        // 4to episodio distinto del mismo lado dentro del horizonte debe activar breakout anti-bucle.
+        // 3er episodio distinto del mismo lado dentro del horizonte debe activar breakout anti-bucle.
         ComandoRobot breakout = planner.evaluarPares(null, bloqueoLateral);
         ComandoRobot breakoutSens = conSensores.evaluarPares(dummyCerca, bloqueoLateral);
         assertComandoIgual("same-side breakout", breakout, breakoutSens);
@@ -488,18 +496,18 @@ public class PlanificadorNavegacionTest {
         ComandoRobot evitaSalida = p3.evaluarPares(null, new String[]{"SALIDA", "ESPACIO_LIBRE", "LOBITO"});
         assertEquals(EstadoRobot.BUSQUEDA, evitaSalida.getEstado());
         assertEquals(3.8, evitaSalida.getVLeft(), 1e-9);
-        assertEquals(2.2, evitaSalida.getVRight(), 1e-9);
+        assertEquals(-2.2, evitaSalida.getVRight(), 1e-9);
 
-        // 4. Persistencia de LOBITO dura 5 ciclos (0.5 s) y se corta de inmediato si aparece BLOQUEO
+        // 4. Persistencia de LOBITO dura 10 ciclos (1.0 s) y se corta de inmediato si aparece BLOQUEO
         PlanificadorNavegacion p4 = new PlanificadorNavegacion(null);
         assertEquals(EstadoRobot.APROXIMACION,
                 p4.evaluarPares(null, new String[]{"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"}).getEstado());
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
             assertEquals(EstadoRobot.APROXIMACION, p4.evaluarPares(null, LIBRE).getEstado(),
                     "Persistencia debe mantenerse en ciclo " + i);
         }
         assertEquals(EstadoRobot.BUSQUEDA, p4.evaluarPares(null, LIBRE).getEstado(),
-                "Tras 5 ciclos sin ver la canica debe volver a BUSQUEDA");
+                "Tras 10 ciclos sin ver la canica debe volver a BUSQUEDA");
 
         PlanificadorNavegacion p5 = new PlanificadorNavegacion(null);
         assertEquals(EstadoRobot.APROXIMACION,

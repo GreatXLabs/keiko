@@ -34,11 +34,11 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <VL53L0X.h>
 
-#define KEIKO_VERSION "2.0.6"
+#define KEIKO_VERSION "2.0.7"
 #define KEIKO_RIG     "mega-3us-2laser"
 
 #define PERMITIR_MANUAL 1       // [SOLO PRUEBAS / DEBUG - poner en 0 en codigo final de competencia]
-#define DEPURAR_ESTOMAGO 1      // [SOLO PRUEBAS / DEBUG - envia DBG:estomago=... en paralelo sin pisar TELEMETRY]
+#define DEPURAR_ESTOMAGO 1      // [SOLO PRUEBAS / DEBUG - envia DBG:senal=... en paralelo sin pisar TELEMETRY]
 #define ESPEJAR_USB 0           // [SOLO PRUEBAS / DEBUG - copia la telemetria al USB (115200)]
 #define ENLACE Serial1          // HC-05
 const unsigned long BAUD_ENLACE = 9600;
@@ -71,7 +71,7 @@ const int8_t PICKER_SENTIDO[2] = {1, -1};
 const uint16_t PICKER_VEL_US[2] = {360, 300};            // validado: capturó canicas
 const uint8_t PICKER_PASOS_ARRANQUE = 10;
 const unsigned long PICKER_MS_POR_PASO = 50;
-const unsigned long PICKER_EXTRA_MS = 4000;              // sigue girando tras APROXIMACION para tragar
+const unsigned long PICKER_EXTRA_MS = 2500;              // inercia tras APROXIMACION sin acumular tope 10 s
 const unsigned long PICKER_MAX_MS = 10000;               // tope duro de giro continuo (regla del usuario)
 
 // ---------------- Láseres VL53L0X ----------------
@@ -80,9 +80,8 @@ const uint8_t DIRECCION[3] = {0x30, 0x31, 0x32};
 const char *NOMBRE_TOF[3] = {"LASER_IZQ", "LASER_DER", "ESTOMAGO"};
 const uint32_t TOF_PRESUPUESTO_US = 30000;
 const unsigned long TOF_PERIODO_MS = 30;
-// Estómago (detector de canicas): 20 ms es el mínimo útil del VL53L0X
+// Estómago (detector de canicas): el sensor no acepta menos de 18 ms; mide cada ~17,5 ms
 const uint32_t TOF_ESTOMAGO_PRESUPUESTO_US = 20000;
-const unsigned long TOF_ESTOMAGO_PERIODO_MS = 20;
 const uint16_t TOF_SIN_ECO_MM = 8000;
 const float SIN_ECO_CM = 999.0f;
 
@@ -99,8 +98,11 @@ const unsigned long US_ENTRE_DISPAROS_MS = 20;           // un sensor a la vez: 
 // ---------------- Estómago ----------------
 const uint8_t CAPTURAS_META = 3;
 const uint8_t MUESTRAS_BASE = 10;
-const uint16_t UMBRAL_MM = 10;
-const uint8_t LECTURAS_CONFIRMAR = 4;
+// La canica de vidrio casi no mueve la distancia (el haz la atraviesa) pero sí la
+// señal de retorno: medido en pruebas/estomago-crudo, sin canica ±3,5 %, con canica
+// 30-60 % desde la primera muestra. Pasa 1-2 muestras frente al sensor: no esperar más.
+const uint8_t UMBRAL_SENAL_PCT = 20;
+const uint8_t LECTURAS_CONFIRMAR = 1;
 const unsigned long CAPTURA_ENFRIAMIENTO_MS = 3000;      // sin calibrar ni detectar tras una captura
 
 // ---------------- Protocolo ----------------
@@ -113,7 +115,7 @@ VL53L0X tof[3];
 bool tofOk[3];
 float usCm[3] = {SIN_ECO_CM, SIN_ECO_CM, SIN_ECO_CM};
 float laserCm[2] = {SIN_ECO_CM, SIN_ECO_CM};
-uint16_t estomagoMm = 0;
+uint16_t estomagoSenal = 0;     // tasa de señal del ToF del estómago (MCPS en punto fijo 9.7); 0 = sin dato
 uint8_t usTurno = 0;
 unsigned long usUltimo = 0, tofUltimo[3] = {0, 0, 0};
 
@@ -140,7 +142,7 @@ enum Detector : uint8_t { DESARMADO, CALIBRANDO, ARMADO };
 Detector detector = DESARMADO;
 uint32_t baseAcum = 0;
 uint8_t baseN = 0, cambiosSeguidos = 0;
-uint16_t baseMm = 0;
+uint16_t baseSenal = 0;
 uint8_t capturas = 0;
 unsigned long ultimaCaptura = 0;   // 0 = ninguna en esta corrida
 
@@ -247,8 +249,25 @@ float leerUsCm(uint8_t i) {
   return max(0.0f, US_A[i] * (us * 0.0343f / 2.0f) + US_B[i]);
 }
 
+// Estómago: trae el bloque de resultado entero sin esperar al sensor (la distancia
+// sola no ve la canica de vidrio). false = todavía no hay medición nueva.
+bool leerEstomago() {
+  if ((tof[2].readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) == 0) return false;
+  uint8_t b[12] = {0};
+  Wire.beginTransmission(DIRECCION[2]);
+  Wire.write(VL53L0X::RESULT_RANGE_STATUS);
+  bool ok = Wire.endTransmission() == 0 && Wire.requestFrom(DIRECCION[2], (uint8_t)12) == 12;
+  for (uint8_t k = 0; ok && k < 12; k++) b[k] = Wire.read();
+  tof[2].writeReg(VL53L0X::SYSTEM_INTERRUPT_CLEAR, 0x01);
+  // Bloque 0x14 según la API de ST: [6..7] señal en MCPS (punto fijo 9.7). Mínimo 1: 0 = sin dato
+  estomagoSenal = ok ? max((uint16_t)1, (uint16_t)(b[6] << 8 | b[7])) : 0;
+  return true;
+}
+
 // Una sola tarea lenta por vuelta
 void atenderSensores(unsigned long ahora) {
+  // El estómago primero: si un ultrasonido lo demora, se pierde la muestra de la canica
+  if (tofOk[2] && leerEstomago()) { tofUltimo[2] = ahora; return; }
   if (ahora - usUltimo >= US_ENTRE_DISPAROS_MS) {
     usUltimo = ahora;
     usCm[usTurno] = leerUsCm(usTurno);
@@ -256,14 +275,13 @@ void atenderSensores(unsigned long ahora) {
     return;
   }
   // Los láseres de barrido miden solo con el servo ya asentado
-  for (uint8_t i = 0; i < 3; i++) {
-    if (!tofOk[i] || ahora - tofUltimo[i] < (i == 2 ? TOF_ESTOMAGO_PERIODO_MS : TOF_PERIODO_MS)) continue;
-    if (i < 2 && ahora - ultimoMovServo < LASER_ASENTAR_MS) continue;
+  for (uint8_t i = 0; i < 2; i++) {
+    if (!tofOk[i] || ahora - tofUltimo[i] < TOF_PERIODO_MS) continue;
+    if (ahora - ultimoMovServo < LASER_ASENTAR_MS) continue;
     tofUltimo[i] = ahora;
     uint16_t mm = tof[i].readRangeContinuousMillimeters();
     bool ok = !tof[i].timeoutOccurred() && mm < TOF_SIN_ECO_MM;
-    if (i < 2) laserCm[i] = ok ? max(0.0f, mm / 10.0f + LASER_B_CM[i]) : SIN_ECO_CM;
-    else estomagoMm = ok ? mm : 0;
+    laserCm[i] = ok ? max(0.0f, mm / 10.0f + LASER_B_CM[i]) : SIN_ECO_CM;
     return;
   }
 }
@@ -275,16 +293,16 @@ void armarEstomago() {
 }
 void atenderEstomago() {
   static unsigned long ultimaMuestra = 0;
-  if (detector == DESARMADO || estomagoMm == 0 || tofUltimo[2] == ultimaMuestra) return;
-  if (ultimaCaptura && millis() - ultimaCaptura < CAPTURA_ENFRIAMIENTO_MS) return;   // el picker aún mueve la canica
+  if (detector == DESARMADO || estomagoSenal == 0 || tofUltimo[2] == ultimaMuestra) return;
+  if (ultimaCaptura && millis() - ultimaCaptura < CAPTURA_ENFRIAMIENTO_MS) return;   // el sensor tarda en reacomodarse tras la canica
   ultimaMuestra = tofUltimo[2];
   if (detector == CALIBRANDO) {
-    baseAcum += estomagoMm;
-    if (++baseN >= MUESTRAS_BASE) { baseMm = baseAcum / baseN; detector = ARMADO; }
+    baseAcum += estomagoSenal;
+    if (++baseN >= MUESTRAS_BASE) { baseSenal = baseAcum / baseN; detector = ARMADO; }
     return;
   }
-  uint16_t d = estomagoMm > baseMm ? estomagoMm - baseMm : baseMm - estomagoMm;
-  cambiosSeguidos = (d >= UMBRAL_MM) ? cambiosSeguidos + 1 : 0;
+  uint32_t d = estomagoSenal > baseSenal ? estomagoSenal - baseSenal : baseSenal - estomagoSenal;
+  cambiosSeguidos = (d * 100 >= (uint32_t)baseSenal * UMBRAL_SENAL_PCT) ? cambiosSeguidos + 1 : 0;
   if (cambiosSeguidos >= LECTURAS_CONFIRMAR) {
     capturas++; ultimaCaptura = millis();
     ENLACE.print(F("EVENT:CAPTURA_LOBITO_")); ENLACE.println(capturas);
@@ -302,6 +320,7 @@ void enviarHello() {
 }
 
 void empezarCorrida() {
+  if (corrida) { ultimoServidor = millis(); failSafe = false; return; }
   corrida = true; failSafe = false; capturas = 0; ultimaCaptura = 0; pickerBloqueado = false;
   strcpy(estado, "BUSQUEDA");
   ultimoServidor = millis();
@@ -444,8 +463,8 @@ void enviarTelemetria(unsigned long ahora) {
   static unsigned long ultimoDbg = 0;
   if (ahora - ultimoDbg >= 200 && ENLACE.availableForWrite() >= 48) {
     ultimoDbg = ahora;
-    ENLACE.print(F("DBG:estomago=")); ENLACE.print(estomagoMm);
-    ENLACE.print(F(" base=")); ENLACE.print(baseMm);
+    ENLACE.print(F("DBG:senal=")); ENLACE.print(estomagoSenal / 128.0, 1);
+    ENLACE.print(F(" base=")); ENLACE.print(baseSenal / 128.0, 1);
     ENLACE.print(F(" det=")); ENLACE.print((int)detector);
     ENLACE.print(F(" cambios=")); ENLACE.println(cambiosSeguidos);
   }

@@ -29,6 +29,7 @@ public class ManejadorCliente implements Runnable {
     private final AtomicBoolean conectado = new AtomicBoolean(true);
     private final AtomicBoolean autoStartEnviado = new AtomicBoolean(false);
     private volatile boolean exigirTelemetria7Campos;
+    private volatile int totalTramasValidas = 0;
 
     private BufferedWriter escritor;
     private final Object bloqueoEscritura = new Object();
@@ -201,22 +202,28 @@ public class ManejadorCliente implements Runnable {
 
     private void despacharLinea(String linea) {
         if (linea.startsWith(MensajeProtocolo.PREFIX_TELEMETRY)) {
+            totalTramasValidas++;
             procesarTelemetria(linea);
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_EVENT)) {
+            totalTramasValidas++;
             procesarEvento(linea);
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_HELLO)) {
+            totalTramasValidas++;
             procesarHello(linea);
         } else if (linea.equals(MensajeProtocolo.MSG_HEARTBEAT)) {
+            totalTramasValidas++;
             if (monitorTui != null) {
                 monitorTui.registrarHeartbeat(System.currentTimeMillis());
             }
             enviarMensaje(MensajeProtocolo.crearHeartbeat());
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_DBG)) {
+            totalTramasValidas++;
             if (monitorTui != null) {
                 monitorTui.registrarDebugCliente(linea);
             }
             LOGGER.fine("[DEBUG CLIENTE] " + linea);
         } else if (linea.startsWith(MensajeProtocolo.PREFIX_ERROR)) {
+            totalTramasValidas++;
             if (monitorTui != null) {
                 monitorTui.registrarErrorCliente(linea);
             }
@@ -405,5 +412,17 @@ public class ManejadorCliente implements Runnable {
 
     public boolean isConectado() {
         return conectado.get();
+    }
+
+    public int getTotalTramasValidas() {
+        return totalTramasValidas;
+    }
+
+    /**
+     * Marca que el usuario ya envio CMD:START manualmente para evitar duplicar
+     * un auto-start posterior cuando llegue HELLO en la misma sesion.
+     */
+    public void marcarStartManual() {
+        autoStartEnviado.set(true);
     }
 }

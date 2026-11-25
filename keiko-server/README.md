@@ -1,6 +1,6 @@
 # Servidor Central (Cerebro) — Proyecto Orquitas (Keiko)
 
-Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.6` | `mega-3us-2laser`)**.
+Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, conectividad exclusiva por **Bluetooth RFCOMM/SPP** (`jSerialComm`), monitor TUI ANSI en vivo, persistencia atómica y concurrencia en **Java 21 LTS** para el ecosistema **Orquitas (`2.0.7` | `mega-3us-2laser`)**.
 
 ---
 
@@ -63,14 +63,14 @@ Módulo de procesamiento distribuido, inferencia dual con **Neuroph 2.98**, cone
 cd keiko-server
 mvn clean test
 ```
-Ejecuta las **11 clases de prueba (66 tests JUnit 5)**:
-- `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `STATE_CHANGE:`, `PICKER:ON/OFF`, `DBG:estomago=...` y rechazo de tramas corruptas.
-- `PlanificadorNavegacionTest` (18 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, prioridad estricta `SALIDA > BLOQUEO > LOBITO`, persistencia corta (`5` ciclos), pivote sin reversa frente a `SALIDA`, pasos de reversa ajustables (`0..15`), anti-bucle, modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
+Ejecuta las **11 clases de prueba (67 tests JUnit 5)**:
+- `ProtocolParserTest` (10 tests): parseo de `TELEMETRY` (7 campos sin pose), `HELLO`, `CMD:START`/`CMD:STOP`, `CMD:PWM:`, `LASER:`, `STATE_CHANGE:`, `PICKER:ON/OFF`, `DBG:estomago=...`, `DBG:senal=...` y rechazo de tramas corruptas.
+- `PlanificadorNavegacionTest` (18 tests): transiciones FSM simbólicas dependientes exclusivamente de la terna neuronal `[IZQ, CEN, DER]`, prioridad estricta `SALIDA > BLOQUEO > LOBITO`, persistencia de `10` ciclos (`1.0 s`), pivote firma ante `SALIDA` lateral, pivote sin reversa frente a `SALIDA` central, pasos de reversa ajustables (`0..15`), anti-bucle (`3` episodios), modo `ESCAPE` y modos forzados (`BUSQUEDA`, `ESCAPE`, `CAPTURA`).
 - `RealDatasetAndRetrainTest` (4 tests): captura de datasets reales en marcha y en reposo (preservando `999.0` sin eco), aprendizaje fiel de canica real en `~25 cm`, reentrenamiento Neuroph 2.98, historial inmutable (`models/historial/`) y rollback en caliente.
 - `ServidorCentralControlTest` (2 tests): controles 1-tecla (`k`, `1`, `2`, `3`, `p`, `b`, `+`/`=`, `-`/`_`, `[`/`]`, `r`), modos forzados y flujo completo del Asistente Guiado `[w]` (`ESPACIO`, `n`, `a`, auto-stop por meta).
-- `ConsolaTuiTest` (6 tests): renderizado fluido ancho/alto completo, modos detallado (`112+` cols) y compacto (`92+` cols) incluyendo el Asistente Guiado `[w]`, `Vel`/`PWM`, `LSR-EST`, barras adaptativas y parseo `stty size`, cálculo de Hz, Fail-Safe `< 500 ms` y reset.
+- `ConsolaTuiTest` (6 tests): renderizado fluido ancho/alto completo, modos detallado (`106+` cols) y compacto (`92+` cols) incluyendo el Asistente Guiado `[w]`, `Vel`/`PWM`, `LSR-EST` (`mm` y `mcp`), barras adaptativas y parseo `stty size`, cálculo de Hz, Fail-Safe `< 500 ms` y reset.
 - `ConfiguracionServidorTest` (6 tests): carga de `.env`, argumentos CLI (`--auto-start`, `--no-tui`, `--tui`, `--speed-scale`, `--pwm-min`/`--pwm-max`) y resolución de rutas.
-- `HardwareSerialAndCaptureTest` (6 tests): monitoreo pasivo en reposo, escala de velocidad, cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start` e ignorado de eventos heredados.
+- `HardwareSerialAndCaptureTest` (7 tests): monitoreo pasivo en reposo, escala de velocidad, cooldown anti-rebote de capturas, `EVENT:CAPTURA`, `HELLO`, `DBG:`, `--auto-start`, supresión de auto-start duplicado tras inicio manual, backoff de puertos serie fantasma e ignorado de eventos heredados.
 - `TwoNetworksInferenceTest` (5 tests): inferencia dual pura con `modelo_ultrasonico.nnet` + `modelo_canicas.nnet`.
 - `ConcurrencyEstomagoTest` (2 tests): estrés concurrente entre múltiples hilos escritores y `AuditorEstomago`.
 - `Hito2IntegrationTest` (2 tests): integración de persistencia concurrente e inferencia dual Neuroph + FSM.
@@ -177,45 +177,45 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 
 > **Mantenimiento obligatorio:** cada PR que agregue, quite o modifique paneles, métricas o atajos de `ConsolaTui` debe mantener actualizada esta sección y su captura ASCII de referencia.
 
-### 7.1 Captura Visual de Referencia (`v2.0.5` — Modo Detallado)
+### 7.1 Captura Visual de Referencia (`v2.0.7` — Modo Detallado, `106` cols)
 
 ```text
-    ______ __    ___________               ⣸⣧                     ╭─ SISTEMA & ENLACE ─────────────────────────────╮
-    ___  //_/_______(_)__  /_______       ⢠⣿⣿⣧                    │ Ver: 2.0.5 | Rig: mega-3us-2laser              │
-    __  ,<  _  _ \_  /__  //_/  __ \     ⢠⣿⣿⣿⣿⡆     ⢀⣀⣄⡀⠰⠴⣶⣶⣤⣤⡀   │ Enlace  : BT /dev/rfcomm0 @ 9600               │
-    _  /| | /  __/  / _  ,<  / /_/ /    ⣠⣿⣿⣿⣿⣿⡇ ⢀⣤⣶⣻⣾⣿⣴⣴⣾⣿⣿⣿⣿⣿⣿⡆  │ Cliente : Serie:/dev/rfcomm0@9600 (1)          │
-    /_/ |_| \___//_/  /_/|_| \____/    ⣴⣿⣿⣿⣿⣿⣿⣥⣾⠿⢿⣿⣽⣾⣿⣿⣿⣿⣿⣿⣿⠿⢿⡿⣧  │ Hello   : [OK] v2.0.5                          │
-                                     ⣠⣾⣿⣿⣿⣿⣿⠟⠉   ⣸⣿⣿⣿⣿⡿⠟⠛⠋⠉⠐⠊⠡⢹⢚  │ Enlace  :  0.0Hz | dt: 45ms | FS:OK            │
-                           ⢀⣀⣠⣤⣤⡴⠂⠐⠒⢨⣿⣿⣿⣿⣿⣿⣤⣆⣤⣠⣴⣾⣿⣷⡿⠋⠁     ⠐⣁⠎ ⡘  │ Redes   : US[OK] CAN[OK] Pkts:1                │
-                      ⢐⣠⣤⣶⣾⣿⣿⣿⣿⣿⣆⡀⡀⣀⣨⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁           ⡜  ⡐   ├─ CEREBRO (FSM) & MOTORES ──────────────────────┤
-                   ⢠⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠛⠁       ⠄ ⠄     ⠂    │ Estado  : [BUSQUEDA]   REP #124                │
-               ⢀⣠⣴⡶⠿⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⡀              ⡠⠂     │ Vel: 60% | PWM: 105..255 | Rev:4p              │
-             ⢀⣵⣿⣿⣅    ⢈⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠖            ⣀⠂       │ Motor L : [██████░░░░░░░░░░] +2.20             │
-           ⣠⣾⣿⣿⣿⣿⣿⣿⣿⣶⣦⣌⠁ ⠉⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡏⡞          ⣀⠜⠁        │ Motor R : [██████░░░░░░░░░░] +2.20             │
-   ⣀⣀⣤⢤⢤⡴⢶⣾⡿⠿⣛⠩ ⠉⠉⠙⠛⠻⠿⢏⡀   ⠙⠻⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⢈⡷        ⣠⣷⣿⡀         ├─ ESTOMAGO (estomago.txt) ──────────────────────┤
-⢠⠖⠋⠉ ⢀ ⠂⣌⢇ ⣰⣿⠁         ⠈⠳⣄ ⡀  ⢀⣽⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋⣐⠰⠂    ⡀⣠⣴⣾⣿⣿⣿⡇         │ Capturas: ● ○ ○ (1/3)   ESCAPE: NO             │
-⠛⠓⠒⠲⢤⣀⣐⣤⡞⣸⢊⠥⣿             ⠙ ⢀⣤⣿⣿⣿⣿⣿⣿⣿⡿⠟⠋⢄⣀ ⠠⠤⠴⠂⠈⠁⢰⣿⣿⣿⣿⣿⣿⡇         │ #1: CAPTURA_LOBITO_1                           │
-        ⢿⠃  ⠸⡄              ⠈⠉⠉⠉⠉⠉⠋⠉             ⠐⣿⣿⣿⣿⣿⣿          │ LSR-EST :  58mm (b: 60 d:1) [ARM]              │
-         ⠙⢖⣦⣀⢻⡀                                   ⢻⣿⣿⣿⣿⠃          │ DBG Mega: estomago=58 base=60... | Errs:0      │
-           ⠈⠛⠾⠉                                   ⠸⣿⡿⠛⠁           ╰────────────────────────────────────────────────╯
-╭─ SENSORES EN VIVO & INFERENCIA NEUROPH 2.98 ─────────────────────────────────────────────────────────────────────╮
-│  US-IZQ │  82.5cm │ [█████░░░░░░░░░] │ ESPACIO_LIBRE 96%  │ TERNA: [ESPACIO_LIBRE|SALIDA|ESPACIO_LIBRE]          │
-│  US-CEN │ 138.0cm │ [████████░░░░░░] │ SALIDA        94%  │ Ult. Ctrl: REV=4p (0.4s)                             │
-│  US-DER │  24.5cm │ [█░░░░░░░░░░░░░] │ ESPACIO_LIBRE 92%  │ Sin errores de cliente                               │
-├─ FILA INFERIOR (2x VL53L0X ToF + Servo SG90 -> Red 2 Canicas) ───────────────────────────────────────────────────┤
-│  LSR-IZQ:  24.8 cm  [██░░░░░░░░░░░] │ LSR-DER:  25.1 cm  [██░░░░░░░░░░░] │ Red 2: LOBITO_CENTRO (91%)            │
-│  SERVO  :  -6.0°  [-45° ───────────●┼───────────────── +60°]   Barrido espejo L/R                                │
-├─ CAPTURA REAL & REENTRENAMIENTO NEUROPH (data/real) ─────────────────────────────────────────────────────────────┤
-│ [● REC] CANICAS:LOBITO_CENTRO | BLQ:42 LIB:48 SAL:35 | I:28 C:31 D:27 N:44 | Train:US:99.3% CAN:96.8%            │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─ EVENTOS Y LOGS RECIENTES ───────────────────────────────────────────────────────────────────────────────────────╮
-│ 13:24:09 [OK] HELLO Serie:/dev/rfcomm0@9600 | ver=2.0.5 rig=mega-3us-2laser (COMPATIBLE)                         │
-│ 13:24:10 [CTRL] Enviado REV=4p (0.4s)                                                                            │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- Ctrl: [k]Run [x]Stop [1-3]Mod [p]Pck [b]Swp [+/-]Vel [[/]]PWM [</>]Rev [u/m]Etq [g]Rec [w]Wiz [t]Trn [r/v/c/q]
+    ______ __    ___________               ⣸⣧               ╭─ SISTEMA & ENLACE ──────────────────────╮
+    ___  //_/_______(_)__  /_______       ⢠⣿⣿⣧              │ Ver: 2.0.7 | Rig: mega-3us-2laser       │
+    __  ,<  _  _ \_  /__  //_/  __ \     ⢠⣿⣿⣿⣿⡆     ⢀⣀⣄⡀⠰⠴⣶⣶⣤⣤⡀ │ Enlace : BT /dev/rfcomm0 @ 9600         │
+    _  /| | /  __/  / _  ,<  / /_/ /    ⣠⣿⣿⣿⣿⣿⡇ ⢀⣤⣶⣻⣾⣿⣴⣴⣾⣿⣿⣿⣿⣿⣿⡆ │ Cliente: Serie:/dev/rfcomm0@9600 (1)    │
+    /_/ |_| \___//_/  /_/|_| \____/    ⣴⣿⣿⣿⣿⣿⣿⣥⣾⠿⢿⣿⣽⣾⣿⣿⣿⣿⣿⣿⣿⠿⢿⡿⣧ │ Hello  : [OK] v2.0.7                    │
+                                     ⣠⣾⣿⣿⣿⣿⣿⠟⠉   ⣸⣿⣿⣿⣿⡿⠟⠛⠋⠉⠐⠊⠡⢹⢚ │ Enlace :  9.8Hz | dt: 45ms | FS:OK      │
+                           ⢀⣀⣠⣤⣤⡴⠂⠐⠒⢨⣿⣿⣿⣿⣿⣿⣤⣆⣤⣠⣴⣾⣿⣷⡿⠋⠁     ⠐⣁⠎ ⡘ │ Redes  : US[OK] CAN[OK] Pkts:1240       │
+                      ⢐⣠⣤⣶⣾⣿⣿⣿⣿⣿⣆⡀⡀⣀⣨⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁           ⡜  ⡐ ├─ CEREBRO (FSM) & MOTORES ───────────────┤
+                   ⢠⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠛⠁       ⠄ ⠄     ⠂ │ Estado : [BUSQUEDA]   REP #124          │
+               ⢀⣠⣴⡶⠿⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⡀              ⡠⠂ │ Vel: 40% | PWM: 105..255 | Rev:4p       │
+             ⢀⣵⣿⣿⣅    ⢈⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠖            ⣀⠂ │ Motor L: [████░░░░░░] +2.20             │
+           ⣠⣾⣿⣿⣿⣿⣿⣿⣿⣶⣦⣌⠁ ⠉⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡏⡞          ⣀⠜⠁ │ Motor R: [████░░░░░░] +2.20             │
+   ⣀⣀⣤⢤⢤⡴⢶⣾⡿⠿⣛⠩ ⠉⠉⠙⠛⠻⠿⢏⡀   ⠙⠻⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⢈⡷        ⣠⣷⣿⡀ ├─ ESTOMAGO (estomago.txt) ───────────────┤
+⢠⠖⠋⠉ ⢀ ⠂⣌⢇ ⣰⣿⠁         ⠈⠳⣄ ⡀  ⢀⣽⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋⣐⠰⠂    ⡀⣠⣴⣾⣿⣿⣿⡇ │ Capturas: ● ○ ○ (1/3)   ESCAPE: NO      │
+⠛⠓⠒⠲⢤⣀⣐⣤⡞⣸⢊⠥⣿             ⠙ ⢀⣤⣿⣿⣿⣿⣿⣿⣿⡿⠟⠋⢄⣀ ⠠⠤⠴⠂⠈⠁⢰⣿⣿⣿⣿⣿⣿⡇ │ #1: CAPTURA_LOBITO_1                    │
+        ⢿⠃  ⠸⡄              ⠈⠉⠉⠉⠉⠉⠋⠉             ⠐⣿⣿⣿⣿⣿⣿ │ LSR-EST: 14.5mcp (b:15.0 d:1) [ARM]     │
+         ⠙⢖⣦⣀⢻⡀                                   ⢻⣿⣿⣿⣿⠃ │ DBG Mega: senal=14.5 base=15.0 | Errs:0 │
+           ⠈⠛⠾⠉                                   ⠸⣿⡿⠛⠁ ╰─────────────────────────────────────────╯
+╭─ SENSORES EN VIVO & INFERENCIA NEUROPH 2.98 ───────────────────────────────────────────────────────────╮
+│  US-IZQ │  82.5cm │ [████░░░] │ ESPACIO_LIBRE 96% │ TERNA: [ESPACIO_LIBRE|SALIDA|ESPACIO_LIBRE]        │
+│  US-CEN │ 138.0cm │ [██████░] │ SALIDA        94% │ Ult. Ctrl: REV=4p (0.4s)                           │
+│  US-DER │  24.5cm │ [█░░░░░░] │ ESPACIO_LIBRE 92% │ Sin errores de cliente                             │
+├─ FILA INFERIOR (2x VL53L0X ToF + Servo SG90 -> Red 2 Canicas) ─────────────────────────────────────────┤
+│  LSR-IZQ:  24.8 cm  [██░░░░░░░] │ LSR-DER:  25.1 cm  [██░░░░░░░] │ Red 2: LOBITO_CENTRO (91%)          │
+│  SERVO  :  -6.0°  [-45° ───────────●┼───────────────── +60°]   Barrido espejo L/R                      │
+├─ CAPTURA REAL & REENTRENAMIENTO NEUROPH (data/real) ───────────────────────────────────────────────────┤
+│ [● REC] CANICAS:LOBITO_CENTRO | BLQ:42 LIB:48 SAL:35 | I:28 C:31 D:27 N:44 | Train:US:98.1% CAN:95.9%  │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ EVENTOS Y LOGS RECIENTES ─────────────────────────────────────────────────────────────────────────────╮
+│ 13:24:09 [OK] HELLO Serie:/dev/rfcomm0@9600 | ver=2.0.7 rig=mega-3us-2laser (COMPATIBLE)               │
+│ 13:24:10 [INFO] Log de corrida: logs/corrida_20261125-132409.log                                       │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ Ctrl: [k]Run [x]Stop [1-3]Mod [p]Pck [b]Swp [+/-]Vel [[/]]PWM [</>]Rev [u/m]Etq [g]Rec [w]Wiz [t]Trn [rvcq]
 ```
 
-*(Si la terminal mide menos de `112` columnas o menos de `32` filas, la TUI cambia automáticamente a `KEIKO TUI (COMPACTA)` para no desbordar márgenes).*
+*(Si la terminal mide menos de `106` columnas o menos de `32` filas, la TUI cambia automáticamente a `KEIKO TUI (COMPACTA)` para no desbordar márgenes; además toda sesión guarda copia automática en `logs/corrida_<timestamp>.log`).*
 
 ### 7.2 Qué significa cada panel y métrica
 
@@ -228,8 +228,8 @@ Todas las tramas son líneas ASCII UTF-8 delimitadas por `\n`:
 | **`Vel` / `PWM` / `Rev`** | Multiplicador de velocidad (`20%..120%`), rango `pwmZonaMuerta..pwmTope` enviado por `CMD:PWM:` y pasos de reversa ante `BLOQUEO` (`0..15`, a `10 Hz` `4p = 0.4 s`). |
 | **`Motor L` / `Motor R`** | Velocidad diferencial comandada tras aplicar la escala (`+` verde avanza, `-` rojo retrocede, `■` detenido). |
 | **`Capturas` / `ESCAPE` / `#1..#2`** | Progreso persistido en `estomago.txt` (`● ● ● (3/3)` activa `ESCAPE: SI` vía `AuditorEstomago`). |
-| **`LSR-EST`** | Lectura cruda del sensor láser VL53L0X interno del estómago en mm: `58mm (b: 60 d:1) [ARM]` = lectura actual, línea base calibrada `b`, lecturas consecutivas distintas `d`, y estado del detector (`DES` desarmado en reposo, `CAL` calibrando base, `ARM` armado). |
-| **`DBG Mega` + `Errs`** | Última trama de diagnóstico cruda emitida por el Arduino (`DBG:estomago=...`) y contador de errores reportados (`ERROR:...`). Si muestra `PCA9685_NO_RESPONDE` o `PICKER_TOPE_10S`, queda reflejado en `Ult. Err`. |
+| **`LSR-EST`** | Lectura del VL53L0X interno del estómago: en `v2.0.7` (`DBG:senal=...`) muestra tasa de retorno en MCPS (`14.5mcp (b:15.0 d:1) [ARM]`); también soporta formato heredado `DBG:estomago=<mm>`. Incluye línea base `b`, lecturas consecutivas distintas `d` y estado (`DES`, `CAL`, `ARM`). |
+| **`DBG Mega` + `Errs`** | Última trama de diagnóstico cruda emitida por el Arduino (`DBG:senal=...` o `DBG:estomago=...`) y contador de errores reportados (`ERROR:...`). Si muestra `PCA9685_NO_RESPONDE` o `PICKER_TOPE_10S`, queda reflejado en `Ult. Err`. |
 | **`US-IZQ / US-CEN / US-DER`** | Distancia en cm de los 3 HC-SR04 superiores (`999.0` = sin eco), etiqueta de Red 1 (`BLOQUEO`, `ESPACIO_LIBRE`, `SALIDA`), confianza `%` y **`TERNA`** final fusionada `[IZQ|CEN|DER]`. |
 | **`LSR-IZQ / LSR-DER / Red 2 / SERVO`** | Distancia de los 2 VL53L0X inferiores (`TIMEOUT` = `999.0` sin retorno), clase de Red 2 (`LOBITO_*` / `NINGUNA`) y ángulo de espejo (`-45°` converge al centro, `0°` recto, `+60°` abre hacia afuera). |
 | **`CAPTURA REAL` / `ASISTENTE GUIADO`** | En modo libre muestra `[● REC]`/`[PAUSA]`, `RED:ETIQUETA` y conteos en `data/real/`. Con `[w]` abre el **Asistente Guiado (23 pasos)** con instrucción en vivo, progreso `muestras/meta` (y `vacio:N` descartadas cuando filtra `LOBITO_*`) y atajos `[ESP/g]Grabar [n]Sig [a]Ant [t]Entrenar [w]Salir`. |
