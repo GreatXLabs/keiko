@@ -466,4 +466,47 @@ public class PlanificadorNavegacionTest {
         ComandoRobot cmdBusq = p.evaluarPares(null, LIBRE);
         assertEquals(EstadoRobot.BUSQUEDA, cmdBusq.getEstado());
     }
+
+    @Test
+    public void testBloqueoYSalidaSuperanALobitoYPersistenciaEsCorta() {
+        // 1. BLOQUEO frontal con LOBITO lateral: debe retroceder en BUSQUEDA, nunca avanzar hacia el muro
+        PlanificadorNavegacion p1 = new PlanificadorNavegacion(null);
+        ComandoRobot revMuro = p1.evaluarPares(null, new String[]{"LOBITO", "BLOQUEO", "ESPACIO_LIBRE"});
+        assertEquals(EstadoRobot.BUSQUEDA, revMuro.getEstado());
+        assertTrue(revMuro.getVLeft() < 0.0 && revMuro.getVRight() < 0.0,
+                "Con BLOQUEO frontal + LOBITO lateral debe dar reversa segura");
+
+        // 2. BLOQUEO lateral con LOBITO en otro sector: debe evadir muro primero (no atropellar la pared)
+        PlanificadorNavegacion p2 = new PlanificadorNavegacion(null);
+        ComandoRobot evadeLat = p2.evaluarPares(null, new String[]{"BLOQUEO", "LOBITO", "ESPACIO_LIBRE"});
+        assertEquals(EstadoRobot.BUSQUEDA, evadeLat.getEstado());
+        assertEquals(4.8, evadeLat.getVLeft(), 1e-9);
+        assertEquals(2.0, evadeLat.getVRight(), 1e-9);
+
+        // 3. SALIDA lateral con LOBITO en otro sector: prioridad SALIDA para evitar egreso accidental
+        PlanificadorNavegacion p3 = new PlanificadorNavegacion(null);
+        ComandoRobot evitaSalida = p3.evaluarPares(null, new String[]{"SALIDA", "ESPACIO_LIBRE", "LOBITO"});
+        assertEquals(EstadoRobot.BUSQUEDA, evitaSalida.getEstado());
+        assertEquals(3.8, evitaSalida.getVLeft(), 1e-9);
+        assertEquals(2.2, evitaSalida.getVRight(), 1e-9);
+
+        // 4. Persistencia de LOBITO dura 5 ciclos (0.5 s) y se corta de inmediato si aparece BLOQUEO
+        PlanificadorNavegacion p4 = new PlanificadorNavegacion(null);
+        assertEquals(EstadoRobot.APROXIMACION,
+                p4.evaluarPares(null, new String[]{"ESPACIO_LIBRE", "LOBITO", "ESPACIO_LIBRE"}).getEstado());
+        for (int i = 0; i < 5; i++) {
+            assertEquals(EstadoRobot.APROXIMACION, p4.evaluarPares(null, LIBRE).getEstado(),
+                    "Persistencia debe mantenerse en ciclo " + i);
+        }
+        assertEquals(EstadoRobot.BUSQUEDA, p4.evaluarPares(null, LIBRE).getEstado(),
+                "Tras 5 ciclos sin ver la canica debe volver a BUSQUEDA");
+
+        PlanificadorNavegacion p5 = new PlanificadorNavegacion(null);
+        assertEquals(EstadoRobot.APROXIMACION,
+                p5.evaluarPares(null, new String[]{"LOBITO", "ESPACIO_LIBRE", "ESPACIO_LIBRE"}).getEstado());
+        ComandoRobot corte = p5.evaluarPares(null, BLOQUEO_IZQ);
+        assertEquals(EstadoRobot.BUSQUEDA, corte.getEstado());
+        assertEquals(EstadoRobot.BUSQUEDA, p5.evaluarPares(null, LIBRE).getEstado(),
+                "Un BLOQUEO debe limpiar la persistencia de LOBITO de inmediato");
+    }
 }

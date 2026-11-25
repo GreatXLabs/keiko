@@ -13,6 +13,7 @@ public class PlanificadorNavegacion {
     private static final int HORIZONTE_OLVIDO_OSCILACIONES = 150;
     private static final int TAM_HISTORIAL_LADOS = 6;
     private static final int UMBRAL_EPISODIOS_MISMO_LADO = 4;
+    private static final int PERSISTENCIA_LOBITO_CICLOS = 5;
     private static final int[] DURACIONES_GIRO_ASIMETRICO = {8, 11, 14};
     private static final double VEL_ARCO_EXT = 4.8;
     private static final double VEL_ARCO_INT = 2.0;
@@ -134,8 +135,13 @@ public class PlanificadorNavegacion {
     private ComandoRobot evaluarModoBusqueda(String izq, String cen, String der) {
         boolean lIzq = "LOBITO".equals(izq), lCen = "LOBITO".equals(cen), lDer = "LOBITO".equals(der);
         boolean bIzq = "BLOQUEO".equals(izq), bCen = "BLOQUEO".equals(cen), bDer = "BLOQUEO".equals(der);
+        boolean hayBloqueo = bIzq || bCen || bDer;
+        boolean haySalida = "SALIDA".equals(izq) || "SALIDA".equals(cen) || "SALIDA".equals(der);
 
-        if (lIzq || lCen || lDer) {
+        if (hayBloqueo || haySalida) {
+            ciclosPersistenciaLobito = 0;
+            ultimoLobito = null;
+        } else if (lIzq || lCen || lDer) {
             cancelarGiroYAvance();
         }
         if (giroSoloSalidaActivo && (bCen || (bIzq && bDer))) {
@@ -147,11 +153,7 @@ public class PlanificadorNavegacion {
             return comprometido;
         }
 
-        ComandoRobot lobitoCmd = evaluarLobito(izq, cen, der, lIzq, lCen, lDer, bIzq, bCen, bDer);
-        if (lobitoCmd != null) {
-            return lobitoCmd;
-        }
-
+        // Prioridad estricta en BUSQUEDA: SALIDA > BLOQUEO > LOBITO
         // Evitar egreso prematuro antes de completar las 3 capturas: sin bloqueo al frente,
         // pivotar en el lugar (0 pasos de reversa) eligiendo lado libre y alternando sentido.
         if ("SALIDA".equals(cen) || ("SALIDA".equals(izq) && "SALIDA".equals(der))) {
@@ -194,6 +196,12 @@ public class PlanificadorNavegacion {
         if (evasion != null) {
             return evasion;
         }
+
+        ComandoRobot lobitoCmd = evaluarLobito(lIzq, lCen, lDer);
+        if (lobitoCmd != null) {
+            return lobitoCmd;
+        }
+
         if (ciclosDesdeUltimoBloqueo > HORIZONTE_OLVIDO_OSCILACIONES) {
             reiniciarMemoriaOscilaciones();
         }
@@ -201,31 +209,23 @@ public class PlanificadorNavegacion {
         return new ComandoRobot(4.8 + sweep, 4.8 - sweep, EstadoRobot.BUSQUEDA);
     }
 
-    private ComandoRobot evaluarLobito(String izq, String cen, String der,
-                                       boolean lIzq, boolean lCen, boolean lDer,
-                                       boolean bIzq, boolean bCen, boolean bDer) {
+    private ComandoRobot evaluarLobito(boolean lIzq, boolean lCen, boolean lDer) {
         if (lCen) {
-            ciclosPersistenciaLobito = 12;
+            ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
             ultimoLobito = "CEN";
             return new ComandoRobot(3.8, 3.8, EstadoRobot.APROXIMACION);
         }
         if (lIzq) {
-            ciclosPersistenciaLobito = 12;
+            ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
             ultimoLobito = "IZQ";
             return new ComandoRobot(1.8, 3.8, EstadoRobot.APROXIMACION);
         }
         if (lDer) {
-            ciclosPersistenciaLobito = 12;
+            ciclosPersistenciaLobito = PERSISTENCIA_LOBITO_CICLOS;
             ultimoLobito = "DER";
             return new ComandoRobot(3.8, 1.8, EstadoRobot.APROXIMACION);
         }
-        if (bCen || (bIzq && bDer)) {
-            ciclosPersistenciaLobito = 0;
-            ultimoLobito = null;
-            return null;
-        }
-        if (ciclosPersistenciaLobito > 0 && !bIzq && !bDer
-                && !"SALIDA".equals(izq) && !"SALIDA".equals(cen) && !"SALIDA".equals(der)) {
+        if (ciclosPersistenciaLobito > 0) {
             ciclosPersistenciaLobito--;
             if ("IZQ".equals(ultimoLobito)) return new ComandoRobot(1.8, 3.4, EstadoRobot.APROXIMACION);
             if ("DER".equals(ultimoLobito)) return new ComandoRobot(3.4, 1.8, EstadoRobot.APROXIMACION);

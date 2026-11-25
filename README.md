@@ -2,7 +2,7 @@
 
 Ecosistema robótico autónomo distribuido para la competencia **"Inteligencia y Supervivencia en la Bahía de Caza"** (Programación Sobre Redes & Desarrollo de Sistemas, Ciclo Lectivo 2026).
 
-Versión activa: **`2.0.5`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
+Versión activa: **`2.0.6`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
 
 ---
 
@@ -19,7 +19,7 @@ Versión activa: **`2.0.5`** | Hardware objetivo (`rig`): **`mega-3us-2laser`**
 
 ```text
 keiko/
-├── VERSION                   <- Fuente única de verdad de versión (2.0.5)
+├── VERSION                   <- Fuente única de verdad de versión (2.0.6)
 ├── CHANGELOG.md              <- Historial de cambios, matriz de compatibilidad y evidencia de tests
 ├── AGENTS.md                 <- Especificación técnica, reglas de arquitectura y enrutador
 ├── scripts/
@@ -29,7 +29,7 @@ keiko/
 │   ├── pom.xml               <- Dependencias (Neuroph 2.98, jSerialComm 2.11.0, JUnit 5)
 │   ├── models/               <- Redes activas (.nnet): modelo_ultrasonico.nnet y modelo_canicas.nnet
 │   ├── src/main/java/        <- Servidor Bluetooth-only, TUI ANSI, protocolo, Neuroph dual, Estomago, Auditor y FSM
-│   ├── src/test/java/        <- Suite JUnit 5 (65 tests)
+│   ├── src/test/java/        <- Suite JUnit 5 (66 tests)
 │   └── README.md             <- Manual de CLI, Bluetooth, TUI y Maven
 │
 ├── keiko-sim/                <- Simulación Robótica 3D en Webots (3US + 2Laser)
