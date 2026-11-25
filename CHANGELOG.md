@@ -6,6 +6,27 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y l
 
 ---
 
+## [2.0.9] — 2026-11-25
+
+### Changed / Improved
+- **Barrido ToF acelerado para completar ciclos mientras el robot pausa ([`orquita_firmware.ino`](firmware/orquita_firmware/orquita_firmware.ino)):**
+  - `BARRIDO_PASO = 2` (`2°` cada `28 ms`), `LASER_ASENTAR_MS = 8`, `TOF_PERIODO_MS = 25`: reduce cada media pasada `-45°..+60°` de `~3.15 s` a **`~1.48 s`** (`~3.0 s` ida y vuelta) manteniendo `3–5` impactos por canica en cada barrido.
+- **Navegación pulsada + centrado en el lugar + anti-loop de pared paralela ([`PlanificadorNavegacion.java`](keiko-server/src/main/java/com/orquitas/server/PlanificadorNavegacion.java)):**
+  - **Exploración pulsada en `BUSQUEDA`:** alterna `4` ciclos de avance (`0.4 s`) y `6` ciclos de freno `(0.0, 0.0)` (`0.6 s`) sobre `ESPACIO_LIBRE`, evitando que el robot pase de largo por inercia sobre `pwmZonaMuerta=105` y dejando al láser completar lecturas en reposo.
+  - **Centrado suave antes de avanzar en `APROXIMACION`:** ante `LOBITO_IZQ` / `LOBITO_DER`, pivota suave en el lugar (`(-2.4, 2.4)` / `(2.4, -2.4)` en ráfagas `2` ON / `4` OFF) hasta alinear `LOBITO_CENTRO`; recién al centrarla avanza recto despacio (`(2.6, 2.6)` en ráfagas `3` ON / `3` OFF) y mantiene persistencia de `12` ciclos (`1.2 s`).
+  - **Corte simbólico contra falso `LOBITO` en pared paralela:** si tras `MAX_CICLOS_CENTRADO_SIN_CENTRO = 26` ciclos (`2.6 s`) de intentar centrar no aparece `LOBITO_CENTRO`, ejecuta un giro breve alejándose del lado sospechoso (`PASOS_GIRO_DESPEGUE_FALSO_LOBITO = 6`) y activa `COOLDOWN_FALSO_LOBITO_CICLOS = 25` (`2.5 s`) ignorando falsas alertas hasta despegarse de la pared.
+- **Asistente Guiado `[w]` ampliado a 32 poses para US laterales curvados hacia afuera y paredes diagonales/paralelas ([`AsistenteEntrenamientoGuiado.java`](keiko-server/src/main/java/com/orquitas/server/AsistenteEntrenamientoGuiado.java), [`GrabadorDatasetReal.java`](keiko-server/src/main/java/com/orquitas/server/GrabadorDatasetReal.java), [`ServidorCentral.java`](keiko-server/src/main/java/com/orquitas/server/ServidorCentral.java)):**
+  - Agregado `GrabadorDatasetReal.CanalUs` (`CEN`, `IZQ`, `DER`): los nuevos pasos **9–12** de Red 1 graban directamente las lecturas de los sensores **`US-IZQ` y `US-DER` curvados hacia afuera** en pared diagonal (`~12 cm` → `BLOQUEO`) y espacio abierto (`~45 cm` → `ESPACIO_LIBRE`).
+  - Red 2 (`CANICAS`): reduce los pasos `NINGUNA` a `50` muestras (`5.0 s`, cubriendo `>1.6` barridos completos con el nuevo paso de `2°`) e incorpora 5 poses críticas nuevas (**22–26**): `Paralela pegada IZQ/DER (3–6 cm)` (US lejos + láser lateral corto), `Diagonal extrema IZQ/DER (~60°)` (rebote diagonal sin canica) y `Frente a Salida sin canica`.
+
+### Tests Run (Evidencia `2.0.9` — 2026-11-25)
+- `cd keiko-server && mvn clean test`: **68/68 OK** (`0 Failures, 0 Errors, 0 Skipped`; 11 clases JUnit 5, incluye `testAvancePulsadoYCentradoSuaveConCooldownFalsoLobito` y validación 32 poses + `CanalUs`).
+- `cd keiko-server && mvn package -DskipTests=true`: **`BUILD SUCCESS`**.
+- `python3 -m unittest discover -s keiko-sim/tests -v`: **33/33 OK** (`7.938 s`, incluye carga headless Webots).
+- `./scripts/check_versions.sh`: **9/9 `[OK]`** (`2.0.9 | mega-3us-2laser`).
+
+---
+
 ## [2.0.8] — 2026-11-25
 
 ### Fixed (Corregido)
