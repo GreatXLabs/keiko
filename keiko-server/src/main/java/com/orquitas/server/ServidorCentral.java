@@ -17,6 +17,8 @@ import java.util.logging.SimpleFormatter;
  */
 public class ServidorCentral implements OyenteAuditor {
     private static final Logger LOGGER = Logger.getLogger(ServidorCentral.class.getName());
+    // Referencia fuerte: si el Logger se recolecta, pierde el FileHandler.
+    private static final Logger LOGGER_PAQUETE = Logger.getLogger("com.orquitas.server");
 
     private final ConfiguracionServidor configuracion;
     private final GestorEstomago gestorEstomago;
@@ -134,7 +136,8 @@ public class ServidorCentral implements OyenteAuditor {
             File archivo = new File(dirLogs, "corrida_" + ts + ".log");
             FileHandler fh = new FileHandler(archivo.getPath(), false);
             fh.setFormatter(new SimpleFormatter());
-            Logger.getLogger("").addHandler(fh);
+            // Al logger del paquete y no al raiz: ConsolaTui corta la propagacion al raiz (setUseParentHandlers(false)).
+            LOGGER_PAQUETE.addHandler(fh);
             this.fileHandlerLogs = fh;
             this.rutaLogArchivo = archivo.getPath();
         } catch (Exception e) {
@@ -146,7 +149,7 @@ public class ServidorCentral implements OyenteAuditor {
         FileHandler fh = this.fileHandlerLogs;
         if (fh != null) {
             try {
-                Logger.getLogger("").removeHandler(fh);
+                LOGGER_PAQUETE.removeHandler(fh);
                 fh.close();
             } catch (Exception ignored) {
             }
